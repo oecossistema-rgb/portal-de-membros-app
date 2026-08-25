@@ -172,16 +172,41 @@ const FILTROS = [
 ];
 
 export default function PortalAgenda() {
-  const [membroLogado, setMembroLogado] = useState(null);
+  const [membroLogado, setMembroLogado] = useState(() => {
+    try {
+      const sessao = localStorage.getItem("portal_membro");
+      return sessao ? JSON.parse(sessao) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [tela, setTela] = useState("login"); // "login" | "cadastro"
 
-  if (membroLogado) {
-    return <PortalConteudo membro={membroLogado} onSair={() => setMembroLogado(null)} />;
+  function entrarMembro(membro) {
+    localStorage.setItem("portal_membro", JSON.stringify(membro));
+    setMembroLogado(membro);
   }
+
+  function sairMembro() {
+    localStorage.removeItem("portal_membro");
+    setMembroLogado(null);
+  }
+
+  if (membroLogado) {
+    return <PortalConteudo membro={membroLogado} onSair={sairMembro} />;
+  }
+
   if (tela === "cadastro") {
     return <TelaCadastro onVoltar={() => setTela("login")} />;
   }
-  return <TelaLogin onEntrar={setMembroLogado} onIrCadastro={() => setTela("cadastro")} />;
+
+  return (
+    <TelaLogin
+      onEntrar={entrarMembro}
+      onIrCadastro={() => setTela("cadastro")}
+    />
+  );
 }
 
 function AuthShell({ children }) {

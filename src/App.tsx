@@ -1,20 +1,11 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { supabase } from "./supabase";
 
 // ============================================================
-// CONFIGURAÇÃO — WEBHOOKS DO MAKE
-// Crie 3 cenários no Make, cada um começando com um webhook,
-// e cole as URLs aqui. Enquanto uma URL estiver vazia, aquela
-// função roda em modo demonstração (não envia para o servidor).
-//
-//  1. CADASTRO — recebe {nome, email, senha}, confere se o
-//     e-mail está na base de membros ativos e grava a senha.
-//  2. LOGIN     — recebe {email, senha} e responde se batem.
-//  3. PRESENÇA  — recebe a confirmação de presença no evento.
+// ARQUITETURA ATUAL
+// Supabase Auth: cadastro, login e sessão dos membros.
+// Supabase Database: registro das confirmações de presença.
 // ============================================================
-const MAKE_URL_CADASTRO = "https://hook.us2.make.com/iumu1nl84z3v8ri441j5n1kuc7eli642";
-const MAKE_URL_LOGIN = "https://hook.us2.make.com/iumu1nl84z3v8ri441j5n1kuc7eli642";
-const MAKE_URL_PRESENCA = "https://hook.us2.make.com/iumu1nl84z3v8ri441j5n1kuc7eli642";
-
 // ------------------------------------------------------------
 // Dados da agenda (extraídos do PDF oficial 26/27)
 // ------------------------------------------------------------
@@ -172,25 +163,74 @@ const FILTROS = [
 ];
 
 export default function PortalAgenda() {
-  const [membroLogado, setMembroLogado] = useState(() => {
-    try {
-      const sessao = localStorage.getItem("portal_membro");
-      return sessao ? JSON.parse(sessao) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [membroLogado, setMembroLogado] = useState(null);
+  const [tela, setTela] = useState("login");
+  const [carregandoSessao, setCarregandoSessao] = useState(true);
 
-  const [tela, setTela] = useState("login"); // "login" | "cadastro"
+  useEffect(() => {
+    async function carregarSessao() {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session?.user) {
+        const user = data.session.user;
+
+        setMembroLogado({
+          nome:
+            user.user_metadata?.nome ||
+            user.email?.split("@")[0] ||
+            "Membro",
+          login: user.email || "",
+        });
+      }
+
+      setCarregandoSessao(false);
+    }
+
+    carregarSessao();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const user = session.user;
+
+        setMembroLogado({
+          nome:
+            user.user_metadata?.nome ||
+            user.email?.split("@")[0] ||
+            "Membro",
+          login: user.email || "",
+        });
+      } else {
+        setMembroLogado(null);
+      }
+
+      setCarregandoSessao(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   function entrarMembro(membro) {
-    localStorage.setItem("portal_membro", JSON.stringify(membro));
     setMembroLogado(membro);
   }
 
-  function sairMembro() {
-    localStorage.removeItem("portal_membro");
+  async function sairMembro() {
+    await supabase.auth.signOut();
     setMembroLogado(null);
+    setTela("login");
+  }
+
+  if (carregandoSessao) {
+    return (
+      <div style={S.loginPage}>
+        <div style={{ color: "#fff", fontFamily: "'Inter', system-ui, sans-serif" }}>
+          Carregando...
+        </div>
+      </div>
+    );
   }
 
   if (membroLogado) {
@@ -240,24 +280,25 @@ function TelaLogin({ onEntrar, onIrCadastro }) {
     setCarregando(true);
     setErro("");
     try {
-      if (MAKE_URL_LOGIN) {
-        const res = await fetch(MAKE_URL_LOGIN, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ acao: "login", email: email.trim().toLowerCase(), senha }),
-        });
-        const txt = (await res.text()).trim();
-        // O cenário do Make deve responder com o nome do membro
-        // em caso de sucesso, ou "invalido" (ou vazio) se não bater.
-        if (!res.ok || !txt || txt.toLowerCase() === "invalido") {
-          throw new Error("invalido");
-        }
-        onEntrar({ nome: txt, login: email.trim().toLowerCase() });
-      } else {
-        // Modo demonstração enquanto o webhook não está conectado
-        onEntrar({ nome: email.trim(), login: email.trim().toLowerCase() });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password: senha,
+      });
+    
+      if (error || !data.user) {
+        throw new Error("invalido");
       }
-    } catch {
+    
+      const nome =
+        data.user.user_metadata?.nome ||
+        data.user.email?.split("@")[0] ||
+        "Membro";
+    
+      onEntrar({
+        nome,
+        login: data.user.email || email.trim().toLowerCase(),
+      });
+          } catch {
       setErro("E-mail ou senha incorretos.");
       setCarregando(false);
     }
@@ -315,40 +356,47 @@ function TelaCadastro({ onVoltar }) {
   const [sucesso, setSucesso] = useState(false);
 
   async function cadastrar() {
-    if (nome.trim().length < 2 || !email.trim() || senha.length < 4) {
-      setErro("Preencha seu nome, e-mail e uma senha de pelo menos 4 caracteres.");
+    const emailNormalizado = email.trim().toLowerCase();
+
+    if (nome.trim().length < 2 || !emailNormalizado || senha.length < 6) {
+      setErro("Preencha seu nome, e-mail e uma senha de pelo menos 6 caracteres.");
       return;
     }
+
     setCarregando(true);
     setErro("");
+
     try {
-      if (MAKE_URL_CADASTRO) {
-        const res = await fetch(MAKE_URL_CADASTRO, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            acao: "cadastro",
+      const { data, error } = await supabase.auth.signUp({
+        email: emailNormalizado,
+        password: senha,
+        options: {
+          data: {
             nome: nome.trim(),
-            email: email.trim().toLowerCase(),
-            senha,
-          }),
-        });
-        const txt = (await res.text()).trim().toLowerCase();
-        // O cenário confere se o e-mail está na base de membros ativos.
-        // Deve responder "ok" em sucesso, ou "nao_encontrado" / "existe".
-        if (txt === "nao_encontrado") {
-          throw new Error("Esse e-mail não está na nossa base de membros. Fale com a equipe.");
+          },
+        },
+      });
+
+      if (error) {
+        const mensagem = error.message.toLowerCase();
+
+        if (
+          mensagem.includes("already") ||
+          mensagem.includes("registered") ||
+          mensagem.includes("exists")
+        ) {
+          throw new Error("Esse e-mail já possui acesso. Volte e faça login.");
         }
-        if (txt === "existe") {
-          throw new Error("Esse e-mail já tem senha cadastrada. Volte e faça login.");
-        }
-        if (!res.ok || txt !== "ok") {
-          throw new Error("Não foi possível concluir agora. Tente novamente.");
-        }
+
+        throw error;
       }
-      setSucesso(true);
+
+      if (!data.user) {
+        throw new Error("Não foi possível criar seu acesso agora.");
+      }
+
     } catch (e) {
-      setErro(e.message || "Não foi possível concluir agora.");
+      setErro(e?.message || "Não foi possível concluir agora.");
       setCarregando(false);
     }
   }
@@ -402,7 +450,7 @@ function TelaCadastro({ onVoltar }) {
         style={S.modalInput}
         value={senha}
         onChange={(e) => setSenha(e.target.value)}
-        placeholder="mínimo 4 caracteres"
+        placeholder="mínimo 6 caracteres"
         onKeyDown={(e) => { if (e.key === "Enter") cadastrar(); }}
       />
 
@@ -431,7 +479,31 @@ function PortalConteudo({ membro, onSair }) {
   const [nomeInput, setNomeInput] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-
+  useEffect(() => {
+    async function carregarConfirmacoes() {
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
+  
+      if (authError || !authData.user) return;
+  
+      const { data, error } = await supabase
+        .from("presencas")
+        .select("evento_id, membro")
+        .eq("user_id", authData.user.id);
+  
+      if (error || !data) return;
+  
+      const mapa = {};
+  
+      data.forEach((presenca) => {
+        mapa[presenca.evento_id] = presenca.membro;
+      });
+  
+      setConfirmacoes(mapa);
+    }
+  
+    carregarConfirmacoes();
+  }, []);
   const eventosOrdenados = useMemo(
     () => [...EVENTOS].sort((a, b) => a.dataOrdenacao.localeCompare(b.dataOrdenacao)),
     []
@@ -476,13 +548,27 @@ function PortalConteudo({ membro, onSair }) {
     };
 
     try {
-      if (MAKE_URL_PRESENCA) {
-        const res = await fetch(MAKE_URL_PRESENCA, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !authData.user) {
+        throw new Error("Usuário não autenticado");
+      }
+      
+      const { error: insertError } = await supabase
+        .from("presencas")
+        .insert({
+          user_id: authData.user.id,
+          membro: nome,
+          membro_login: membro.login,
+          evento_id: modalEvento.id,
+          evento: modalEvento.titulo,
+          data_evento: modalEvento.quando,
+          trilha: TRILHAS[modalEvento.trilha].rotulo,
+          confirmado_em: new Date().toISOString(),
         });
-        if (!res.ok) throw new Error("falha");
+      
+      if (insertError) {
+        throw insertError;
       }
       setConfirmacoes((prev) => ({ ...prev, [modalEvento.id]: nome }));
       fecharModal();
@@ -491,7 +577,34 @@ function PortalConteudo({ membro, onSair }) {
       setEnviando(false);
     }
   }
-
+  async function cancelarPresenca(evento) {
+    try {
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
+  
+      if (authError || !authData.user) {
+        throw new Error("Usuário não autenticado");
+      }
+  
+      const { error: deleteError } = await supabase
+        .from("presencas")
+        .delete()
+        .eq("user_id", authData.user.id)
+        .eq("evento_id", evento.id);
+  
+      if (deleteError) {
+        throw deleteError;
+      }
+  
+      setConfirmacoes((prev) => {
+        const novo = { ...prev };
+        delete novo[evento.id];
+        return novo;
+      });
+    } catch {
+      alert("Não foi possível cancelar a presença.");
+    }
+  }
   return (
     <div style={S.page}>
       <style>{CSS}</style>
@@ -572,16 +685,26 @@ function PortalConteudo({ membro, onSair }) {
                 </div>
               </div>
               <div style={S.cardAcao}>
-                {confirmado ? (
-                  <div style={S.confirmadoBox}>
-                    <div style={S.confirmadoCheck}>✓</div>
-                    <div>
-                      <div style={S.confirmadoLabel}>Presença confirmada</div>
-                      <div style={S.confirmadoNome}>{confirmado}</div>
-                    </div>
-                  </div>
-                ) : (
-                  <button
+              {confirmado ? (
+  <button
+    onClick={() => cancelarPresenca(evento)}
+    title="Clique para cancelar sua presença"
+    style={{
+      ...S.confirmadoBox,
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      padding: 0,
+      textAlign: "left",
+    }}
+  >
+    <div style={S.confirmadoCheck}>✓</div>
+    <div>
+      <div style={S.confirmadoLabel}>Presença confirmada</div>
+      <div style={S.confirmadoNome}>{confirmado}</div>
+    </div>
+  </button>
+) : (                  <button
                     className="cta-btn"
                     style={S.ctaBtn}
                     onClick={() => abrirConfirmacao(evento)}
@@ -642,11 +765,9 @@ function PortalConteudo({ membro, onSair }) {
               {enviando ? "Confirmando..." : "Confirmar minha presença"}
             </button>
 
-            {!MAKE_URL_PRESENCA && (
               <div style={S.modalDemo}>
                 Modo demonstração — conecte o webhook do Make para registrar de verdade.
               </div>
-            )}
           </div>
         </div>
       )}

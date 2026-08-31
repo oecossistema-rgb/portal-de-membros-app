@@ -162,6 +162,55 @@ const FILTROS = [
   { id: "conselho", rotulo: "Conselho" },
 ];
 
+
+const ENTREGAVEIS = [
+  { id:"imersoes", grupo:"metodologia", numero:"01", titulo:"Imersões Master Business", resumo:"O principal momento estratégico do Ecossistema.", objetivo:"Promover momentos de imersão estratégica capazes de gerar decisões que impactem positivamente o crescimento da empresa no curto, médio e longo prazo.", descricao:"São três imersões exclusivas ao longo do ano, reunindo todos os membros em experiências intensivas de dois ou três dias. Momentos criados para o empresário sair da operação diária e mergulhar na construção estratégica do futuro do negócio, ampliando a visão, desafiando convicções e refletindo sobre decisões transformadoras.", topicos:["Ampliar a visão estratégica dos empresários","Discutir desafios reais dos negócios","Desenvolver novas soluções","Fortalecer a capacidade de liderança","Renovar a clareza sobre o futuro da empresa","Gerar conexões entre empresários de diferentes segmentos","Compartilhar experiências práticas que aceleram resultados"] },
+  { id:"reunioes-individuais", grupo:"metodologia", numero:"02", titulo:"Reuniões Individuais de Acompanhamento", resumo:"Direcionamento estratégico personalizado.", objetivo:"Garantir acompanhamento estratégico individual e potencializar os resultados de cada membro dentro do Ecossistema.", descricao:"Reuniões conduzidas pelo time de Customer Success, que podem ser solicitadas conforme necessidade, mediante agendamento e disponibilidade. Acontecem presencialmente ou online, oferecendo suporte individualizado para cada empresário extrair o máximo valor da participação no Ecossistema.", topicos:["Construção Estratégica — desenvolver estratégias para superar desafios e acelerar o crescimento","Inteligência Coletiva — identificar conexões, indicações, parcerias e sinergias entre membros","Rede de Relacionamento — aproximar o empresário de pessoas e oportunidades relevantes"] },
+  { id:"conselho", grupo:"metodologia", numero:"03", titulo:"Reuniões de Conselho Empresarial", resumo:"Sua empresa diante de um Conselho de empresários.", objetivo:"Auxiliar empresários a tomarem decisões mais estratégicas através da inteligência coletiva do Conselho Empresarial.", descricao:"Encontros em grupos reduzidos, normalmente entre 10 e 12 empresários. Cada participante apresenta sua empresa ao Conselho — compartilhando desafios, decisões e projetos — e também atua como conselheiro dos demais. O objetivo não é decidir pela empresa, mas ampliar a qualidade da reflexão e fortalecer a tomada de decisão.", topicos:["Apresentar sua empresa ao Conselho","Atuar como conselheiro dos demais participantes","Enxergar oportunidades e riscos pouco percebidos individualmente"] },
+  { id:"growth", grupo:"metodologia", numero:"04", titulo:"Growth Session", resumo:"Construindo crescimento em conjunto.", objetivo:"Desenvolver soluções práticas capazes de aumentar a geração de receita e acelerar o crescimento das empresas participantes.", descricao:"Encontros colaborativos voltados exclusivamente para geração de receita, reunindo grupos de aproximadamente oito a dez empresários. Um ambiente altamente colaborativo, onde os empresários constroem, testam, refinam e validam estratégias em conjunto.", topicos:["Campanhas comerciais e estratégias de marketing","Processos comerciais e mecanismos de aquisição de clientes","Novos produtos, serviços e posicionamento","Expansão, projetos de crescimento e validação de novas ideias"] },
+  { id:"business-day", grupo:"beneficio", numero:"05", titulo:"Business Day", resumo:"Imersão intensiva de um dia para empresários.", objetivo:"Atualizar empresários, ampliar repertório estratégico e desenvolver competências de gestão, marketing e vendas.", descricao:"Uma imersão intensiva de um dia focada no desenvolvimento de competências em gestão, marketing, vendas e estratégia empresarial. Ambiente de muito conteúdo prático, networking e troca de experiências. Benefício exclusivo, sem custo adicional, respeitando a disponibilidade de vagas.", topicos:["Conteúdo prático em gestão, marketing e vendas","Networking e troca de experiências","Novas perspectivas para o crescimento dos negócios"] },
+  { id:"network-experience", grupo:"beneficio", numero:"06", titulo:"Network Experience", resumo:"Conexões de alto valor entre empresários.", objetivo:"Expandir o capital de relacionamento dos empresários e fortalecer o ambiente de colaboração do Ecossistema.", descricao:"Um encontro criado para gerar conexões de alto valor entre empresários. Mais do que promover networking, busca construir relações capazes de gerar parcerias, indicações, novos clientes e crescimento coletivo. Benefício exclusivo, sem custo adicional, respeitando a disponibilidade de vagas.", topicos:["Fortalecer relacionamentos e ampliar a rede de contatos","Criar oportunidades reais de negócios","Construir parcerias, indicações e novos clientes"] },
+];
+
+const CULTURA = {
+  introducao:[
+    "O Ecossistema Master Business nasceu com um propósito claro: conectar empresários que desejam crescer como empresários para crescer as suas empresas.",
+    "Este manual é o nosso mapa cultural, criado para alinhar expectativas, orientar comportamentos e garantir que todos os membros construam um ambiente de alta performance, confiança e contribuição.",
+    "Aqui, cada empresário é mais que um membro: é parte de um movimento. Este documento não é apenas uma referência escrita, mas um pacto cultural que define como pensamos, como agimos e como crescemos em conjunto."
+  ],
+  visao:"Ser o maior e mais relevante ecossistema de empresários do Nordeste, referência em crescimento empresarial através de conexões e estratégias.",
+  missao:"Criar um ambiente de alta performance, onde empresários compartilham experiências, aprendizados e estratégias para que cada membro possa crescer como empresário e crescer as suas empresas, impactando positivamente sua vida pessoal, o mercado e a sociedade.",
+  valores:["Visão","Ambição","Coragem","Alta performance","Honestidade","Integridade","Compromisso","Inovação","Contribuição"]
+};
+
+const MANDAMENTOS = [
+ ["01","Visão, Ambição e Coragem são inegociáveis","Grandes líderes enxergam além do óbvio, desejam além do confortável e agem apesar do medo.","O tamanho do seu negócio nunca será maior que o tamanho da sua visão.",["Grandes líderes não se limitam a enxergar o que todos veem. Eles conseguem olhar além do óbvio, perceber oportunidades onde a maioria enxerga obstáculos e construir futuros que ainda não existem.","Ter visão significa não aceitar os limites aparentes, enxergar possibilidades maiores e direcionar o negócio para horizontes que desafiam o status quo.","No Ecossistema, acreditamos que o tamanho do seu negócio nunca será maior que o tamanho da sua visão.","O comportamento esperado de cada membro é claro: liderar com coragem, ousar pensar maior do que a média e agir com a determinação de quem está construindo um legado."]],
+ ["02","Seja obcecado pela execução","Ideias não valem nada sem ação.","Execução transforma visão em legado.",["No mundo dos negócios, ideias não valem nada sem ação. A execução é a ponte que separa os sonhadores dos realizadores, os que falam dos que constroem.","Obcecado pela execução é aquele que entende que consistência é mais importante do que genialidade.","No Ecossistema Master Business, o comportamento esperado é claro: ter disciplina, consistência e foco em entregar."]],
+ ["03","Comprometimento vence talento","O que constrói impérios não é genialidade, é consistência.","Comprometimento supera qualquer talento natural.",["Na construção de impérios, não é a genialidade que determina o resultado, mas a consistência.","Comprometimento é ser confiável, entregar o que foi prometido e aparecer todos os dias com a mesma intensidade.","O comportamento esperado de cada membro é simples e poderoso: ser confiável, entregar sempre e cumprir promessas."]],
+ ["04","Construa relacionamentos antes de construir negócios","Pessoas são o ativo mais valioso.","Networking verdadeiro gera confiança, e confiança gera negócios.",["Os maiores empresários da história entenderam cedo que o verdadeiro patrimônio não está no dinheiro, mas nas pessoas.","Relacionamentos sólidos são a base da confiança, e a confiança é o alicerce que sustenta qualquer negócio de longo prazo.","No Ecossistema Master Business, acreditamos que ninguém cresce sozinho. Primeiro se constrói conexão, para depois vir o negócio."]],
+ ["05","Esteja sempre visível e relevante","Oportunidades encontram quem aparece.","No silêncio sua rede esquece você; na visibilidade sua rede multiplica você.",["Oportunidades encontram aqueles que estão em movimento, que se mostram ao mundo e que constroem presença de forma consistente.","Ser visível não significa apenas estar presente, mas ser lembrado.","No Ecossistema Master Business, acreditamos que cada membro deve ser protagonista da própria história e exemplo vivo da cultura que construímos."]],
+ ["06","Reputação vale mais que dinheiro","Dinheiro abre portas, mas só a reputação as mantém abertas.","Reputação é o legado que o dinheiro não compra.",["Reputação é o ativo invisível que sustenta negócios sólidos. É ela que atrai novas oportunidades, gera confiança e constrói legados duradouros.","No Ecossistema Master Business, acreditamos que reputação é capital social e que vale muito mais do que qualquer saldo bancário.","Construir uma boa reputação exige tempo, mas perdê-la pode ser questão de segundos."]],
+ ["07","Seja o líder que o seu negócio precisa","Ninguém cresce sozinho; grandes líderes formam grandes times.","Grandes empresas não são feitas por heróis solitários, mas por líderes que formam exércitos.",["Nenhum império foi construído sozinho. Grandes realizações sempre nasceram da capacidade de um líder em inspirar, atrair e organizar pessoas em torno de uma visão maior.","Um verdadeiro líder busca pessoas melhores que ele em determinadas áreas, dá autonomia e cria uma cultura de responsabilidade compartilhada.","Grandes empresas não são erguidas por heróis solitários, mas por líderes capazes de formar grandes times."]],
+ ["08","Empresário inteligente toma decisões baseadas em dados","Intuição importa, mas decisões inteligentes precisam de números.","Opiniões divergem, mas dados mostram o caminho.",["Intuição é valiosa, mas, sozinha, pode se tornar perigosa. Para transformar intuição em resultado, é preciso sustentá-la com dados concretos.","Empresários inteligentes entendem que achismos não sustentam crescimento de longo prazo.","No Ecossistema Master Business, o comportamento esperado é medir o que realmente importa, acompanhar indicadores-chave, testar hipóteses e aprender com evidências."]],
+ ["09","Crescimento não acontece por acaso — planeje-o","Empresas que crescem de verdade são intencionais.","Crescimento não é sorte; é estratégia aplicada com disciplina.",["Empresas que crescem de forma consistente não dependem da sorte. Elas crescem porque são intencionais.","No Ecossistema Master Business, acreditamos que crescimento é sempre fruto de decisão consciente.","Planejamento não significa engessar o caminho, mas criar direções claras e revisar rotas de forma consistente."]],
+ ["10","Viva a cultura como um todo, não como partes","Nenhum mandamento isolado gera transformação — todos se integram.","O poder não está em um mandamento, mas em viver todos como um só.",["A força de um ecossistema não está em fragmentos isolados, mas na integração de todos os seus princípios.","No Ecossistema Master Business, acreditamos que viver a cultura é compromisso diário de praticar todos eles, com intensidade e consistência.","O verdadeiro poder não está em decorar os mandamentos, mas em vivê-los como uma filosofia de vida e de negócios."]]
+].map(([numero,titulo,sintese,frase,texto])=>({numero,titulo,sintese,frase,texto})) as Array<{numero:string;titulo:string;sintese:string;frase:string;texto:string[]}>;
+
+const REGRAS_GRUPO = {
+ intro:[
+  "Sobre a utilização do nosso grupo de WhatsApp, garantindo que continuemos mantendo um ambiente produtivo, organizado e rico em conexões, trocas e oportunidades para todos.",
+  "O objetivo é garantir que este continue sendo um ambiente de alto nível, com trocas relevantes, networking qualificado, inteligência coletiva e contribuições que realmente gerem valor para todos."
+ ],
+ blocos:[
+  {tom:"permitido",titulo:"Contribuir para o crescimento dos membros",texto:"Toda participação deve ter como foco agregar valor, gerar aprendizado, conexões, oportunidades ou contribuir para o desenvolvimento dos empresários do grupo."},
+  {tom:"permitido",titulo:"Compartilhar conteúdos relevantes",texto:"Utilize o grupo para:",itens:["Tirar dúvidas e pedir ajuda","Compartilhar experiências","Trazer informações importantes para empresários","Apresentar atualizações relevantes de mercado","Contribuir com insights estratégicos e oportunidades pertinentes"]},
+  {tom:"evitar",titulo:"Conteúdos fora do propósito do grupo",texto:"Não é permitido o envio de:",itens:["Correntes","Mensagens religiosas ou políticas","Memes e fake news","Propagandas e conteúdos aleatórios","Divulgações sem contexto ou relevância para os membros"]},
+  {tom:"evitar",titulo:"Conteúdos de redes sociais",texto:"Não é permitido o compartilhamento de posts, Reels, Stories, links ou republicações de redes sociais, mesmo quando forem de autoria do próprio membro. Se o conteúdo gerar uma reflexão relevante, compartilhe o aprendizado diretamente no grupo, contextualizando a discussão."},
+  {tom:"info",titulo:"Sobre oportunidades e divulgações",texto:"Oportunidades de negócio são bem-vindas quando fazem sentido para o perfil do grupo e trazem benefícios reais. Não é permitido enviar links de vendas, promoções ou ofertas diretamente no grupo. Abordagens comerciais e negociações devem acontecer no privado."},
+  {tom:"info",titulo:"Preservação da qualidade do grupo",texto:"Essas diretrizes existem para proteger o principal propósito do Ecossistema: fortalecer conexões, promover trocas de experiências e manter um ambiente produtivo, estratégico e valioso para todos. Em caso de dúvida, consulte os administradores."}
+ ]
+};
+
 export default function PortalAgenda() {
   const [membroLogado, setMembroLogado] = useState(null);
   const [tela, setTela] = useState("login");
@@ -472,6 +521,25 @@ function TelaCadastro({ onVoltar }) {
   );
 }
 
+
+function SecaoEntregas() {
+ const [aberto,setAberto]=useState<string|null>("imersoes");
+ const grupos=[["Entregas da metodologia",ENTREGAVEIS.filter(e=>e.grupo==="metodologia")],["Benefícios exclusivos para membros",ENTREGAVEIS.filter(e=>e.grupo==="beneficio")]] as const;
+ return <><section style={S.hero}><div style={S.heroInner}><div style={S.heroEyebrow}>Metodologia</div><h1 style={S.heroTitle}>Nossas entregas,<br/>uma jornada completa.</h1><p style={S.heroSub}>Cada entrega atua em um momento diferente do desenvolvimento da sua empresa. Juntas, formam um sistema completo de crescimento empresarial — estratégia, inteligência coletiva, conexões e execução.</p></div></section>
+ <main style={S.lista}>{grupos.map(([nome,itens],g)=><div key={nome}><div style={{...S.grupoLabel,marginTop:g?32:0}}>{nome}</div>{itens.map(item=>{const open=aberto===item.id;return <article key={item.id} style={S.entregaCard}><button style={S.entregaHead} onClick={()=>setAberto(open?null:item.id)}><span style={S.entregaNumero}>{item.numero}</span><span style={S.entregaHeadTexto}><span style={S.entregaTitulo}>{item.titulo}</span><span style={S.entregaResumo}>{item.resumo}</span></span><span style={S.entregaSeta}>{open?"⌃":"⌄"}</span></button>{open&&<div style={S.entregaCorpo}><p style={S.entregaDescricao}>{item.descricao}</p><div style={S.entregaTopicosTitulo}>Na prática</div><ul style={S.entregaLista}>{item.topicos.map((t,i)=><li key={i} style={S.entregaItem}>{t}</li>)}</ul><div style={S.entregaObjetivo}><span style={S.entregaObjetivoLabel}>Objetivo</span>{item.objetivo}</div></div>}</article>})}</div>)}<div style={S.fecho}>Conectando pessoas. Transformando negócios.</div></main></>;
+}
+
+function SecaoCultura() {
+ const [aberto,setAberto]=useState<string|null>("01");
+ return <><section style={S.hero}><div style={S.heroInner}><div style={S.heroEyebrow}>Manual de Cultura</div><h1 style={S.heroTitle}>Nosso pacto cultural.<br/>Como pensamos e agimos.</h1><p style={S.heroSub}>Mais que uma referência escrita, um pacto que define como pensamos, como agimos e como crescemos em conjunto.</p></div></section>
+ <main style={S.lista}><div style={S.blocoTexto}>{CULTURA.introducao.map((p,i)=><p key={i} style={S.paragrafo}>{p}</p>)}</div><div className="vmv-grid" style={S.vmvGrid}><div style={S.vmvCard}><div style={S.vmvLabel}>Visão</div><p style={S.vmvTexto}>{CULTURA.visao}</p></div><div style={S.vmvCard}><div style={S.vmvLabel}>Missão</div><p style={S.vmvTexto}>{CULTURA.missao}</p></div></div><div style={S.vmvCard}><div style={S.vmvLabel}>Valores</div><div style={S.valoresRow}>{CULTURA.valores.map(v=><span key={v} style={S.valorChip}>{v}</span>)}</div></div><div style={{...S.grupoLabel,marginTop:36}}>Os 10 Mandamentos</div>{MANDAMENTOS.map(m=>{const open=aberto===m.numero;return <article key={m.numero} style={S.entregaCard}><button style={S.entregaHead} onClick={()=>setAberto(open?null:m.numero)}><span style={S.entregaNumero}>{m.numero}</span><span style={S.entregaHeadTexto}><span style={S.entregaTitulo}>{m.titulo}</span><span style={S.entregaResumo}>{m.sintese}</span></span><span style={S.entregaSeta}>{open?"⌃":"⌄"}</span></button>{open&&<div style={S.entregaCorpo}>{m.texto.map((p,i)=><p key={i} style={S.entregaDescricao}>{p}</p>)}<div style={S.mandamentoFrase}>“{m.frase}”</div></div>}</article>})}</main></>;
+}
+
+function SecaoRegras() {
+ const tons:any={permitido:{b:"#8BAD3F",bg:"#E8F0D8",c:"#4A6118",r:"Recomendado"},evitar:{b:"#D98A8A",bg:"#F7E4E4",c:"#9A3B3B",r:"Não permitido"},info:{b:"#8A94A2",bg:"#EAECEF",c:"#45505F",r:"Importante"}};
+ return <><section style={S.hero}><div style={S.heroInner}><div style={S.heroEyebrow}>Grupo de WhatsApp</div><h1 style={S.heroTitle}>Regras de convivência.<br/>Um ambiente de alto nível.</h1><p style={S.heroSub}>Diretrizes para mantermos um ambiente produtivo, organizado e rico em conexões, trocas e oportunidades para todos.</p></div></section><main style={S.lista}><div style={S.blocoTexto}>{REGRAS_GRUPO.intro.map((p,i)=><p key={i} style={S.paragrafo}>{p}</p>)}</div>{REGRAS_GRUPO.blocos.map((x:any,i)=>{const t=tons[x.tom];return <article key={i} style={{...S.regraCard,borderLeft:`4px solid ${t.b}`}}><div style={S.regraHead}><span style={S.regraTitulo}>{x.titulo}</span><span style={{...S.regraChip,background:t.bg,color:t.c}}>{t.r}</span></div><p style={S.regraTexto}>{x.texto}</p>{x.itens&&<ul style={S.entregaLista}>{x.itens.map((v:string,j:number)=><li key={j} style={S.entregaItem}>{v}</li>)}</ul>}</article>})}</main></>;
+}
+
 function PortalConteudo({ membro, onSair }) {
   const [filtro, setFiltro] = useState("todos");
   const [confirmacoes, setConfirmacoes] = useState({}); // { [eventoId]: nome }
@@ -479,13 +547,15 @@ function PortalConteudo({ membro, onSair }) {
   const [nomeInput, setNomeInput] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  const [secao, setSecao] = useState<"agenda" | "membros">(
-    window.location.hash === "#membros" ? "membros" : "agenda"
-  );
+  type Secao = "agenda" | "membros" | "entregas" | "cultura" | "regras";
+  const hashInicial = window.location.hash.replace("#", "") as Secao;
+  const secoesValidas: Secao[] = ["agenda", "membros", "entregas", "cultura", "regras"];
+  const [secao, setSecao] = useState<Secao>(secoesValidas.includes(hashInicial) ? hashInicial : "agenda");
 
-  const mudarSecao = (novaSecao: "agenda" | "membros") => {
+  const mudarSecao = (novaSecao: Secao) => {
     setSecao(novaSecao);
     window.location.hash = novaSecao;
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
   useEffect(() => {
     async function carregarConfirmacoes() {
@@ -638,54 +708,12 @@ function PortalConteudo({ membro, onSair }) {
           </div>
         </div>
       </header>
-<nav
-  style={{
-    background: "#fff",
-    borderBottom: "1px solid #E5E7E2",
-    padding: "0 24px",
-  }}
->
-  <div
-    style={{
-      maxWidth: 1100,
-      margin: "0 auto",
-      display: "flex",
-      gap: 8,
-      padding: "12px 0",
-    }}
-  >
-    <button
-      onClick={() => mudarSecao("agenda")}
-      style={{
-        border: 0,
-        borderRadius: 8,
-        padding: "10px 16px",
-        cursor: "pointer",
-        fontWeight: 700,
-        background: secao === "agenda" ? "#1A1F2B" : "transparent",
-        color: secao === "agenda" ? "#fff" : "#1A1F2B",
-      }}
-    >
-      Agenda
-    </button>
-
-    <button
-      onClick={() => mudarSecao("membros")}
-      style={{
-        border: 0,
-        borderRadius: 8,
-        padding: "10px 16px",
-        cursor: "pointer",
-        fontWeight: 700,
-        background: secao === "membros" ? "#1A1F2B" : "transparent",
-        color: secao === "membros" ? "#fff" : "#1A1F2B",
-      }}
-    >
-      Membros
-    </button>
-  </div>
-</nav>
-      {secao === "agenda" ? (
+<nav style={{background:"#fff",borderBottom:"1px solid #EAECE6"}}>
+        <div style={{maxWidth:880,margin:"0 auto",padding:"10px 24px",display:"flex",gap:8,flexWrap:"wrap"}}>
+          {([["agenda","Agenda de Eventos"],["membros","Membros"],["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"]] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
+        </div>
+      </nav>
+      {secao === "agenda" && (
   <>
       <section style={S.hero}>
         <div style={S.heroInner}>
@@ -773,11 +801,12 @@ function PortalConteudo({ membro, onSair }) {
           );
         })}
     </main>
-
   </>
-) : (
-  <Membros />
 )}
+      {secao === "membros" && <Membros />}
+      {secao === "entregas" && <SecaoEntregas />}
+      {secao === "cultura" && <SecaoCultura />}
+      {secao === "regras" && <SecaoRegras />}
 
 <footer style={S.footer}>
         Ecossistema Master Business — Portal exclusivo de membros
@@ -840,6 +869,31 @@ function PortalConteudo({ membro, onSair }) {
 // Estilos
 // ------------------------------------------------------------
 const S = {
+
+  grupoLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#8A94A2",marginBottom:14},
+  entregaCard:{background:"#fff",border:"1px solid #EAECE6",borderRadius:14,marginBottom:12,overflow:"hidden"},
+  entregaHead:{display:"flex",alignItems:"center",gap:16,width:"100%",padding:"20px 22px",background:"none",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"inherit"},
+  entregaNumero:{fontSize:15,fontWeight:800,color:"#C0C6BB",minWidth:28},
+  entregaHeadTexto:{flex:1,display:"flex",flexDirection:"column",gap:3},
+  entregaTitulo:{fontSize:17,fontWeight:700,color:"#1A1F2B"}, entregaResumo:{fontSize:13.5,color:"#5A6472"}, entregaSeta:{fontSize:20,color:"#8BAD3F",fontWeight:700},
+  entregaCorpo:{padding:"0 22px 22px",borderTop:"1px solid #F0F2EC"}, entregaDescricao:{fontSize:14.5,lineHeight:1.65,color:"#3A4250",margin:"18px 0"},
+  entregaTopicosTitulo:{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#6B8E23",marginBottom:10},
+  entregaLista:{margin:"0 0 18px",paddingLeft:22}, entregaItem:{fontSize:14,lineHeight:1.55,color:"#3A4250",marginBottom:8},
+  entregaObjetivo:{background:"#F4F7EC",borderRadius:10,padding:"14px 16px",fontSize:14,lineHeight:1.6,color:"#2C3315"},
+  entregaObjetivoLabel:{display:"block",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#6B8E23",marginBottom:4},
+  fecho:{textAlign:"center",fontSize:16,fontWeight:600,color:"#4A5568",fontStyle:"italic",margin:"36px 0 8px"},
+  blocoTexto:{marginBottom:24}, paragrafo:{fontSize:15,lineHeight:1.7,color:"#3A4250",margin:"0 0 14px"},
+  vmvGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12},
+  vmvCard:{background:"#fff",border:"1px solid #EAECE6",borderRadius:14,padding:"20px 22px",marginBottom:12},
+  vmvLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#6B8E23",marginBottom:10},
+  vmvTexto:{fontSize:14.5,lineHeight:1.6,color:"#3A4250",margin:0}, valoresRow:{display:"flex",flexWrap:"wrap",gap:8},
+  valorChip:{fontSize:13,fontWeight:600,color:"#2C3315",background:"#E8F0D8",padding:"6px 14px",borderRadius:100},
+  mandamentoFrase:{fontSize:15,fontWeight:600,fontStyle:"italic",color:"#2C3315",borderLeft:"3px solid #8BAD3F",paddingLeft:14,marginTop:6},
+  regraCard:{background:"#fff",border:"1px solid #EAECE6",borderRadius:14,padding:"20px 22px",marginBottom:12},
+  regraHead:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"},
+  regraTitulo:{fontSize:16.5,fontWeight:700,color:"#1A1F2B"}, regraChip:{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:6,whiteSpace:"nowrap"},
+  regraTexto:{fontSize:14.5,lineHeight:1.65,color:"#3A4250",margin:"0 0 6px"},
+
   page: {
     minHeight: "100vh",
     background: "#F5F6F2",

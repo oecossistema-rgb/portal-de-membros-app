@@ -114,7 +114,7 @@ export default function Membros() {
         </div>
 
         <div style={styles.contador}>
-          {membrosFiltrados.length} membros
+          {busca.trim() ? membrosFiltrados.length : membros.length} membros
         </div>
       </div>
 

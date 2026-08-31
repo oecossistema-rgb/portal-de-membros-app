@@ -479,7 +479,14 @@ function PortalConteudo({ membro, onSair }) {
   const [nomeInput, setNomeInput] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  const [secao, setSecao] = useState<"agenda" | "membros">("agenda");
+  const [secao, setSecao] = useState<"agenda" | "membros">(
+    window.location.hash === "#membros" ? "membros" : "agenda"
+  );
+
+  const mudarSecao = (novaSecao: "agenda" | "membros") => {
+    setSecao(novaSecao);
+    window.location.hash = novaSecao;
+  };
   useEffect(() => {
     async function carregarConfirmacoes() {
       const { data: authData, error: authError } =
@@ -648,7 +655,7 @@ function PortalConteudo({ membro, onSair }) {
     }}
   >
     <button
-      onClick={() => setSecao("agenda")}
+      onClick={() => mudarSecao("agenda")}
       style={{
         border: 0,
         borderRadius: 8,
@@ -663,7 +670,7 @@ function PortalConteudo({ membro, onSair }) {
     </button>
 
     <button
-      onClick={() => setSecao("membros")}
+      onClick={() => mudarSecao("membros")}
       style={{
         border: 0,
         borderRadius: 8,

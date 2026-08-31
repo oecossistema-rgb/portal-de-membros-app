@@ -148,6 +148,10 @@ export default function Membros() {
                     src={membro.foto_url}
                     alt={membro.nome || "Membro"}
                     style={styles.foto}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
                   />
                 ) : (
                   <div style={styles.avatar}>
@@ -232,6 +236,9 @@ export default function Membros() {
                   src={selecionado.foto_url}
                   alt={selecionado.nome || "Membro"}
                   style={styles.modalFoto}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
               ) : (
                 <div style={styles.modalAvatar}>
@@ -242,7 +249,16 @@ export default function Membros() {
               )}
 
               <div>
-                <h2 style={styles.modalNome}>
+                <h2
+                  style={{
+                    ...styles.modalNome,
+                    color: "#1A1F2B",
+                    fontSize: 26,
+                    fontWeight: 800,
+                    lineHeight: 1.15,
+                    margin: "0 0 6px",
+                  }}
+                >
                   {selecionado.nome}
                 </h2>
 
@@ -404,7 +420,10 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 16,
     overflow: "hidden",
     border: "1px solid #E5E7E2",
-    boxShadow: "0 4px 14px rgba(0,0,0,.05)",
+    boxShadow: "0 5px 18px rgba(0,0,0,.06)",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: 390,
   },
 
   fotoArea: {
@@ -413,6 +432,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
 
   foto: {
@@ -436,6 +456,9 @@ const styles: Record<string, React.CSSProperties> = {
 
   cardConteudo: {
     padding: 20,
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
   },
 
   nome: {
@@ -466,7 +489,8 @@ const styles: Record<string, React.CSSProperties> = {
   acoes: {
     display: "flex",
     gap: 8,
-    marginTop: 18,
+    marginTop: "auto",
+    paddingTop: 18,
   },
 
   perfilBtn: {
@@ -524,28 +548,39 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     background: "#FFFFFF",
     width: "100%",
-    maxWidth: 650,
-    maxHeight: "85vh",
+    maxWidth: 720,
+    maxHeight: "calc(100vh - 40px)",
     overflowY: "auto",
-    borderRadius: 18,
-    padding: 28,
+    borderRadius: 20,
+    padding: 32,
+    boxSizing: "border-box",
+    boxShadow: "0 28px 80px rgba(0,0,0,.28)",
   },
 
   fechar: {
     position: "absolute",
-    top: 12,
-    right: 16,
+    top: 14,
+    right: 14,
+    width: 38,
+    height: 38,
     border: 0,
-    background: "transparent",
-    fontSize: 30,
+    borderRadius: "50%",
+    background: "#F0F1F3",
+    color: "#1A1F2B",
+    fontSize: 25,
+    lineHeight: 1,
     cursor: "pointer",
+    zIndex: 2,
   },
 
   modalTopo: {
     display: "flex",
-    gap: 20,
+    gap: 22,
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 8,
+    paddingRight: 46,
+    paddingBottom: 24,
+    borderBottom: "1px solid #E7E9EC",
   },
 
   modalFoto: {

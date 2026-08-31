@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
-import Membros from "./Membros";import Membros from "./Membros";
-
+import Membros from "./Membros";
 // ============================================================
 // ARQUITETURA ATUAL
 // Supabase Auth: cadastro, login e sessão dos membros.

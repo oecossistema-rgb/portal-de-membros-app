@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
+import Membros from "./Membros";import Membros from "./Membros";
 
 // ============================================================
 // ARQUITETURA ATUAL
@@ -479,6 +480,7 @@ function PortalConteudo({ membro, onSair }) {
   const [nomeInput, setNomeInput] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
+  const [secao, setSecao] = useState<"agenda" | "membros">("agenda");
   useEffect(() => {
     async function carregarConfirmacoes() {
       const { data: authData, error: authError } =
@@ -630,7 +632,55 @@ function PortalConteudo({ membro, onSair }) {
           </div>
         </div>
       </header>
+<nav
+  style={{
+    background: "#fff",
+    borderBottom: "1px solid #E5E7E2",
+    padding: "0 24px",
+  }}
+>
+  <div
+    style={{
+      maxWidth: 1100,
+      margin: "0 auto",
+      display: "flex",
+      gap: 8,
+      padding: "12px 0",
+    }}
+  >
+    <button
+      onClick={() => setSecao("agenda")}
+      style={{
+        border: 0,
+        borderRadius: 8,
+        padding: "10px 16px",
+        cursor: "pointer",
+        fontWeight: 700,
+        background: secao === "agenda" ? "#1A1F2B" : "transparent",
+        color: secao === "agenda" ? "#fff" : "#1A1F2B",
+      }}
+    >
+      Agenda
+    </button>
 
+    <button
+      onClick={() => setSecao("membros")}
+      style={{
+        border: 0,
+        borderRadius: 8,
+        padding: "10px 16px",
+        cursor: "pointer",
+        fontWeight: 700,
+        background: secao === "membros" ? "#1A1F2B" : "transparent",
+        color: secao === "membros" ? "#fff" : "#1A1F2B",
+      }}
+    >
+      Membros
+    </button>
+  </div>
+</nav>
+      {secao === "agenda" ? (
+  <>
       <section style={S.hero}>
         <div style={S.heroInner}>
           <div style={S.heroEyebrow}>Agenda 26 / 27</div>
@@ -716,9 +766,14 @@ function PortalConteudo({ membro, onSair }) {
             </article>
           );
         })}
-      </main>
+    </main>
 
-      <footer style={S.footer}>
+  </>
+) : (
+  <Membros />
+)}
+
+<footer style={S.footer}>
         Ecossistema Master Business — Portal exclusivo de membros
       </footer>
 

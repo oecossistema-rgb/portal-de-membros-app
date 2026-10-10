@@ -339,38 +339,49 @@ function AdminEventos() {
 
 function AdminPresencas() {
   const [eventos, setEventos] = useState<Evento[]>([]);
-  const [eventoId, setEventoId] = useState("");
-  const [presencas, setPresencas] = useState<Presenca[]>([]);
+  const [todas, setTodas] = useState<Presenca[]>([]);
+  const [eventoId, setEventoId] = useState("todos");
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
 
-  useEffect(() => {
-    supabase.from("eventos").select("*").order("data_inicio").then(({ data }) => {
-      const ev = (data as Evento[]) || [];
-      setEventos(ev);
-      const hoje = new Date().toISOString().slice(0, 10);
-      const proximo = ev.find((e) => e.data_inicio >= hoje) || ev[ev.length - 1];
-      if (proximo) setEventoId(proximo.id);
-    });
-  }, []);
-
-  async function carregar(id: string) {
-    const { data } = await supabase.from("presencas").select("id,evento_id,membro,membro_login,confirmado_em").eq("evento_id", id).order("membro");
-    setPresencas((data as Presenca[]) || []);
+  async function carregar() {
+    setCarregando(true);
+    const [{ data: ev }, { data: pr, error }] = await Promise.all([
+      supabase.from("eventos").select("*").order("data_inicio"),
+      supabase.from("presencas").select("id,evento_id,membro,membro_login,confirmado_em").order("confirmado_em", { ascending: false }),
+    ]);
+    setEventos((ev as Evento[]) || []);
+    setTodas((pr as Presenca[]) || []);
+    setErro(error ? "Não foi possível carregar as presenças." : "");
+    setCarregando(false);
   }
-  useEffect(() => { if (eventoId) carregar(eventoId); }, [eventoId]);
+  useEffect(() => { carregar(); }, []);
+
+  const porEvento = useMemo(() => {
+    const t: Record<string, number> = {};
+    todas.forEach((p) => { t[p.evento_id] = (t[p.evento_id] || 0) + 1; });
+    return t;
+  }, [todas]);
+
+  const nomeEvento = (id: string) => {
+    const e = eventos.find((x) => x.id === id);
+    return e ? `${e.titulo} — ${e.quando}` : id;
+  };
+
+  const visiveis = eventoId === "todos" ? todas : todas.filter((p) => p.evento_id === eventoId);
 
   async function remover(p: Presenca) {
     if (!confirm(`Remover a presença de "${p.membro}"?`)) return;
     await supabase.from("presencas").delete().eq("id", p.id);
-    carregar(eventoId);
+    carregar();
   }
 
   function exportar() {
-    const ev = eventos.find((e) => e.id === eventoId);
-    const linhas = [["Nome", "E-mail", "Confirmado em"], ...presencas.map((p) => [p.membro, p.membro_login, dataCurta(p.confirmado_em)])];
-    const csv = "﻿" + linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const linhas = [["Evento", "Nome", "E-mail", "Confirmado em"], ...visiveis.map((p) => [nomeEvento(p.evento_id), p.membro, p.membro_login, dataCurta(p.confirmado_em)])];
+    const csv = "\uFEFF" + linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = `presencas-${ev?.id || "evento"}.csv`;
+    a.download = `presencas-${eventoId}.csv`;
     a.click();
   }
 
@@ -378,16 +389,19 @@ function AdminPresencas() {
     <main style={ui.largo}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <select style={{ ...ui.input, flex: "1 1 320px" }} value={eventoId} onChange={(e) => setEventoId(e.target.value)}>
-          {eventos.map((e) => <option key={e.id} value={e.id}>{e.titulo} — {e.quando}</option>)}
+          <option value="todos">Todos os eventos ({todas.length} confirmações)</option>
+          {eventos.map((e) => <option key={e.id} value={e.id}>{e.titulo} — {e.quando} ({porEvento[e.id] || 0})</option>)}
         </select>
-        <button style={ui.botaoSecundario} onClick={exportar} disabled={!presencas.length}>Baixar lista (Excel)</button>
+        <button style={ui.botaoSecundario} onClick={exportar} disabled={!visiveis.length}>Baixar lista (Excel)</button>
       </div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#4A6118", marginBottom: 10 }}>{presencas.length} presença(s) confirmada(s)</div>
-      {presencas.length === 0 ? <div style={ui.aviso}>Ninguém confirmou presença neste evento ainda.</div> : presencas.map((p) => (
+      {erro && <div style={ui.erro}>{erro}</div>}
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#4A6118", marginBottom: 10 }}>{visiveis.length} presença(s) confirmada(s)</div>
+      {carregando ? <div style={ui.aviso}>Carregando...</div> : visiveis.length === 0 ? <div style={ui.aviso}>Ninguém confirmou presença neste evento ainda.</div> : visiveis.map((p) => (
         <div key={p.id} style={{ ...ui.cartao, padding: "12px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 240px" }}>
             <div style={{ fontWeight: 700 }}>{p.membro}</div>
             <div style={{ fontSize: 13, color: "#5A6472" }}>{p.membro_login} · confirmado em {dataCurta(p.confirmado_em)}</div>
+            {eventoId === "todos" && <div style={{ fontSize: 12, color: "#6B8E23", fontWeight: 700, marginTop: 2 }}>{nomeEvento(p.evento_id)}</div>}
           </div>
           <button style={ui.botaoPerigo} onClick={() => remover(p)}>Remover</button>
         </div>

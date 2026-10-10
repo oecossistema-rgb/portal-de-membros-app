@@ -292,7 +292,7 @@ function TelaNovaSenha({ onConcluir }) {
       <p style={S.loginSub}>Escolha uma senha com pelo menos 8 caracteres.</p>
       <label style={S.modalLabel} htmlFor="n-senha">Nova senha</label>
       <input id="n-senha" type="password" style={S.modalInput} value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="n-conf">Repita a nova senha</label>
+      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="n-conf">Confirme a nova senha</label>
       <input
         id="n-conf"
         type="password"

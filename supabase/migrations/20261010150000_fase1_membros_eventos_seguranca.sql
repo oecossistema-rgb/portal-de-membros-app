@@ -1,4 +1,7 @@
 -- Fase 1: lista de membros autorizados, administrador, eventos no banco e RLS revisada.
+-- Aplicada em 10/10/2026 em partes (fase1_parte1..parte6). Diferença: as policies antigas
+-- "membros_select_authenticated" e "Usuario registra sua propria presenca" foram ajustadas
+-- com ALTER POLICY em vez de removidas, com o mesmo efeito.
 
 -- ---------- membros ----------
 alter table public.membros add column if not exists is_admin boolean not null default false;

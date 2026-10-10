@@ -16,6 +16,7 @@ type Membro = {
   modelo_negocio: string | null;
   conexoes_buscadas: string | null;
   como_pode_contribuir: string | null;
+  email: string | null;
 };
 
 export default function Membros() {
@@ -49,7 +50,8 @@ export default function Membros() {
         produtos_servicos,
         modelo_negocio,
         conexoes_buscadas,
-        como_pode_contribuir
+        como_pode_contribuir,
+        email
       `)
       .eq("ativo", true)
       .order("nome", { ascending: true });
@@ -307,6 +309,10 @@ export default function Membros() {
                 titulo="Como pode contribuir"
                 texto={selecionado.como_pode_contribuir}
               />
+            )}
+
+            {selecionado.email && (
+              <Bloco titulo="E-mail" texto={selecionado.email} />
             )}
 
             {selecionado.site_instagram && (

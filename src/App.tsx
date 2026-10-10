@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import Membros from "./Membros";
+import MeuPerfil from "./MeuPerfil";
+import Admin from "./Admin";
 // ============================================================
 // ARQUITETURA ATUAL
 // Supabase Auth: cadastro, login e sessão dos membros.
@@ -9,143 +11,15 @@ import Membros from "./Membros";
 // ------------------------------------------------------------
 // Dados da agenda (extraídos do PDF oficial 26/27)
 // ------------------------------------------------------------
-const EVENTOS = [
-  {
-    id: "imersao-nov-2026",
-    trilha: "imersao",
-    titulo: "Imersão Ecossistema Master Business",
-    quando: "13 e 14 de Novembro de 2026",
-    diaSemana: "Sexta e Sábado",
-    dataOrdenacao: "2026-11-13",
-    inscrivel: true,
-  },
-  {
-    id: "business-day-2026",
-    trilha: "business-day",
-    titulo: "Ecossistema Business Day",
-    quando: "28 de Novembro de 2026",
-    diaSemana: "Sábado",
-    dataOrdenacao: "2026-11-28",
-    inscrivel: true,
-  },
-  {
-    id: "imersao-mar-2027",
-    trilha: "imersao",
-    titulo: "Imersão Ecossistema Master Business",
-    quando: "26 e 27 de Março de 2027",
-    diaSemana: "Sexta e Sábado",
-    dataOrdenacao: "2027-03-26",
-    inscrivel: true,
-  },
-  {
-    id: "imersao-jul-2027",
-    trilha: "imersao",
-    titulo: "Imersão Ecossistema Master Business",
-    quando: "23 e 24 de Julho de 2027",
-    diaSemana: "Sexta e Sábado",
-    dataOrdenacao: "2027-07-23",
-    inscrivel: true,
-  },
-  {
-    id: "imersao-nov-2027",
-    trilha: "imersao",
-    titulo: "Imersão Ecossistema Master Business",
-    quando: "12 e 13 de Novembro de 2027",
-    diaSemana: "Sexta e Sábado",
-    dataOrdenacao: "2027-11-12",
-    inscrivel: true,
-  },
-  {
-    id: "gs-ago-2026",
-    trilha: "growth",
-    titulo: "Growth Session",
-    quando: "19 de Agosto de 2026",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2026-08-19",
-    inscrivel: true,
-  },
-  {
-    id: "conselho-set-2026",
-    trilha: "conselho",
-    titulo: "Reunião de Conselho",
-    quando: "16 de Setembro de 2026",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2026-09-16",
-    inscrivel: true,
-  },
-  {
-    id: "gs-out-2026",
-    trilha: "growth",
-    titulo: "Growth Session",
-    quando: "14 de Outubro de 2026",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2026-10-14",
-    inscrivel: true,
-  },
-  {
-    id: "conselho-nov-2026",
-    trilha: "conselho",
-    titulo: "Reunião de Conselho",
-    quando: "18 de Novembro de 2026",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2026-11-18",
-    inscrivel: true,
-  },
-  {
-    id: "gs-dez-2026",
-    trilha: "growth",
-    titulo: "Growth Session",
-    quando: "16 de Dezembro de 2026",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2026-12-16",
-    inscrivel: true,
-  },
-  {
-    id: "conselho-jan-2027",
-    trilha: "conselho",
-    titulo: "Reunião de Conselho",
-    quando: "13 de Janeiro de 2027",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2027-01-13",
-    inscrivel: true,
-  },
-  {
-    id: "gs-fev-2027",
-    trilha: "growth",
-    titulo: "Growth Session",
-    quando: "17 de Fevereiro de 2027",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2027-02-17",
-    inscrivel: true,
-  },
-  {
-    id: "conselho-mar-2027",
-    trilha: "conselho",
-    titulo: "Reunião de Conselho",
-    quando: "17 de Março de 2027",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2027-03-17",
-    inscrivel: true,
-  },
-  {
-    id: "gs-abr-2027",
-    trilha: "growth",
-    titulo: "Growth Session",
-    quando: "14 de Abril de 2027",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2027-04-14",
-    inscrivel: true,
-  },
-  {
-    id: "conselho-mai-2027",
-    trilha: "conselho",
-    titulo: "Reunião de Conselho",
-    quando: "12 de Maio de 2027",
-    diaSemana: "Quarta-feira",
-    dataOrdenacao: "2027-05-12",
-    inscrivel: true,
-  },
-];
+type EventoAgenda = {
+  id: string;
+  trilha: string;
+  titulo: string;
+  quando: string;
+  diaSemana: string;
+  dataOrdenacao: string;
+  inscrivel: boolean;
+};
 
 const TRILHAS = {
   imersao: { rotulo: "Imersão", cor: "#8BAD3F", corTexto: "#2C3315" },
@@ -211,60 +85,57 @@ const REGRAS_GRUPO = {
  ]
 };
 
+type MembroLogado = {
+  userId: string;
+  nome: string;
+  login: string;
+  ativo: boolean;
+  isAdmin: boolean;
+};
+
+async function montarMembro(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<MembroLogado> {
+  const { data } = await supabase
+    .from("membros")
+    .select("nome, ativo, is_admin")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+  return {
+    userId: user.id,
+    nome: data?.nome || (user.user_metadata?.nome as string) || user.email?.split("@")[0] || "Membro",
+    login: user.email || "",
+    ativo: !!data?.ativo,
+    isAdmin: !!data?.ativo && !!data?.is_admin,
+  };
+}
+
 export default function PortalAgenda() {
-  const [membroLogado, setMembroLogado] = useState(null);
+  const [membroLogado, setMembroLogado] = useState<MembroLogado | null>(null);
   const [tela, setTela] = useState("login");
   const [carregandoSessao, setCarregandoSessao] = useState(true);
+  const [recuperandoSenha, setRecuperandoSenha] = useState(false);
 
   useEffect(() => {
-    async function carregarSessao() {
-      const { data } = await supabase.auth.getSession();
-
-      if (data.session?.user) {
-        const user = data.session.user;
-
-        setMembroLogado({
-          nome:
-            user.user_metadata?.nome ||
-            user.email?.split("@")[0] ||
-            "Membro",
-          login: user.email || "",
-        });
-      }
-
-      setCarregandoSessao(false);
-    }
-
-    carregarSessao();
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const user = session.user;
-
-        setMembroLogado({
-          nome:
-            user.user_metadata?.nome ||
-            user.email?.split("@")[0] ||
-            "Membro",
-          login: user.email || "",
-        });
-      } else {
-        setMembroLogado(null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecuperandoSenha(true);
       }
-
-      setCarregandoSessao(false);
+      // Busca o perfil fora do callback para não travar o cliente de autenticação.
+      setTimeout(async () => {
+        if (session?.user) {
+          setMembroLogado(await montarMembro(session.user));
+        } else {
+          setMembroLogado(null);
+        }
+        setCarregandoSessao(false);
+      }, 0);
     });
 
     return () => {
       subscription.unsubscribe();
     };
   }, []);
-
-  function entrarMembro(membro) {
-    setMembroLogado(membro);
-  }
 
   async function sairMembro() {
     await supabase.auth.signOut();
@@ -282,7 +153,14 @@ export default function PortalAgenda() {
     );
   }
 
+  if (recuperandoSenha && membroLogado) {
+    return <TelaNovaSenha onConcluir={() => setRecuperandoSenha(false)} />;
+  }
+
   if (membroLogado) {
+    if (!membroLogado.ativo) {
+      return <TelaSemAcesso email={membroLogado.login} onSair={sairMembro} />;
+    }
     return <PortalConteudo membro={membroLogado} onSair={sairMembro} />;
   }
 
@@ -290,11 +168,159 @@ export default function PortalAgenda() {
     return <TelaCadastro onVoltar={() => setTela("login")} />;
   }
 
+  if (tela === "esqueci") {
+    return <TelaEsqueciSenha onVoltar={() => setTela("login")} />;
+  }
+
   return (
     <TelaLogin
-      onEntrar={entrarMembro}
       onIrCadastro={() => setTela("cadastro")}
+      onEsqueci={() => setTela("esqueci")}
     />
+  );
+}
+
+function TelaEsqueciSenha({ onVoltar }) {
+  const [email, setEmail] = useState("");
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+
+  async function enviar() {
+    const e = email.trim().toLowerCase();
+    if (!e.includes("@")) {
+      setErro("Digite o e-mail que você usa no portal.");
+      return;
+    }
+    setEnviando(true);
+    setErro("");
+    const { error } = await supabase.auth.resetPasswordForEmail(e, {
+      redirectTo: window.location.origin + window.location.pathname,
+    });
+    setEnviando(false);
+    if (error) {
+      setErro(
+        error.status === 429
+          ? "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+          : "Não foi possível enviar agora. Fale com a administração do Ecossistema."
+      );
+      return;
+    }
+    setEnviado(true);
+  }
+
+  if (enviado) {
+    return (
+      <AuthShell>
+        <h1 style={S.loginTitulo}>Verifique seu e-mail</h1>
+        <p style={S.loginSub}>
+          Se esse e-mail estiver cadastrado, você vai receber um link para criar uma nova senha.
+          Confira também a caixa de spam.
+        </p>
+        <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={onVoltar}>
+          Voltar ao login
+        </button>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell>
+      <h1 style={S.loginTitulo}>Esqueci minha senha</h1>
+      <p style={S.loginSub}>Informe seu e-mail e enviaremos um link para criar uma nova senha.</p>
+      <label style={S.modalLabel} htmlFor="r-email">E-mail</label>
+      <input
+        id="r-email"
+        style={S.modalInput}
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="seu e-mail de membro"
+        autoFocus
+        onKeyDown={(e) => { if (e.key === "Enter") enviar(); }}
+      />
+      {erro && <div style={S.modalErro}>{erro}</div>}
+      <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={enviar} disabled={enviando}>
+        {enviando ? "Enviando..." : "Enviar link"}
+      </button>
+      <button style={S.linkBtn} onClick={onVoltar}>Voltar ao login</button>
+    </AuthShell>
+  );
+}
+
+function TelaNovaSenha({ onConcluir }) {
+  const [senha, setSenha] = useState("");
+  const [confirmacao, setConfirmacao] = useState("");
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [pronto, setPronto] = useState(false);
+
+  async function salvar() {
+    if (senha.length < 8) {
+      setErro("A senha precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (senha !== confirmacao) {
+      setErro("As duas senhas não são iguais.");
+      return;
+    }
+    setSalvando(true);
+    setErro("");
+    const { error } = await supabase.auth.updateUser({ password: senha });
+    setSalvando(false);
+    if (error) {
+      setErro("Não foi possível salvar a nova senha. Peça um novo link e tente de novo.");
+      return;
+    }
+    setPronto(true);
+  }
+
+  if (pronto) {
+    return (
+      <AuthShell>
+        <h1 style={S.loginTitulo}>Senha alterada</h1>
+        <p style={S.loginSub}>Pronto! Sua nova senha já está valendo.</p>
+        <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={onConcluir}>
+          Entrar no portal
+        </button>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell>
+      <h1 style={S.loginTitulo}>Criar nova senha</h1>
+      <p style={S.loginSub}>Escolha uma senha com pelo menos 8 caracteres.</p>
+      <label style={S.modalLabel} htmlFor="n-senha">Nova senha</label>
+      <input id="n-senha" type="password" style={S.modalInput} value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus />
+      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="n-conf">Repita a nova senha</label>
+      <input
+        id="n-conf"
+        type="password"
+        style={S.modalInput}
+        value={confirmacao}
+        onChange={(e) => setConfirmacao(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") salvar(); }}
+      />
+      {erro && <div style={S.modalErro}>{erro}</div>}
+      <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={salvar} disabled={salvando}>
+        {salvando ? "Salvando..." : "Salvar nova senha"}
+      </button>
+    </AuthShell>
+  );
+}
+
+function TelaSemAcesso({ email, onSair }) {
+  return (
+    <AuthShell>
+      <h1 style={S.loginTitulo}>Acesso não liberado</h1>
+      <p style={S.loginSub}>
+        O e-mail <strong>{email}</strong> não está na lista de membros ativos do Ecossistema.
+        Se você é membro, fale com a administração para liberar seu acesso.
+      </p>
+      <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={onSair}>
+        Sair
+      </button>
+    </AuthShell>
   );
 }
 
@@ -315,7 +341,7 @@ function AuthShell({ children }) {
   );
 }
 
-function TelaLogin({ onEntrar, onIrCadastro }) {
+function TelaLogin({ onIrCadastro, onEsqueci }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
@@ -328,29 +354,15 @@ function TelaLogin({ onEntrar, onIrCadastro }) {
     }
     setCarregando(true);
     setErro("");
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password: senha,
-      });
-    
-      if (error || !data.user) {
-        throw new Error("invalido");
-      }
-    
-      const nome =
-        data.user.user_metadata?.nome ||
-        data.user.email?.split("@")[0] ||
-        "Membro";
-    
-      onEntrar({
-        nome,
-        login: data.user.email || email.trim().toLowerCase(),
-      });
-          } catch {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: senha,
+    });
+    if (error) {
       setErro("E-mail ou senha incorretos.");
       setCarregando(false);
     }
+    // Com sucesso, a tela muda sozinha quando a sessão é detectada.
   }
 
   return (
@@ -389,7 +401,10 @@ function TelaLogin({ onEntrar, onIrCadastro }) {
         {carregando ? "Entrando..." : "Entrar"}
       </button>
 
-      <button style={S.linkBtn} onClick={onIrCadastro}>
+      <button style={S.linkBtn} onClick={onEsqueci}>
+        Esqueci minha senha
+      </button>
+      <button style={{ ...S.linkBtn, marginTop: 4 }} onClick={onIrCadastro}>
         Primeiro acesso? Criar minha senha
       </button>
     </AuthShell>
@@ -444,6 +459,11 @@ function TelaCadastro({ onVoltar }) {
         throw new Error("Não foi possível criar seu acesso agora.");
       }
 
+      if (!data.session) {
+        setSucesso(true);
+      }
+      // Com sessão criada, o portal abre sozinho.
+
     } catch (e) {
       setErro(e?.message || "Não foi possível concluir agora.");
       setCarregando(false);
@@ -455,7 +475,8 @@ function TelaCadastro({ onVoltar }) {
       <AuthShell>
         <h1 style={S.loginTitulo}>Tudo certo!</h1>
         <p style={S.loginSub}>
-          Sua senha foi criada. Agora é só entrar com seu e-mail e senha.
+          Seu acesso foi criado. Se pedirmos confirmação, abra o link enviado ao seu e-mail;
+          depois é só entrar com seu e-mail e senha.
         </p>
         <button
           className="cta-btn"
@@ -547,9 +568,33 @@ function PortalConteudo({ membro, onSair }) {
   const [nomeInput, setNomeInput] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  type Secao = "agenda" | "membros" | "entregas" | "cultura" | "regras";
+  type Secao = "agenda" | "membros" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
-  const secoesValidas: Secao[] = ["agenda", "membros", "entregas", "cultura", "regras"];
+  const secoesValidas: Secao[] = ["agenda", "membros", "perfil", "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  const [eventos, setEventos] = useState<EventoAgenda[]>([]);
+  const [carregandoEventos, setCarregandoEventos] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("eventos")
+      .select("id, trilha, titulo, quando, dia_semana, data_inicio, inscricoes_abertas")
+      .eq("ativo", true)
+      .order("data_inicio")
+      .then(({ data }) => {
+        setEventos(
+          (data || []).map((e) => ({
+            id: e.id,
+            trilha: e.trilha,
+            titulo: e.titulo,
+            quando: e.quando,
+            diaSemana: e.dia_semana || "",
+            dataOrdenacao: e.data_inicio,
+            inscrivel: e.inscricoes_abertas,
+          }))
+        );
+        setCarregandoEventos(false);
+      });
+  }, []);
   const [secao, setSecao] = useState<Secao>(secoesValidas.includes(hashInicial) ? hashInicial : "agenda");
 
   const mudarSecao = (novaSecao: Secao) => {
@@ -583,8 +628,8 @@ function PortalConteudo({ membro, onSair }) {
     carregarConfirmacoes();
   }, []);
   const eventosOrdenados = useMemo(
-    () => [...EVENTOS].sort((a, b) => a.dataOrdenacao.localeCompare(b.dataOrdenacao)),
-    []
+    () => [...eventos].sort((a, b) => a.dataOrdenacao.localeCompare(b.dataOrdenacao)),
+    [eventos]
   );
 
   const eventosVisiveis = useMemo(() => {
@@ -614,17 +659,6 @@ function PortalConteudo({ membro, onSair }) {
     setEnviando(true);
     setErro("");
 
-    const payload = {
-      acao: "presenca",
-      membro: nome,
-      membroLogin: membro.login,
-      eventoId: modalEvento.id,
-      evento: modalEvento.titulo,
-      data: modalEvento.quando,
-      trilha: TRILHAS[modalEvento.trilha].rotulo,
-      confirmadoEm: new Date().toISOString(),
-    };
-
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
 
@@ -651,7 +685,7 @@ function PortalConteudo({ membro, onSair }) {
       setConfirmacoes((prev) => ({ ...prev, [modalEvento.id]: nome }));
       fecharModal();
     } catch {
-      setErro("Não foi possível enviar agora. Tente novamente em instantes.");
+      setErro("Não foi possível confirmar agora. Tente novamente em instantes.");
       setEnviando(false);
     }
   }
@@ -710,7 +744,7 @@ function PortalConteudo({ membro, onSair }) {
       </header>
 <nav style={{background:"#fff",borderBottom:"1px solid #EAECE6"}}>
         <div style={{maxWidth:880,margin:"0 auto",padding:"10px 24px",display:"flex",gap:8,flexWrap:"wrap"}}>
-          {([["agenda","Agenda de Eventos"],["membros","Membros"],["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"]] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
+          {([["agenda","Agenda de Eventos"],["membros","Membros"],["perfil","Meu Perfil"],["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
         </div>
       </nav>
       {secao === "agenda" && (
@@ -745,8 +779,10 @@ function PortalConteudo({ membro, onSair }) {
       </div>
 
       <main style={S.lista}>
+        {carregandoEventos && <div style={{ textAlign: "center", color: "#5A6472", padding: 24 }}>Carregando agenda...</div>}
+        {!carregandoEventos && eventosVisiveis.length === 0 && <div style={{ textAlign: "center", color: "#5A6472", padding: 24 }}>Nenhum evento nesta categoria.</div>}
         {eventosVisiveis.map((evento, i) => {
-          const trilha = TRILHAS[evento.trilha];
+          const trilha = TRILHAS[evento.trilha] || TRILHAS.growth;
           const confirmado = confirmacoes[evento.id];
           return (
             <article key={evento.id} className="evento-card" style={S.card}>
@@ -788,7 +824,10 @@ function PortalConteudo({ membro, onSair }) {
       <div style={S.confirmadoNome}>{confirmado}</div>
     </div>
   </button>
-) : (                  <button
+) : !evento.inscrivel ? (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#8A94A2" }}>Inscrições encerradas</span>
+                ) : (
+                  <button
                     className="cta-btn"
                     style={S.ctaBtn}
                     onClick={() => abrirConfirmacao(evento)}
@@ -804,6 +843,8 @@ function PortalConteudo({ membro, onSair }) {
   </>
 )}
       {secao === "membros" && <Membros />}
+      {secao === "perfil" && <MeuPerfil userId={membro.userId} />}
+      {secao === "admin" && membro.isAdmin && <Admin />}
       {secao === "entregas" && <SecaoEntregas />}
       {secao === "cultura" && <SecaoCultura />}
       {secao === "regras" && <SecaoRegras />}
@@ -855,9 +896,6 @@ function PortalConteudo({ membro, onSair }) {
               {enviando ? "Confirmando..." : "Confirmar minha presença"}
             </button>
 
-              <div style={S.modalDemo}>
-                Modo demonstração — conecte o webhook do Make para registrar de verdade.
-              </div>
           </div>
         </div>
       )}

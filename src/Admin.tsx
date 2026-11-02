@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { supabase } from "./supabase";
 import { ui } from "./ui";
+import RespostasOnboarding from "./RespostasOnboarding";
 
 type Aba = "membros" | "eventos" | "presencas";
 
@@ -97,14 +98,20 @@ function AdminMembros() {
   const [filtro, setFiltro] = useState<"todos" | "ativos" | "inativos" | "sem-email" | "sem-acesso">("ativos");
   const [editando, setEditando] = useState<Partial<Membro> | null>(null);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [onboarding, setOnboarding] = useState<Record<string, string | null>>({}); // membro_id -> concluído em
+  const [vendoOnboarding, setVendoOnboarding] = useState<Membro | null>(null);
 
   async function carregar() {
     setCarregando(true);
-    const { data } = await supabase
-      .from("membros")
-      .select("id,nome,email,empresa,segmento,telefone_whatsapp,cidade,estado,ativo,is_admin,auth_user_id")
-      .order("nome");
+    const [{ data }, { data: onb }] = await Promise.all([
+      supabase
+        .from("membros")
+        .select("id,nome,email,empresa,segmento,telefone_whatsapp,cidade,estado,ativo,is_admin,auth_user_id")
+        .order("nome"),
+      supabase.from("membros_onboarding").select("membro_id,onboarding_concluido_em"),
+    ]);
     setLista((data as Membro[]) || []);
+    setOnboarding(Object.fromEntries(((onb as { membro_id: string; onboarding_concluido_em: string | null }[]) || []).map((o) => [o.membro_id, o.onboarding_concluido_em])));
     setCarregando(false);
   }
   useEffect(() => { carregar(); }, []);
@@ -200,8 +207,12 @@ function AdminMembros() {
             </div>
             <div style={{ fontSize: 12, fontWeight: 700, color: m.auth_user_id ? "#4A6118" : "#9AA3B2" }}>
               {m.auth_user_id ? "✓ Já acessa o portal" : "Ainda sem senha"}
+              <div style={{ fontWeight: 600, marginTop: 2, color: onboarding[m.id] ? "#4A6118" : m.id in onboarding ? "#8A6D1A" : "#9AA3B2" }}>
+                {m.is_admin ? "" : onboarding[m.id] ? "✓ Onboarding concluído" : m.id in onboarding ? "Onboarding em andamento" : "Onboarding não iniciado"}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              <button style={ui.botaoSecundario} onClick={() => setVendoOnboarding(m)}>Onboarding</button>
               <button style={ui.botaoSecundario} onClick={() => { setMsg(null); setEditando({ ...m }); }}>Editar</button>
               <button style={ui.botaoPerigo} onClick={() => excluir(m)}>Excluir</button>
             </div>
@@ -224,6 +235,12 @@ function AdminMembros() {
           <Caixa marcado={!!editando.is_admin} onChange={(v) => setEditando({ ...editando, is_admin: v })} texto="Administrador" />
           {msg?.tipo === "erro" && <div style={ui.erro}>{msg.texto}</div>}
           <button className="cta-btn" style={{ ...ui.botao, width: "100%", marginTop: 8 }} onClick={salvar}>Salvar</button>
+        </Modal>
+      )}
+
+      {vendoOnboarding && (
+        <Modal titulo={`Onboarding · ${vendoOnboarding.nome || "Sem nome"}`} onFechar={() => setVendoOnboarding(null)} largura={720}>
+          <RespostasOnboarding membroId={vendoOnboarding.id} />
         </Modal>
       )}
     </main>
@@ -414,10 +431,10 @@ function AdminPresencas() {
 
 const chip: CSSProperties = { fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, marginLeft: 8, verticalAlign: "middle" };
 
-function Modal({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: React.ReactNode }) {
+function Modal({ titulo, onFechar, children, largura = 460 }: { titulo: string; onFechar: () => void; children: React.ReactNode; largura?: number }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(20,24,34,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onFechar}>
-      <div style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", maxWidth: 460, width: "100%", maxHeight: "90vh", overflowY: "auto", position: "relative" }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", maxWidth: largura, width: "100%", maxHeight: "90vh", overflowY: "auto", position: "relative" }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <button onClick={onFechar} aria-label="Fechar" style={{ position: "absolute", top: 12, right: 14, border: "none", background: "none", fontSize: 26, color: "#9AA3B2", cursor: "pointer" }}>×</button>
         <h2 style={{ fontSize: 21, fontWeight: 800, margin: "0 0 18px", color: "#1A1F2B" }}>{titulo}</h2>
         {children}

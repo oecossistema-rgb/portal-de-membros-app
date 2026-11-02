@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import Membros from "./Membros";
 import MeuPerfil from "./MeuPerfil";
 import Admin from "./Admin";
+import Onboarding from "./Onboarding";
 // ============================================================
 // ARQUITETURA ATUAL
 // Supabase Auth: cadastro, login e sessão dos membros.
@@ -91,6 +92,7 @@ type MembroLogado = {
   login: string;
   ativo: boolean;
   isAdmin: boolean;
+  onboardingPendente: boolean;
 };
 
 async function montarMembro(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<MembroLogado> {
@@ -99,12 +101,20 @@ async function montarMembro(user: { id: string; email?: string; user_metadata?: 
     .select("nome, ativo, is_admin")
     .eq("auth_user_id", user.id)
     .maybeSingle();
+  // Onboarding obrigatório: só bloqueia quando o banco responde "pendente".
+  // Admin nunca é bloqueado; se a consulta falhar, não trava o acesso (o banco já protege os dados).
+  let onboardingPendente = false;
+  if (data?.ativo && !data?.is_admin) {
+    const { data: status } = await supabase.rpc("meu_status_onboarding");
+    onboardingPendente = status === "pendente";
+  }
   return {
     userId: user.id,
     nome: data?.nome || (user.user_metadata?.nome as string) || user.email?.split("@")[0] || "Membro",
     login: user.email || "",
     ativo: !!data?.ativo,
     isAdmin: !!data?.ativo && !!data?.is_admin,
+    onboardingPendente,
   };
 }
 
@@ -160,6 +170,16 @@ export default function PortalAgenda() {
   if (membroLogado) {
     if (!membroLogado.ativo) {
       return <TelaSemAcesso email={membroLogado.login} onSair={sairMembro} />;
+    }
+    if (membroLogado.onboardingPendente) {
+      return (
+        <Onboarding
+          userId={membroLogado.userId}
+          modo="obrigatorio"
+          onConcluido={() => setMembroLogado({ ...membroLogado, onboardingPendente: false })}
+          onSair={sairMembro}
+        />
+      );
     }
     return <PortalConteudo membro={membroLogado} onSair={sairMembro} />;
   }

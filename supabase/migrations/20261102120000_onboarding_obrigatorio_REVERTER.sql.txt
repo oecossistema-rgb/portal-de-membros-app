@@ -1,0 +1,18 @@
+-- REVERSÃO do onboarding obrigatório (não é executada automaticamente; extensão .txt de propósito).
+-- Rodar no SQL Editor do Supabase somente se for preciso desfazer.
+
+-- PARTE 1 — destrava o portal na hora (volta a regra de "membro ativo" exatamente como era).
+-- As respostas já dadas ficam guardadas.
+create or replace function private.membro_ativo()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.membros where auth_user_id = (select auth.uid()) and ativo = true);
+$$;
+drop policy if exists "fotos_upload_onboarding" on storage.objects;
+
+-- PARTE 2 — (opcional) remove a estrutura do onboarding.
+-- ATENÇÃO: apaga as respostas do onboarding. Exporte a tabela antes, se quiser guardá-las.
+-- drop function if exists public.meu_status_onboarding();
+-- drop function if exists public.concluir_onboarding();
+-- drop table if exists public.membros_onboarding;
+-- drop function if exists private.proteger_conclusao_onboarding();
+-- drop function if exists private.meu_membro_id();

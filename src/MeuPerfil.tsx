@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ui } from "./ui";
+import Onboarding from "./Onboarding";
+import RespostasOnboarding from "./RespostasOnboarding";
 
 type Perfil = {
   id: string;
@@ -39,6 +41,8 @@ export default function MeuPerfil({ userId }: { userId: string }) {
   const [salvando, setSalvando] = useState(false);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [editandoOnboarding, setEditandoOnboarding] = useState(false);
+  const [versao, setVersao] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -50,7 +54,7 @@ export default function MeuPerfil({ userId }: { userId: string }) {
       setPerfil(data as Perfil | null);
       setCarregando(false);
     })();
-  }, [userId]);
+  }, [userId, versao]);
 
   function alterar(campo: keyof Perfil, valor: string) {
     setPerfil((p) => (p ? { ...p, [campo]: valor } : p));
@@ -100,6 +104,16 @@ export default function MeuPerfil({ userId }: { userId: string }) {
   if (carregando) return <main style={ui.lista}><div style={ui.aviso}>Carregando seu perfil...</div></main>;
   if (!perfil) return <main style={ui.lista}><div style={ui.aviso}>Seu perfil não foi encontrado. Fale com a administração do Ecossistema.</div></main>;
 
+  if (editandoOnboarding) {
+    return (
+      <Onboarding
+        userId={userId}
+        modo="edicao"
+        onConcluido={() => { setEditandoOnboarding(false); setVersao((v) => v + 1); window.scrollTo(0, 0); }}
+      />
+    );
+  }
+
   return (
     <>
       <section style={ui.hero}>
@@ -143,6 +157,18 @@ export default function MeuPerfil({ userId }: { userId: string }) {
           <button className="cta-btn" style={{ ...ui.botao, width: "100%", marginTop: 8 }} onClick={salvar} disabled={salvando}>
             {salvando ? "Salvando..." : "Salvar meu perfil"}
           </button>
+        </div>
+
+        <div style={ui.cartao}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1F2B", margin: 0 }}>Minhas respostas do onboarding</h2>
+            <button style={ui.botaoSecundario} onClick={() => setEditandoOnboarding(true)}>Editar respostas</button>
+          </div>
+          <p style={{ fontSize: 13, color: "#5A6472", margin: "0 0 12px" }}>
+            Visíveis só para você e para a administração do Ecossistema. Nome, empresa, segmento, site, produtos, modelo de negócio,
+            conexões, contribuição, foto e logo também aparecem no seu card para os outros membros.
+          </p>
+          <RespostasOnboarding membroId={perfil.id} atualizar={versao} />
         </div>
       </main>
     </>

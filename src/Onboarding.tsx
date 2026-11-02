@@ -34,9 +34,12 @@ function limpar(v: string | string[] | null | undefined) {
 }
 
 export default function Onboarding({ userId, modo, onConcluido, onSair }: Props) {
+  const TOTAL = PERGUNTAS.length; // 40
   const [membroId, setMembroId] = useState<string | null>(null);
   const [resp, setResp] = useState<Respostas>({});
-  const [etapa, setEtapa] = useState(0); // ETAPAS.length = tela de revisão
+  // -1 = abertura · 0..39 = uma pergunta por tela · TOTAL = revisão final
+  const [idx, setIdx] = useState(-1);
+  const [deRevisao, setDeRevisao] = useState(false); // editando a partir da revisão: "Continuar" volta para ela
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [enviandoArquivo, setEnviandoArquivo] = useState<string | null>(null);
@@ -66,32 +69,33 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
       const onb = (o || {}) as unknown as Record<string, string | string[] | null>;
       setMembroId(membro.id);
       setResp({ ...membro, ...onb });
-      if (modo === "obrigatorio") {
+      if (modo === "edicao") {
+        setIdx(TOTAL); // abre na revisão; o membro escolhe o que editar
+      } else {
+        // etapa_atual guarda o número da pergunta em que o membro parou (1..40; 41 = revisão)
         const salva = Number(onb.etapa_atual) || 1;
-        setEtapa(Math.min(Math.max(salva - 1, 0), ETAPAS.length));
+        setIdx(salva <= 1 ? -1 : Math.min(salva - 1, TOTAL));
       }
       setCarregando(false);
     })();
-  }, [userId, modo]);
+  }, [userId, modo, TOTAL]);
 
-  const perguntasDaEtapa = useMemo(
-    () => (etapa < ETAPAS.length ? PERGUNTAS.filter((p) => p.n >= ETAPAS[etapa].de && p.n <= ETAPAS[etapa].ate) : []),
-    [etapa]
-  );
+  const pergunta: Pergunta | null = idx >= 0 && idx < TOTAL ? PERGUNTAS[idx] : null;
+  const etapaAtual = useMemo(() => (pergunta ? ETAPAS.find((e) => pergunta.n >= e.de && pergunta.n <= e.ate) : null), [pergunta]);
 
   function alterar(campo: string, valor: string | string[] | null) {
     setResp((r) => ({ ...r, [campo]: valor }));
     setErro("");
   }
 
-  async function gravar(proximaEtapa: number) {
+  async function gravar(proximo: number) {
     if (!membroId) return false;
     const dadosMembro: Record<string, unknown> = {};
     for (const c of CAMPOS_MEMBROS) if (c !== "foto_url" && c !== "logo_url") dadosMembro[c] = limpar(resp[c]);
     const ce = separarCidadeEstado((resp.cidade_estado as string) || "");
     if (ce) { dadosMembro.cidade = ce.cidade; dadosMembro.estado = ce.estado; }
 
-    const dadosOnb: Record<string, unknown> = { etapa_atual: proximaEtapa + 1 };
+    const dadosOnb: Record<string, unknown> = { etapa_atual: Math.max(proximo, 0) + 1 };
     for (const c of CAMPOS_ONBOARDING) dadosOnb[c] = limpar(resp[c]);
     if (resp.modelo_comercial !== OPCAO_OUTRO) dadosOnb.modelo_comercial_outro_texto = null;
 
@@ -100,41 +104,51 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
       supabase.from("membros_onboarding").update(dadosOnb).eq("membro_id", membroId),
     ]);
     if (r1.error || r2.error) {
-      setErro("Não foi possível salvar suas respostas. Verifique sua conexão e tente novamente.");
+      setErro("Não foi possível salvar sua resposta. Verifique sua conexão e tente novamente.");
       return false;
     }
     return true;
   }
 
-  function pendentesDaEtapa(): Pergunta[] {
-    return perguntasDaEtapa.filter((p) => p.obrigatoria && !respondida(p, resp));
+  function irPara(novo: number) {
+    setIdx(novo);
+    window.scrollTo(0, 0);
   }
 
   async function avancar() {
-    const pend = pendentesDaEtapa();
-    if (pend.length) {
-      setFaltando(pend.map((p) => p.n));
-      setErro(`Responda a${pend.length > 1 ? "s perguntas" : " pergunta"} ${pend.map((p) => p.n).join(", ")} para continuar.`);
+    if (!pergunta) return;
+    if (pergunta.obrigatoria && !respondida(pergunta, resp)) {
+      setFaltando([pergunta.n]);
+      setErro(pergunta.outro && resp[pergunta.campo] === OPCAO_OUTRO
+        ? 'Escreva qual é o seu modelo comercial em "Outro:" para continuar.'
+        : "Responda esta pergunta para continuar.");
       return;
     }
-    setFaltando([]);
+    setFaltando((f) => f.filter((n) => n !== pergunta.n));
+    const proximo = deRevisao ? TOTAL : idx + 1;
     setSalvando(true);
-    const ok = await gravar(etapa + 1);
+    const ok = await gravar(proximo);
     setSalvando(false);
-    if (ok) { setEtapa(etapa + 1); window.scrollTo(0, 0); }
+    if (ok) { if (proximo === TOTAL) setDeRevisao(false); irPara(proximo); }
   }
 
   async function voltar() {
-    setErro(""); setFaltando([]);
-    await gravar(etapa - 1);
-    setEtapa(etapa - 1);
-    window.scrollTo(0, 0);
+    setErro("");
+    if (deRevisao) { setDeRevisao(false); irPara(TOTAL); return; }
+    await gravar(idx - 1);
+    irPara(idx - 1);
+  }
+
+  function editar(i: number) {
+    setDeRevisao(true);
+    setErro("");
+    irPara(i);
   }
 
   async function enviar() {
     setSalvando(true);
     setErro("");
-    const ok = await gravar(ETAPAS.length);
+    const ok = await gravar(TOTAL);
     if (!ok) { setSalvando(false); return; }
     if (modo === "edicao") { setSalvando(false); onConcluido(); return; }
     const { data, error } = await supabase.rpc("concluir_onboarding");
@@ -143,9 +157,7 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
     if (data?.ok) { onConcluido(); return; }
     const nums: number[] = ((data?.faltando as string[]) || []).map((s) => Number(s.replace("P", "")));
     setFaltando(nums);
-    const primeira = ETAPAS.findIndex((e) => nums.some((n) => n >= e.de && n <= e.ate));
-    if (primeira >= 0) setEtapa(primeira);
-    setErro(`Ainda falta responder: ${nums.join(", ")}.`);
+    setErro(`Ainda falta responder: ${nums.join(", ")}. Clique em "Editar" na pergunta destacada.`);
   }
 
   async function enviarArquivo(p: Pergunta, arquivo: File | undefined) {
@@ -166,66 +178,76 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
     alterar(p.campo, url);
   }
 
-  if (carregando) return <Pagina><div style={ui.aviso}>Carregando...</div></Pagina>;
-  if (!membroId) return <Pagina><div style={ui.erro}>{erro}</div>{onSair && <button style={ui.botaoSecundario} onClick={onSair}>Sair</button>}</Pagina>;
+  if (carregando) return <Pagina><div style={{ ...ui.aviso, margin: 24 }}>Carregando...</div></Pagina>;
+  if (!membroId) return <Pagina><div style={{ ...ui.erro, margin: 24 }}>{erro}</div>{onSair && <button style={{ ...ui.botaoSecundario, marginLeft: 24 }} onClick={onSair}>Sair</button>}</Pagina>;
 
-  const revisao = etapa >= ETAPAS.length;
-  const progresso = Math.round((Math.min(etapa, ETAPAS.length) / ETAPAS.length) * 100);
+  const abertura = idx < 0;
+  const revisao = idx >= TOTAL;
+  const progresso = Math.round((Math.max(idx, 0) / TOTAL) * 100);
+  const linkTopo: CSSProperties = { position: "absolute", top: 0, right: 24, background: "none", border: "none", color: "#B8C0CC", cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 4 };
 
   return (
     <Pagina>
-      <section style={{ ...ui.hero, paddingBottom: 40 }}>
-        <div style={ui.heroInner}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <div style={ui.heroEyebrow}>{modo === "obrigatorio" ? "Bem-vindo ao Ecossistema" : "Minhas respostas"}</div>
-            {modo === "obrigatorio" && onSair && (
-              <button onClick={onSair} style={{ background: "none", border: "none", color: "#B8C0CC", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>Sair</button>
-            )}
-            {modo === "edicao" && (
-              <button onClick={onConcluido} style={{ background: "none", border: "none", color: "#B8C0CC", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>Cancelar</button>
-            )}
-          </div>
-          <h1 style={ui.heroTitle}>{TITULO_FORM}</h1>
-          {etapa === 0 && (
+      {/* CABEÇALHO: tudo centralizado no mesmo eixo; "Sair" fixo no canto */}
+      <section style={{ ...ui.hero, padding: "28px 0 36px" }}>
+        <div style={{ ...ui.heroInner, position: "relative", textAlign: "center" }}>
+          {modo === "obrigatorio" && onSair && <button onClick={onSair} style={linkTopo}>Sair</button>}
+          {modo === "edicao" && <button onClick={onConcluido} style={linkTopo}>Cancelar</button>}
+          <div style={{ ...ui.heroEyebrow, marginBottom: 12 }}>{modo === "obrigatorio" ? "Bem-vindo ao Ecossistema" : "Minhas respostas"}</div>
+          <h1 style={{ ...ui.heroTitle, fontSize: abertura ? 34 : 26, margin: "0 auto", maxWidth: 640 }}>{TITULO_FORM}</h1>
+          {abertura && (
             <>
-              <p style={ui.heroSub}>{DESCRICAO_FORM}</p>
-              <p style={{ ...ui.heroSub, color: "#fff", fontWeight: 700, marginTop: 14 }}>{DESTAQUE_FORM}</p>
+              <p style={{ ...ui.heroSub, margin: "16px auto 0" }}>{DESCRICAO_FORM}</p>
+              <p style={{ ...ui.heroSub, color: "#fff", fontWeight: 700, margin: "14px auto 0" }}>{DESTAQUE_FORM}</p>
             </>
           )}
-          <div style={{ marginTop: 22 }}>
-            <div style={{ fontSize: 13, color: "#B8C0CC", marginBottom: 8 }}>
-              {revisao ? "Revisão final" : `Etapa ${etapa + 1} de ${ETAPAS.length} · ${ETAPAS[etapa].titulo}`}
+          {!abertura && (
+            <div style={{ maxWidth: 560, margin: "20px auto 0" }}>
+              <div style={{ fontSize: 13, color: "#B8C0CC", marginBottom: 8 }}>
+                {revisao ? "Revisão final" : `Pergunta ${pergunta!.n} de ${TOTAL} · ${etapaAtual?.titulo}`}
+              </div>
+              <div style={{ height: 6, background: "#2C3442", borderRadius: 6 }} role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
+                <div style={{ height: 6, width: `${revisao ? 100 : progresso}%`, background: "#8BAD3F", borderRadius: 6, transition: "width .3s" }} />
+              </div>
             </div>
-            <div style={{ height: 6, background: "#2C3442", borderRadius: 6 }} role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
-              <div style={{ height: 6, width: `${progresso}%`, background: "#8BAD3F", borderRadius: 6, transition: "width .3s" }} />
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
-      <main style={{ ...ui.lista, textAlign: "left" }}>
-        {!revisao && (
-          <div style={ui.cartao}>
-            {perguntasDaEtapa.map((p) => (
-              <CampoPergunta key={p.n} p={p} resp={resp} alterar={alterar} destacado={faltando.includes(p.n)}
-                enviando={enviandoArquivo === p.campo} onArquivo={(f) => enviarArquivo(p, f)} />
-            ))}
+      <main style={{ ...ui.lista, maxWidth: 680, textAlign: "left" }}>
+        {abertura && (
+          <div style={{ ...ui.cartao, textAlign: "center", padding: "32px 22px" }}>
+            <p style={{ margin: "0 0 6px", fontSize: 16, color: "#1A1F2B", fontWeight: 700 }}>São {TOTAL} perguntas, uma por tela.</p>
+            <p style={{ margin: "0 0 22px", fontSize: 14, color: "#5A6472" }}>Suas respostas ficam salvas a cada passo: se precisar sair, você continua de onde parou.</p>
+            <button className="cta-btn" style={{ ...ui.botao, padding: "14px 28px", fontSize: 15 }} onClick={() => irPara(0)}>Começar</button>
+          </div>
+        )}
+
+        {pergunta && (
+          <div style={{ ...ui.cartao, padding: "28px 22px" }}
+            onKeyDown={(e) => {
+              const alvo = e.target as HTMLElement;
+              if (e.key === "Enter" && alvo.tagName === "INPUT" && (alvo as HTMLInputElement).type !== "file") { e.preventDefault(); avancar(); }
+            }}>
+            <CampoPergunta key={pergunta.n} p={pergunta} resp={resp} alterar={alterar} destacado={faltando.includes(pergunta.n)}
+              enviando={enviandoArquivo === pergunta.campo} onArquivo={(f) => enviarArquivo(pergunta, f)} autoFoco />
           </div>
         )}
 
         {revisao && (
           <div style={ui.cartao}>
-            <p style={{ margin: "0 0 18px", color: "#4A5568", fontSize: 15 }}>
-              Confira suas respostas. Para corrigir alguma, clique em "Editar" na etapa correspondente.
+            <p style={{ margin: "0 0 12px", color: "#4A5568", fontSize: 15 }}>
+              Confira suas respostas. Para corrigir alguma, clique em "Editar" ao lado dela.
             </p>
-            {ETAPAS.map((e, i) => (
-              <div key={e.titulo} style={{ borderTop: "1px solid #EAECE6", padding: "14px 0" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <strong style={{ color: "#1A1F2B" }}>{e.titulo}</strong>
-                  <button style={ui.botaoSecundario} onClick={() => setEtapa(i)}>Editar</button>
-                </div>
+            {ETAPAS.map((e) => (
+              <div key={e.titulo} style={{ borderTop: "1px solid #EAECE6", padding: "12px 0 4px" }}>
+                <strong style={{ color: "#1A1F2B" }}>{e.titulo}</strong>
                 {PERGUNTAS.filter((p) => p.n >= e.de && p.n <= e.ate).map((p) => (
-                  <LinhaResposta key={p.n} p={p} resp={resp} destacado={faltando.includes(p.n)} />
+                  <div key={p.n} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}><LinhaResposta p={p} resp={resp} destacado={faltando.includes(p.n)} /></div>
+                    <button onClick={() => editar(p.n - 1)} aria-label={`Editar pergunta ${p.n}`}
+                      style={{ background: "none", border: "none", color: "#6B8E23", fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "10px 0", fontFamily: "inherit" }}>Editar</button>
+                  </div>
                 ))}
               </div>
             ))}
@@ -234,18 +256,20 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
 
         {erro && <div style={ui.erro} role="alert">{erro}</div>}
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "space-between", flexWrap: "wrap" }}>
-          {etapa > 0 ? <button style={ui.botaoSecundario} onClick={voltar} disabled={salvando}>Voltar</button> : <span />}
-          {!revisao ? (
-            <button className="cta-btn" style={ui.botao} onClick={avancar} disabled={salvando || !!enviandoArquivo}>
-              {salvando ? "Salvando..." : etapa === ETAPAS.length - 1 ? "Revisar respostas" : "Continuar"}
-            </button>
-          ) : (
-            <button className="cta-btn" style={ui.botao} onClick={enviar} disabled={salvando}>
-              {salvando ? "Enviando..." : modo === "obrigatorio" ? "Enviar e acessar o portal" : "Salvar alterações"}
-            </button>
-          )}
-        </div>
+        {!abertura && (
+          <div style={{ display: "flex", gap: 10, justifyContent: "space-between", flexWrap: "wrap" }}>
+            {idx > 0 || deRevisao ? <button style={ui.botaoSecundario} onClick={voltar} disabled={salvando}>{deRevisao ? "Voltar à revisão" : "Voltar"}</button> : <span />}
+            {pergunta ? (
+              <button className="cta-btn" style={ui.botao} onClick={avancar} disabled={salvando || !!enviandoArquivo}>
+                {salvando ? "Salvando..." : deRevisao || idx === TOTAL - 1 ? "Ir para a revisão" : "Continuar"}
+              </button>
+            ) : (
+              <button className="cta-btn" style={ui.botao} onClick={enviar} disabled={salvando}>
+                {salvando ? "Enviando..." : modo === "obrigatorio" ? "Enviar e acessar o portal" : "Salvar alterações"}
+              </button>
+            )}
+          </div>
+        )}
       </main>
     </Pagina>
   );
@@ -257,15 +281,15 @@ function Pagina({ children }: { children: React.ReactNode }) {
 
 function Enunciado({ p, id }: { p: Pergunta; id?: string }) {
   return (
-    <label htmlFor={id} style={{ ...ui.label, fontSize: 15, color: "#1A1F2B", lineHeight: 1.45 }}>
+    <label htmlFor={id} style={{ ...ui.label, fontSize: 18, fontWeight: 700, color: "#1A1F2B", lineHeight: 1.4, marginBottom: 12 }}>
       {p.n}. {p.texto} {p.obrigatoria && <span style={{ color: "#C0392B" }} aria-label="obrigatória">*</span>}
     </label>
   );
 }
 
-function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo }: {
+function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo, autoFoco }: {
   p: Pergunta; resp: Respostas; alterar: (c: string, v: string | string[] | null) => void;
-  destacado: boolean; enviando: boolean; onArquivo: (f: File | undefined) => void;
+  destacado: boolean; enviando: boolean; onArquivo: (f: File | undefined) => void; autoFoco?: boolean;
 }) {
   const id = `q${p.n}`;
   const valor = resp[p.campo];
@@ -277,9 +301,9 @@ function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo }: {
       <div style={caixa}>
         <Enunciado p={p} id={id} />
         {p.tipo === "longo" ? (
-          <textarea id={id} style={{ ...ui.input, minHeight: 96, resize: "vertical" }} value={(valor as string) || ""} onChange={(e) => alterar(p.campo, e.target.value)} />
+          <textarea id={id} autoFocus={autoFoco} style={{ ...ui.input, minHeight: 120, resize: "vertical" }} value={(valor as string) || ""} onChange={(e) => alterar(p.campo, e.target.value)} />
         ) : (
-          <input id={id} type={p.tipo === "data" ? "date" : "text"} style={ui.input} value={(valor as string) || ""} onChange={(e) => alterar(p.campo, e.target.value)} />
+          <input id={id} autoFocus={autoFoco} type={p.tipo === "data" ? "date" : "text"} style={ui.input} value={(valor as string) || ""} onChange={(e) => alterar(p.campo, e.target.value)} />
         )}
         {p.ajuda && <div style={{ fontSize: 12, color: "#9AA3B2", marginTop: 6, fontStyle: "italic" }}>{p.ajuda}</div>}
       </div>

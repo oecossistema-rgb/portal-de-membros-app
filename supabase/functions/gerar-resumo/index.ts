@@ -7,7 +7,7 @@
 // Segredos usados (cadastrados no painel do Supabase, nunca no código):
 //   ANTHROPIC_API_KEY, opcional ANTHROPIC_MODEL.  SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existem.
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { montarEntrada, montarPedido, SISTEMA, validar } from "./regras.ts";
+import { montarEntrada, montarFatos, montarPedido, SISTEMA, validar } from "./regras.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -30,7 +30,7 @@ async function chamarIA(pedido: string): Promise<string> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODELO, max_tokens: 1200, system: SISTEMA, messages: [{ role: "user", content: pedido }] }),
+    body: JSON.stringify({ model: MODELO, max_tokens: 1500, system: SISTEMA, messages: [{ role: "user", content: pedido }] }),
   });
   if (!r.ok) throw new Error(`API da IA respondeu ${r.status}`);
   const j = await r.json();
@@ -51,7 +51,7 @@ async function gerarPara(membroId: string): Promise<{ membro_id: string; ok: boo
   try {
     const entrada = montarEntrada(m, o);
     if (entrada.length < 4) throw new Error("respostas insuficientes para um resumo");
-    const { resumo, alertas } = validar(await chamarIA(montarPedido(entrada)));
+    const { resumo, alertas } = validar(await chamarIA(montarPedido(entrada)), montarFatos(m, o));
     await db.from("membros_resumo").upsert({
       membro_id: membroId, status: "pendente", rascunho: resumo, alertas, modelo: MODELO, erro: null,
       gerado_em: new Date().toISOString(), atualizado_em: new Date().toISOString(),

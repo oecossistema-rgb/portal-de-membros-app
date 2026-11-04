@@ -278,13 +278,12 @@ export default function Membros() {
               </div>
             </div>
 
-            {selecionado.resumo_publico && (
-              <div style={{ ...styles.bloco, background: "#F7FAF0", border: "1px solid #E1EBCB", borderRadius: 12, padding: "14px 16px" }}>
-                <div style={styles.blocoTitulo}>Sobre a empresa</div>
+            {selecionado.resumo_publico ? (
+              <div style={{ marginTop: 20 }}>
                 <CartaoResumo resumo={selecionado.resumo_publico} />
               </div>
-            )}
-
+            ) : (
+              <>
             {(selecionado.cidade || selecionado.estado) && (
               <Bloco
                 titulo="Localização"
@@ -331,6 +330,8 @@ export default function Membros() {
                 titulo="Site / Instagram"
                 texto={selecionado.site_instagram}
               />
+            )}
+              </>
             )}
 
             {selecionado.telefone_whatsapp && (

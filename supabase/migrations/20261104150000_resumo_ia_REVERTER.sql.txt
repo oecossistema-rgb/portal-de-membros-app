@@ -1,0 +1,29 @@
+-- REVERSÃO do resumo por IA (não é executada automaticamente; extensão .txt de propósito).
+
+-- Respostas do onboarding voltam a ser legíveis pelo próprio membro depois de concluído.
+alter policy "onb_select" on public.membros_onboarding
+  using (membro_id = (select private.meu_membro_id()) or (select private.is_admin()));
+alter policy "onb_update_proprio" on public.membros_onboarding
+  using (membro_id = (select private.meu_membro_id())) with check (membro_id = (select private.meu_membro_id()));
+
+-- Proteção de colunas volta ao original.
+create or replace function private.proteger_colunas_membro()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if (select auth.role()) = 'authenticated' and not private.is_admin() then
+    if new.ativo is distinct from old.ativo
+       or new.is_admin is distinct from old.is_admin
+       or new.email is distinct from old.email
+       or new.auth_user_id is distinct from old.auth_user_id then
+      raise exception 'Somente o administrador pode alterar esses campos';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop function if exists public.publicar_resumo(uuid, jsonb);
+drop function if exists public.retirar_resumo(uuid);
+-- (opcional, apaga os rascunhos e os resumos publicados)
+-- drop table if exists public.membros_resumo;
+-- alter table public.membros drop column if exists resumo_publico, drop column if exists resumo_publicado_em;

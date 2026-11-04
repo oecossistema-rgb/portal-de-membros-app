@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ui } from "./ui";
-import RespostasOnboarding from "./RespostasOnboarding";
+import { CartaoResumo } from "./ResumoPerfil";
+import type { Resumo } from "./ResumoPerfil";
 
 type Perfil = {
   id: string;
@@ -40,6 +41,7 @@ export default function MeuPerfil({ userId }: { userId: string }) {
   const [salvando, setSalvando] = useState(false);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const [resumo, setResumo] = useState<{ publicado: Resumo | null; emRevisao: boolean }>({ publicado: null, emRevisao: false });
 
   useEffect(() => {
     (async () => {
@@ -49,6 +51,13 @@ export default function MeuPerfil({ userId }: { userId: string }) {
         .eq("auth_user_id", userId)
         .maybeSingle();
       setPerfil(data as Perfil | null);
+      if (data) {
+        const [{ data: pub }, { data: rasc }] = await Promise.all([
+          supabase.from("membros").select("resumo_publico").eq("id", (data as Perfil).id).maybeSingle(),
+          supabase.from("membros_resumo").select("status").eq("membro_id", (data as Perfil).id).maybeSingle(),
+        ]);
+        setResumo({ publicado: (pub?.resumo_publico as Resumo) || null, emRevisao: !!rasc && rasc.status !== "aprovado" });
+      }
       setCarregando(false);
     })();
   }, [userId]);
@@ -147,12 +156,13 @@ export default function MeuPerfil({ userId }: { userId: string }) {
         </div>
 
         <div style={ui.cartao}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1F2B", margin: "0 0 12px" }}>Minhas respostas do onboarding</h2>
-          <p style={{ fontSize: 13, color: "#5A6472", margin: "0 0 12px" }}>
-            Visíveis só para você e para a administração do Ecossistema. Nome, empresa, segmento, site, produtos, modelo de negócio,
-            conexões, contribuição, foto e logo também aparecem no seu card para os outros membros.
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1A1F2B", margin: "0 0 8px" }}>Meu perfil no Ecossistema</h2>
+          <p style={{ fontSize: 13, color: "#5A6472", margin: "0 0 14px" }}>
+            Resumo da sua empresa feito a partir do seu onboarding, sem dados financeiros. É o que os outros membros veem no seu perfil.
+            As respostas completas do onboarding ficam só com a administração.
           </p>
-          <RespostasOnboarding membroId={perfil.id} />
+          {resumo.publicado ? <CartaoResumo resumo={resumo.publicado} />
+            : <div style={ui.aviso}>{resumo.emRevisao ? "Seu resumo foi gerado e está em revisão pela administração. Assim que aprovado, ele aparece aqui e no seu perfil." : "Seu resumo será preparado pela administração a partir do seu onboarding."}</div>}
         </div>
       </main>
     </>

@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { supabase } from "./supabase";
 import { ui } from "./ui";
 import RespostasOnboarding from "./RespostasOnboarding";
+import { RevisaoResumo } from "./ResumoPerfil";
 
 type Aba = "membros" | "eventos" | "presencas";
 
@@ -100,6 +101,9 @@ function AdminMembros() {
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [onboarding, setOnboarding] = useState<Record<string, string | null>>({}); // membro_id -> concluído em
   const [vendoOnboarding, setVendoOnboarding] = useState<Membro | null>(null);
+  const [abaOnb, setAbaOnb] = useState<"resumo" | "respostas">("resumo");
+  const [resumos, setResumos] = useState<Record<string, string>>({}); // membro_id -> status do resumo
+  const [gerandoLote, setGerandoLote] = useState("");
 
   async function carregar() {
     setCarregando(true);
@@ -110,6 +114,8 @@ function AdminMembros() {
         .order("nome"),
       supabase.from("membros_onboarding").select("membro_id,onboarding_concluido_em"),
     ]);
+    const { data: res } = await supabase.from("membros_resumo").select("membro_id,status");
+    setResumos(Object.fromEntries(((res as { membro_id: string; status: string }[]) || []).map((r) => [r.membro_id, r.status])));
     setLista((data as Membro[]) || []);
     setOnboarding(Object.fromEntries(((onb as { membro_id: string; onboarding_concluido_em: string | null }[]) || []).map((o) => [o.membro_id, o.onboarding_concluido_em])));
     setCarregando(false);
@@ -169,6 +175,24 @@ function AdminMembros() {
     carregar();
   }
 
+  // Gera, em lotes, o resumo de todos os membros que concluíram o onboarding e ainda não têm resumo.
+  async function gerarPendentes() {
+    setMsg(null);
+    let feitos = 0, erros = 0;
+    for (let volta = 0; volta < 20; volta++) {
+      setGerandoLote(`Gerando resumos... ${feitos} prontos`);
+      const { data, error } = await supabase.functions.invoke("gerar-resumo", { body: { pendentes: true } });
+      if (error) { erros++; break; }
+      const lote = (data?.resultados || []) as { ok: boolean }[];
+      feitos += lote.filter((x) => x.ok).length; erros += lote.filter((x) => !x.ok).length;
+      if (!lote.length || !data?.restantes) break;
+    }
+    setGerandoLote("");
+    setMsg({ tipo: erros ? "erro" : "ok", texto: `${feitos} resumo(s) gerado(s) para aprovação${erros ? `, ${erros} com erro (abra o membro para ver o motivo)` : ""}.` });
+    carregar();
+  }
+  const aAprovar = Object.values(resumos).filter((s) => s === "pendente").length;
+
   const chips: [typeof filtro, string, number][] = [
     ["ativos", "Ativos", contagem.ativos],
     ["sem-email", "Sem e-mail", contagem.semEmail],
@@ -182,7 +206,11 @@ function AdminMembros() {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
         <input style={{ ...ui.input, flex: "1 1 260px" }} placeholder="Buscar por nome, e-mail ou empresa..." value={busca} onChange={(e) => setBusca(e.target.value)} />
         <button className="cta-btn" style={ui.botao} onClick={() => { setMsg(null); setEditando({ ...MEMBRO_VAZIO }); }}>+ Novo membro</button>
+        <button style={ui.botaoSecundario} onClick={gerarPendentes} disabled={!!gerandoLote}>{gerandoLote || "Gerar resumos pendentes (IA)"}</button>
       </div>
+      {aAprovar > 0 && <div style={{ ...ui.aviso, textAlign: "left", padding: "12px 16px", marginBottom: 12, borderColor: "#E9D8A6", background: "#FFFBEF" }}>
+        <strong>{aAprovar}</strong> resumo(s) aguardando sua aprovação. Abra o membro em "Onboarding" para revisar.
+      </div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         {chips.map(([id, r, n]) => (
           <button key={id} onClick={() => setFiltro(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "6px 14px", ...(filtro === id ? { background: "#E8F0D8", borderColor: "#8BAD3F" } : {}) }}>
@@ -208,11 +236,16 @@ function AdminMembros() {
             <div style={{ fontSize: 12, fontWeight: 700, color: m.auth_user_id ? "#4A6118" : "#9AA3B2" }}>
               {m.auth_user_id ? "✓ Já acessa o portal" : "Ainda sem senha"}
               <div style={{ fontWeight: 600, marginTop: 2, color: onboarding[m.id] ? "#4A6118" : m.id in onboarding ? "#8A6D1A" : "#9AA3B2" }}>
-                {m.is_admin ? "" : onboarding[m.id] ? "✓ Onboarding concluído" : m.id in onboarding ? "Onboarding em andamento" : "Onboarding não iniciado"}
+                {m.is_admin && !onboarding[m.id] ? "" : onboarding[m.id] ? "✓ Onboarding concluído" : m.id in onboarding ? "Onboarding em andamento" : "Onboarding não iniciado"}
               </div>
+              {resumos[m.id] && (
+                <div style={{ fontWeight: 600, marginTop: 2, color: resumos[m.id] === "aprovado" ? "#4A6118" : resumos[m.id] === "erro" ? "#9A3B3B" : "#8A6D1A" }}>
+                  {resumos[m.id] === "aprovado" ? "✓ Resumo publicado" : resumos[m.id] === "pendente" ? "Resumo aguardando aprovação" : resumos[m.id] === "erro" ? "Resumo com erro" : "Gerando resumo"}
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button style={ui.botaoSecundario} onClick={() => setVendoOnboarding(m)}>Onboarding</button>
+              <button style={ui.botaoSecundario} onClick={() => { setAbaOnb("resumo"); setVendoOnboarding(m); }}>Onboarding</button>
               <button style={ui.botaoSecundario} onClick={() => { setMsg(null); setEditando({ ...m }); }}>Editar</button>
               <button style={ui.botaoPerigo} onClick={() => excluir(m)}>Excluir</button>
             </div>
@@ -240,7 +273,12 @@ function AdminMembros() {
 
       {vendoOnboarding && (
         <Modal titulo={`Onboarding · ${vendoOnboarding.nome || "Sem nome"}`} onFechar={() => setVendoOnboarding(null)} largura={720}>
-          <RespostasOnboarding membroId={vendoOnboarding.id} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            {([["resumo", "Resumo do perfil (IA)"], ["respostas", "Respostas completas"]] as const).map(([id, r]) => (
+              <button key={id} onClick={() => setAbaOnb(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, ...(abaOnb === id ? { background: "#E8F0D8", borderColor: "#8BAD3F" } : {}) }}>{r}</button>
+            ))}
+          </div>
+          {abaOnb === "resumo" ? <RevisaoResumo membroId={vendoOnboarding.id} onAlterado={carregar} /> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
         </Modal>
       )}
     </main>

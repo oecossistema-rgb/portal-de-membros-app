@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
+import { CartaoResumo } from "./ResumoPerfil";
+import type { Resumo } from "./ResumoPerfil";
 
 type Membro = {
   id: string;
@@ -17,6 +19,7 @@ type Membro = {
   conexoes_buscadas: string | null;
   como_pode_contribuir: string | null;
   email: string | null;
+  resumo_publico: Resumo | null;
 };
 
 export default function Membros() {
@@ -51,7 +54,8 @@ export default function Membros() {
         modelo_negocio,
         conexoes_buscadas,
         como_pode_contribuir,
-        email
+        email,
+        resumo_publico
       `)
       .eq("ativo", true)
       .order("nome", { ascending: true });
@@ -273,6 +277,13 @@ export default function Membros() {
                 </div>
               </div>
             </div>
+
+            {selecionado.resumo_publico && (
+              <div style={{ ...styles.bloco, background: "#F7FAF0", border: "1px solid #E1EBCB", borderRadius: 12, padding: "14px 16px" }}>
+                <div style={styles.blocoTitulo}>Sobre a empresa</div>
+                <CartaoResumo resumo={selecionado.resumo_publico} />
+              </div>
+            )}
 
             {(selecionado.cidade || selecionado.estado) && (
               <Bloco

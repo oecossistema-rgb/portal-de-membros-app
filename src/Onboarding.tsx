@@ -154,7 +154,11 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
     const { data, error } = await supabase.rpc("concluir_onboarding");
     setSalvando(false);
     if (error) { setErro("Não foi possível enviar agora. Tente novamente."); return; }
-    if (data?.ok) { onConcluido(); return; }
+    if (data?.ok) {
+      supabase.functions.invoke("gerar-resumo", { body: {} }).catch(() => { /* o admin pode gerar depois */ });
+      onConcluido();
+      return;
+    }
     const nums: number[] = ((data?.faltando as string[]) || []).map((s) => Number(s.replace("P", "")));
     setFaltando(nums);
     setErro(`Ainda falta responder: ${nums.join(", ")}. Clique em "Editar" na pergunta destacada.`);

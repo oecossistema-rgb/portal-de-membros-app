@@ -278,7 +278,7 @@ function AdminMembros() {
               <button key={id} onClick={() => setAbaOnb(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, ...(abaOnb === id ? { background: "#E8F0D8", borderColor: "#8BAD3F" } : {}) }}>{r}</button>
             ))}
           </div>
-          {abaOnb === "resumo" ? <RevisaoResumo membroId={vendoOnboarding.id} onAlterado={carregar} /> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
+          {abaOnb === "resumo" ? <RevisaoResumo membroId={vendoOnboarding.id} onAlterado={carregar} onPublicado={() => { const nome = vendoOnboarding.nome || "membro"; setVendoOnboarding(null); setMsg({ tipo: "ok", texto: `Resumo de ${nome} publicado. Já aparece no perfil em "Membros", no bloco "Sobre a empresa".` }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
         </Modal>
       )}
     </main>

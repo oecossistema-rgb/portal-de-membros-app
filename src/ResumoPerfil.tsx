@@ -49,7 +49,7 @@ const STATUS: Record<string, { texto: string; cor: string; fundo: string }> = {
 };
 
 // Área do administrador: gerar, revisar/editar, aprovar e retirar o resumo de um membro.
-export function RevisaoResumo({ membroId, onAlterado }: { membroId: string; onAlterado?: () => void }) {
+export function RevisaoResumo({ membroId, onAlterado, onPublicado }: { membroId: string; onAlterado?: () => void; onPublicado?: () => void }) {
   const [r, setR] = useState<Rascunho | null>(null);
   const [texto, setTexto] = useState<Resumo>(RESUMO_VAZIO);
   const [carregando, setCarregando] = useState(true);
@@ -85,8 +85,11 @@ export function RevisaoResumo({ membroId, onAlterado }: { membroId: string; onAl
     };
     const { error } = await supabase.rpc("publicar_resumo", { p_membro: membroId, p_resumo: limpo });
     setOcupado("");
-    setMsg(error ? { tipo: "erro", texto: "Não foi possível publicar." } : { tipo: "ok", texto: "Resumo publicado no perfil do membro." });
-    await carregar(); onAlterado?.();
+    if (error) { setMsg({ tipo: "erro", texto: "Não foi possível publicar." }); return; }
+    onAlterado?.();
+    if (onPublicado) { onPublicado(); return; }
+    setMsg({ tipo: "ok", texto: "Resumo publicado no perfil do membro." });
+    await carregar();
   }
 
   async function retirar() {

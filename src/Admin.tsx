@@ -278,7 +278,7 @@ function AdminMembros() {
               <button key={id} onClick={() => setAbaOnb(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, ...(abaOnb === id ? { background: "#E8F0D8", borderColor: "#8BAD3F" } : {}) }}>{r}</button>
             ))}
           </div>
-          {abaOnb === "resumo" ? <RevisaoResumo membroId={vendoOnboarding.id} onAlterado={carregar} onPublicado={() => { const nome = vendoOnboarding.nome || "membro"; setVendoOnboarding(null); setMsg({ tipo: "ok", texto: `Resumo de ${nome} publicado. Já aparece no perfil em "Membros", no bloco "Sobre a empresa".` }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
+          {abaOnb === "resumo" ? <RevisaoResumo key={vendoOnboarding.id} membroId={vendoOnboarding.id} nome={vendoOnboarding.nome || ""} onAlterado={carregar} onPublicado={() => { const nome = vendoOnboarding.nome || "membro"; setVendoOnboarding(null); setMsg({ tipo: "ok", texto: `Resumo de ${nome} publicado. Já aparece no perfil em "Membros", no bloco "Sobre a empresa".` }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
         </Modal>
       )}
     </main>
@@ -471,7 +471,7 @@ const chip: CSSProperties = { fontSize: 11, fontWeight: 700, padding: "2px 8px",
 
 function Modal({ titulo, onFechar, children, largura = 460 }: { titulo: string; onFechar: () => void; children: React.ReactNode; largura?: number }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(20,24,34,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }} onClick={onFechar}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(20,24,34,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
       <div style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", maxWidth: largura, width: "100%", maxHeight: "90vh", overflowY: "auto", position: "relative" }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <button onClick={onFechar} aria-label="Fechar" style={{ position: "absolute", top: 12, right: 14, border: "none", background: "none", fontSize: 26, color: "#9AA3B2", cursor: "pointer" }}>×</button>
         <h2 style={{ fontSize: 21, fontWeight: 800, margin: "0 0 18px", color: "#1A1F2B" }}>{titulo}</h2>

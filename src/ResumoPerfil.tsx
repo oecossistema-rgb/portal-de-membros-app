@@ -49,7 +49,7 @@ const STATUS: Record<string, { texto: string; cor: string; fundo: string }> = {
 };
 
 // Área do administrador: gerar, revisar/editar, aprovar e retirar o resumo de um membro.
-export function RevisaoResumo({ membroId, onAlterado, onPublicado }: { membroId: string; onAlterado?: () => void; onPublicado?: () => void }) {
+export function RevisaoResumo({ membroId, nome = "", onAlterado, onPublicado }: { membroId: string; nome?: string; onAlterado?: () => void; onPublicado?: () => void }) {
   const [r, setR] = useState<Rascunho | null>(null);
   const [texto, setTexto] = useState<Resumo>(RESUMO_VAZIO);
   const [carregando, setCarregando] = useState(true);
@@ -100,6 +100,7 @@ export function RevisaoResumo({ membroId, onAlterado, onPublicado }: { membroId:
     await carregar(); onAlterado?.();
   }
 
+  const primeiro = nome.trim().split(/\s+/)[0] || "";
   if (carregando) return <div style={ui.aviso}>Carregando resumo...</div>;
   const st = r ? STATUS[r.status] : null;
   const campoLista = (chave: "pontos_fortes" | "oportunidades", rotulo: string) => (
@@ -144,7 +145,7 @@ export function RevisaoResumo({ membroId, onAlterado, onPublicado }: { membroId:
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {r?.rascunho && r.status !== "aprovado" && (
-          <button className="cta-btn" style={ui.botao} onClick={aprovar} disabled={!!ocupado}>{ocupado === "aprovar" ? "Publicando..." : "Aprovar e publicar"}</button>
+          <button className="cta-btn" style={ui.botao} onClick={aprovar} disabled={!!ocupado}>{ocupado === "aprovar" ? "Publicando..." : primeiro ? `Aprovar e publicar o resumo de ${primeiro}` : "Aprovar e publicar"}</button>
         )}
         {r?.rascunho && r.status === "aprovado" && (
           <button className="cta-btn" style={ui.botao} onClick={aprovar} disabled={!!ocupado}>{ocupado === "aprovar" ? "Salvando..." : "Salvar alterações publicadas"}</button>

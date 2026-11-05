@@ -43,6 +43,7 @@ async function gerarPara(membroId: string): Promise<{ membro_id: string; ok: boo
     db.from("membros_onboarding").select("*").eq("membro_id", membroId).maybeSingle(),
   ]);
   if (!m || !o?.onboarding_concluido_em) return { membro_id: membroId, ok: false, erro: "onboarding não concluído" };
+  if (m.equipe) return { membro_id: membroId, ok: false, erro: "cadastro da equipe não tem resumo" };
   // Nunca sobrescreve um resumo já aprovado; para refazer, o admin retira o resumo antes.
   const { data: atual } = await db.from("membros_resumo").select("status").eq("membro_id", membroId).maybeSingle();
   if (atual?.status === "aprovado") return { membro_id: membroId, ok: false, erro: "já aprovado" };
@@ -92,6 +93,8 @@ Deno.serve(async (req) => {
     const { data: concl } = await db.from("membros_onboarding").select("membro_id").not("onboarding_concluido_em", "is", null);
     const { data: feitos } = await db.from("membros_resumo").select("membro_id,status");
     const pular = new Set((feitos || []).filter((f) => f.status !== "erro").map((f) => f.membro_id));
+    const { data: eq } = await db.from("membros").select("id").eq("equipe", true);
+    for (const x of eq || []) pular.add(x.id);
     const fila = (concl || []).map((c) => c.membro_id).filter((id) => !pular.has(id));
     const resultados = [];
     for (const id of fila.slice(0, LOTE)) resultados.push(await gerarPara(id));

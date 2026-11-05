@@ -58,6 +58,7 @@ export default function Membros() {
         resumo_publico
       `)
       .eq("ativo", true)
+      .eq("equipe", false)
       .order("nome", { ascending: true });
 
     if (error) {

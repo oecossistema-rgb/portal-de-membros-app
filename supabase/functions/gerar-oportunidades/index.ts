@@ -100,15 +100,17 @@ function compactar(r: Record<string, unknown>): string {
 
 async function gerarPara(membroId: string, outros: Outro[]) {
   const [{ data: m }, { data: o }] = await Promise.all([
-    db.from("membros").select("id,nome,empresa,segmento,cidade,estado,produtos_servicos,modelo_negocio,conexoes_buscadas,como_pode_contribuir").eq("id", membroId).maybeSingle(),
+    db.from("membros").select("id,nome,empresa,segmento,cidade,estado,produtos_servicos,modelo_negocio,conexoes_buscadas,como_pode_contribuir,equipe").eq("id", membroId).maybeSingle(),
     db.from("membros_onboarding").select("*").eq("membro_id", membroId).maybeSingle(),
   ]);
   if (!m || !o?.onboarding_concluido_em) return { membro_id: membroId, ok: false, erro: "onboarding não concluído" };
+  if (m.equipe) return { membro_id: membroId, ok: false, erro: "cadastro da equipe não tem painel" };
   const candidatos = outros.filter((x) => x.id !== membroId);
   if (candidatos.length === 0) return { membro_id: membroId, ok: false, erro: "nenhum outro membro com resumo aprovado" };
 
   const eu = { ...m, ...Object.fromEntries(Object.entries(o).filter(([k, v]) => !FORA.has(k) && v != null && v !== "")) };
   delete (eu as Record<string, unknown>).id;
+  delete (eu as Record<string, unknown>).equipe;
   const codigos = new Map(candidatos.map((c, i) => [`M${i + 1}`, c.id]));
   const pedido = `PERFIL DELE (completo):\n${JSON.stringify(eu)}\n\nOUTROS MEMBROS (código: nome, empresa, segmento, cidade | resumo):\n` +
     candidatos.map((c, i) => `M${i + 1}: ${c.nome}, ${c.empresa}, ${c.segmento}, ${c.cidade} | ${compactar(c.resumo)}`).join("\n");
@@ -155,7 +157,7 @@ Deno.serve(async (req) => {
   let corpo: { membro_id?: string; todos?: boolean; refazer?: boolean; depois_de?: string } = {};
   try { corpo = await req.json(); } catch { /* vazio */ }
 
-  const { data: pub } = await db.from("membros").select("id,nome,empresa,segmento,cidade,estado,resumo_publico").eq("ativo", true).not("resumo_publico", "is", null);
+  const { data: pub } = await db.from("membros").select("id,nome,empresa,segmento,cidade,estado,resumo_publico").eq("ativo", true).eq("equipe", false).not("resumo_publico", "is", null);
   const outros: Outro[] = (pub || []).map((p) => ({ id: p.id, nome: p.nome || "", empresa: p.empresa || "", segmento: p.segmento || "",
     cidade: [p.cidade, p.estado].filter(Boolean).join("/"), resumo: p.resumo_publico as Record<string, unknown> }));
 
@@ -166,10 +168,12 @@ Deno.serve(async (req) => {
   if (corpo.membro_id) return resp(200, { resultados: [await rodar(corpo.membro_id)] });
   if (corpo.todos) {
     const { data: concl } = await db.from("membros_onboarding").select("membro_id").not("onboarding_concluido_em", "is", null).order("membro_id");
+    const { data: eq } = await db.from("membros").select("id").eq("equipe", true);
+    const daEquipe = new Set((eq || []).map((x) => x.id as string));
     // Sem "refazer": só monta os painéis que ainda não existem (ex.: os que deram erro).
     const { data: comPainel } = corpo.refazer ? { data: [] } : await db.from("membros_oportunidades").select("membro_id");
     const feitos = new Set((comPainel || []).map((x) => x.membro_id as string));
-    const fila = (concl || []).map((c) => c.membro_id as string).filter((id) => !feitos.has(id) && (!corpo.depois_de || id > corpo.depois_de));
+    const fila = (concl || []).map((c) => c.membro_id as string).filter((id) => !feitos.has(id) && !daEquipe.has(id) && (!corpo.depois_de || id > corpo.depois_de));
     const resultados = [];
     for (const id of fila.slice(0, LOTE)) resultados.push(await rodar(id));
     const ultimo = fila.slice(0, LOTE).at(-1);

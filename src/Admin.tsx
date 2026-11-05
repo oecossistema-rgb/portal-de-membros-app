@@ -18,6 +18,7 @@ type Membro = {
   estado: string | null;
   ativo: boolean | null;
   is_admin: boolean;
+  equipe: boolean;
   auth_user_id: string | null;
 };
 
@@ -89,14 +90,14 @@ export default function Admin() {
 /* ------------------------------------------------------------------ */
 
 const MEMBRO_VAZIO: Omit<Membro, "id" | "auth_user_id"> = {
-  nome: "", email: "", empresa: "", segmento: "", telefone_whatsapp: "", cidade: "", estado: "", ativo: true, is_admin: false,
+  nome: "", email: "", empresa: "", segmento: "", telefone_whatsapp: "", cidade: "", estado: "", ativo: true, is_admin: false, equipe: false,
 };
 
 function AdminMembros() {
   const [lista, setLista] = useState<Membro[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
-  const [filtro, setFiltro] = useState<"todos" | "ativos" | "inativos" | "sem-email" | "sem-acesso">("ativos");
+  const [filtro, setFiltro] = useState<"todos" | "ativos" | "inativos" | "sem-email" | "sem-acesso" | "equipe">("ativos");
   const [editando, setEditando] = useState<Partial<Membro> | null>(null);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [onboarding, setOnboarding] = useState<Record<string, string | null>>({}); // membro_id -> concluído em
@@ -110,7 +111,7 @@ function AdminMembros() {
     const [{ data }, { data: onb }] = await Promise.all([
       supabase
         .from("membros")
-        .select("id,nome,email,empresa,segmento,telefone_whatsapp,cidade,estado,ativo,is_admin,auth_user_id")
+        .select("id,nome,email,empresa,segmento,telefone_whatsapp,cidade,estado,ativo,is_admin,equipe,auth_user_id")
         .order("nome"),
       supabase.from("membros_onboarding").select("membro_id,onboarding_concluido_em"),
     ]);
@@ -123,15 +124,19 @@ function AdminMembros() {
   useEffect(() => { carregar(); }, []);
 
   const contagem = useMemo(() => ({
-    ativos: lista.filter((m) => m.ativo).length,
-    inativos: lista.filter((m) => !m.ativo).length,
-    semEmail: lista.filter((m) => m.ativo && !m.email).length,
-    semAcesso: lista.filter((m) => m.ativo && m.email && !m.auth_user_id).length,
+    ativos: lista.filter((m) => m.ativo && !m.equipe).length,
+    inativos: lista.filter((m) => !m.ativo && !m.equipe).length,
+    semEmail: lista.filter((m) => m.ativo && !m.equipe && !m.email).length,
+    semAcesso: lista.filter((m) => m.ativo && !m.equipe && m.email && !m.auth_user_id).length,
+    equipe: lista.filter((m) => m.equipe).length,
   }), [lista]);
 
   const visiveis = useMemo(() => {
     const t = busca.trim().toLowerCase();
     return lista.filter((m) => {
+      // A equipe (administra, mas não é membro) só aparece no filtro "Equipe" e em "Todos".
+      if (filtro === "equipe") { if (!m.equipe) return false; }
+      else if (filtro !== "todos" && m.equipe) return false;
       if (filtro === "ativos" && !m.ativo) return false;
       if (filtro === "inativos" && m.ativo) return false;
       if (filtro === "sem-email" && (!m.ativo || m.email)) return false;
@@ -154,7 +159,8 @@ function AdminMembros() {
       cidade: (editando.cidade || "").trim() || null,
       estado: (editando.estado || "").trim().toUpperCase() || null,
       ativo: !!editando.ativo,
-      is_admin: !!editando.is_admin,
+      is_admin: !!editando.is_admin || !!editando.equipe,
+      equipe: !!editando.equipe,
     };
     const { error } = editando.id
       ? await supabase.from("membros").update(dados).eq("id", editando.id)
@@ -214,6 +220,7 @@ function AdminMembros() {
     ["sem-email", "Sem e-mail", contagem.semEmail],
     ["sem-acesso", "Ainda não criaram senha", contagem.semAcesso],
     ["inativos", "Inativos", contagem.inativos],
+    ["equipe", "Equipe", contagem.equipe],
     ["todos", "Todos", lista.length],
   ];
 
@@ -243,7 +250,8 @@ function AdminMembros() {
             <div style={{ flex: "1 1 260px", minWidth: 0 }}>
               <div style={{ fontWeight: 700, color: "#1A1F2B" }}>
                 {m.nome || "Sem nome"}
-                {m.is_admin && <span style={{ ...chip, background: "#1A1F2B", color: "#fff" }}>Admin</span>}
+                {m.equipe ? <span style={{ ...chip, background: "#3E6FB0", color: "#fff" }}>Equipe</span>
+                  : m.is_admin && <span style={{ ...chip, background: "#1A1F2B", color: "#fff" }}>Membro + admin</span>}
                 {!m.ativo && <span style={{ ...chip, background: "#EAECEF", color: "#45505F" }}>Inativo</span>}
               </div>
               <div style={{ fontSize: 13, color: "#5A6472", marginTop: 2 }}>
@@ -253,9 +261,9 @@ function AdminMembros() {
             <div style={{ fontSize: 12, fontWeight: 700, color: m.auth_user_id ? "#4A6118" : "#9AA3B2" }}>
               {m.auth_user_id ? "✓ Já acessa o portal" : "Ainda sem senha"}
               <div style={{ fontWeight: 600, marginTop: 2, color: onboarding[m.id] ? "#4A6118" : m.id in onboarding ? "#8A6D1A" : "#9AA3B2" }}>
-                {m.is_admin && !onboarding[m.id] ? "" : onboarding[m.id] ? "✓ Onboarding concluído" : m.id in onboarding ? "Onboarding em andamento" : "Onboarding não iniciado"}
+                {m.equipe || (m.is_admin && !onboarding[m.id]) ? "" : onboarding[m.id] ? "✓ Onboarding concluído" : m.id in onboarding ? "Onboarding em andamento" : "Onboarding não iniciado"}
               </div>
-              {resumos[m.id] && (
+              {resumos[m.id] && !m.equipe && (
                 <div style={{ fontWeight: 600, marginTop: 2, color: resumos[m.id] === "aprovado" ? "#4A6118" : resumos[m.id] === "erro" ? "#9A3B3B" : "#8A6D1A" }}>
                   {resumos[m.id] === "aprovado" ? "✓ Resumo publicado" : resumos[m.id] === "pendente" ? "Resumo aguardando aprovação" : resumos[m.id] === "erro" ? "Resumo com erro" : "Gerando resumo"}
                 </div>
@@ -282,7 +290,19 @@ function AdminMembros() {
             </div>
           ))}
           <Caixa marcado={!!editando.ativo} onChange={(v) => setEditando({ ...editando, ativo: v })} texto="Ativo (pode acessar o portal)" />
-          <Caixa marcado={!!editando.is_admin} onChange={(v) => setEditando({ ...editando, is_admin: v })} texto="Administrador" />
+          <div style={{ margin: "12px 0" }}>
+            <label style={ui.label}>Tipo de acesso</label>
+            <select style={ui.input} value={editando.equipe ? "equipe" : editando.is_admin ? "membro-admin" : "membro"}
+              onChange={(e) => { const v = e.target.value; setEditando({ ...editando, equipe: v === "equipe", is_admin: v !== "membro" }); }}>
+              <option value="membro">Membro</option>
+              <option value="membro-admin">Membro + administrador</option>
+              <option value="equipe">Equipe (administra o portal, não é membro)</option>
+            </select>
+            <div style={{ fontSize: 12.5, color: "#6B7482", marginTop: 6 }}>
+              {editando.equipe ? "Acessa a Administração e as telas do portal, mas não aparece na lista de membros, não faz onboarding e não tem resumo nem painel de oportunidades."
+                : editando.is_admin ? "É membro normal e também acessa a Administração." : "Acesso de membro ao portal."}
+            </div>
+          </div>
           {msg?.tipo === "erro" && <div style={ui.erro}>{msg.texto}</div>}
           <button className="cta-btn" style={{ ...ui.botao, width: "100%", marginTop: 8 }} onClick={salvar}>Salvar</button>
         </Modal>

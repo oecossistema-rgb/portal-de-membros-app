@@ -93,13 +93,14 @@ type MembroLogado = {
   login: string;
   ativo: boolean;
   isAdmin: boolean;
+  equipe: boolean;
   onboardingPendente: boolean;
 };
 
 async function montarMembro(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<MembroLogado> {
   const { data } = await supabase
     .from("membros")
-    .select("nome, ativo, is_admin")
+    .select("nome, ativo, is_admin, equipe")
     .eq("auth_user_id", user.id)
     .maybeSingle();
   // Onboarding obrigatório: só bloqueia quando o banco responde "pendente".
@@ -115,6 +116,7 @@ async function montarMembro(user: { id: string; email?: string; user_metadata?: 
     login: user.email || "",
     ativo: !!data?.ativo,
     isAdmin: !!data?.ativo && !!data?.is_admin,
+    equipe: !!data?.ativo && !!data?.equipe,
     onboardingPendente,
   };
 }
@@ -591,7 +593,7 @@ function PortalConteudo({ membro, onSair }) {
   const [erro, setErro] = useState("");
   type Secao = "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
-  const secoesValidas: Secao[] = ["agenda", "membros", "painel", "perfil", "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  const secoesValidas: Secao[] = ["agenda", "membros", ...(membro.equipe ? [] : ["painel", "perfil"] as Secao[]), "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [carregandoEventos, setCarregandoEventos] = useState(true);
 
@@ -616,7 +618,7 @@ function PortalConteudo({ membro, onSair }) {
         setCarregandoEventos(false);
       });
   }, []);
-  const [secao, setSecao] = useState<Secao>(secoesValidas.includes(hashInicial) ? hashInicial : "agenda");
+  const [secao, setSecao] = useState<Secao>(secoesValidas.includes(hashInicial) ? hashInicial : (membro.equipe ? "admin" : "agenda"));
 
   const mudarSecao = (novaSecao: Secao) => {
     setSecao(novaSecao);
@@ -765,7 +767,7 @@ function PortalConteudo({ membro, onSair }) {
       </header>
 <nav style={{background:"#fff",borderBottom:"1px solid #EAECE6"}}>
         <div style={{maxWidth:880,margin:"0 auto",padding:"10px 24px",display:"flex",gap:8,flexWrap:"wrap"}}>
-          {([["agenda","Agenda de Eventos"],["membros","Membros"],["painel","Meu Painel"],["perfil","Meu Perfil"],["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
+          {([["agenda","Agenda de Eventos"],["membros","Membros"],...(membro.equipe?[]:[["painel","Meu Painel"],["perfil","Meu Perfil"]]),["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
         </div>
       </nav>
       {secao === "agenda" && (

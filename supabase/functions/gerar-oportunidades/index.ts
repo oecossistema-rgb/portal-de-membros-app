@@ -69,7 +69,7 @@ async function chamarIA(pedido: string): Promise<string> {
     r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELO, max_tokens: 3000, system: SISTEMA, messages: [{ role: "user", content: pedido }], tools: [FERRAMENTA], tool_choice: { type: "tool", name: "salvar_oportunidades" } }),
+      body: JSON.stringify({ model: MODELO, max_tokens: 3000, system: SISTEMA, messages: [{ role: "user", content: pedido }], tools: [FERRAMENTA] }),
     });
     if (r.ok || !(r.status === 429 || r.status >= 500)) break;
     const espera = Number(r.headers.get("retry-after")) || 4 * (tentativa + 1);
@@ -113,8 +113,13 @@ async function gerarPara(membroId: string, outros: Outro[]) {
   const pedido = `PERFIL DELE (completo):\n${JSON.stringify(eu)}\n\nOUTROS MEMBROS (código: nome, empresa, segmento, cidade | resumo):\n` +
     candidatos.map((c, i) => `M${i + 1}: ${c.nome}, ${c.empresa}, ${c.segmento}, ${c.cidade} | ${compactar(c.resumo)}`).join("\n");
 
-  const bruto = (await chamarIA(pedido)).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const j = JSON.parse(bruto.slice(bruto.indexOf("{"), bruto.lastIndexOf("}") + 1));
+  // Se a resposta vier com defeito de formatação, pede de novo (até 3 vezes).
+  let j: { oportunidades?: unknown } = {};
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    const bruto = (await chamarIA(pedido)).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    try { j = JSON.parse(bruto.slice(bruto.indexOf("{"), bruto.lastIndexOf("}") + 1)); break; }
+    catch (e) { if (tentativa === 2) throw e; }
+  }
   const tipos = new Set(["cliente", "ajuda", "parceria", "afinidade"]);
   const vistos = new Set<string>();
   const linhas = (Array.isArray(j.oportunidades) ? j.oportunidades : []).map((x: Record<string, unknown>) => ({

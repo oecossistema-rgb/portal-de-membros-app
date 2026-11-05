@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { supabase } from "./supabase";
+import { CartaoResumo, type Resumo } from "./ResumoPerfil";
 
 // "Meu Painel": área privada de cada membro (só ele vê). Primeiro módulo: Oportunidades.
 // Novos módulos (Ofertas, Conexões, Indicadores...) entram no menu lateral.
@@ -9,7 +11,36 @@ export type TipoOp = "cliente" | "ajuda" | "parceria" | "afinidade";
 export type Oportunidade = {
   id: string; tipo: TipoOp; nome: string; empresa: string; segmento: string; foto?: string | null;
   motivo: string; forca: 1 | 2 | 3; whatsapp?: string | null; status?: "nova" | "conversei" | "fechou" | "descartada";
+  resumo?: Resumo | null;
 };
+
+function abrirWhatsapp(numero?: string | null) {
+  const t = (numero || "").replace(/\D/g, "");
+  if (t) window.open(`https://wa.me/${t.startsWith("55") ? t : `55${t}`}`, "_blank", "noopener");
+}
+
+// Versão com dados reais: carrega as oportunidades do membro logado.
+export function PainelMembro({ userId, nome }: { userId: string; nome: string }) {
+  const [ops, setOps] = useState<Oportunidade[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data: eu } = await supabase.from("membros").select("id").eq("auth_user_id", userId).maybeSingle();
+      if (!eu) { setOps([]); return; }
+      const { data } = await supabase.from("membros_oportunidades")
+        .select("id,tipo,motivo,forca,status,alvo:membros!membros_oportunidades_alvo_id_fkey(nome,empresa,segmento,foto_url,telefone_whatsapp,resumo_publico)")
+        .eq("membro_id", eu.id);
+      type Linha = { id: string; tipo: TipoOp; motivo: string; forca: 1 | 2 | 3; status: Oportunidade["status"];
+        alvo: { nome: string | null; empresa: string | null; segmento: string | null; foto_url: string | null; telefone_whatsapp: string | null; resumo_publico: Resumo | null } | null };
+      setOps(((data as unknown as Linha[]) || []).filter((l) => l.alvo).map((l) => ({
+        id: l.id, tipo: l.tipo, motivo: l.motivo, forca: l.forca, status: l.status,
+        nome: l.alvo!.nome || "", empresa: l.alvo!.empresa || "", segmento: l.alvo!.segmento || "", foto: l.alvo!.foto_url,
+        whatsapp: l.alvo!.telefone_whatsapp, resumo: l.alvo!.resumo_publico,
+      })));
+    })();
+  }, [userId]);
+  if (ops === null) return <div style={{ padding: 40, textAlign: "center", color: "#6B7482" }}>Carregando seu painel...</div>;
+  return <Painel nome={nome} oportunidades={ops} salvar={async (id, st) => { await supabase.rpc("marcar_oportunidade", { p_id: id, p_status: st }); }} />;
+}
 
 const C = { tinta: "#1A1F2B", tinta2: "#252C3B", texto: "#3A4250", suave: "#6B7482", oliva: "#8BAD3F", olivaEsc: "#4A6118", olivaClaro: "#F3F7EA", fundo: "#F2F3EE", borda: "#E4E7DE" };
 
@@ -97,7 +128,8 @@ export const DEMO: Oportunidade[] = [
   { id: "9", tipo: "afinidade", nome: "Daniel Brito", empresa: "DB Med", segmento: "Marketing médico", motivo: "Pratica musculação, como você.", forca: 1 },
 ];
 
-export function Painel({ nome, oportunidades = DEMO }: { nome: string; oportunidades?: Oportunidade[] }) {
+export function Painel({ nome, oportunidades = DEMO, salvar }: { nome: string; oportunidades?: Oportunidade[]; salvar?: (id: string, s: NonNullable<Oportunidade["status"]>) => Promise<void> }) {
+  const [perfil, setPerfil] = useState<Oportunidade | null>(null);
   const [menu, setMenu] = useState("oportunidades");
   const [filtro, setFiltro] = useState<TipoOp | "todas">("todas");
   const [status, setStatus] = useState<Record<string, Oportunidade["status"]>>({});
@@ -157,15 +189,26 @@ export function Painel({ nome, oportunidades = DEMO }: { nome: string; oportunid
         </div>
 
         <div className="pn-grid">
-          {lista.map((o) => <CartaoOp key={o.id} o={o} status={status[o.id] || o.status || "nova"} mudar={(s) => setStatus({ ...status, [o.id]: s })} />)}
+          {lista.map((o) => <CartaoOp key={o.id} o={o} status={status[o.id] || o.status || "nova"} verPerfil={() => setPerfil(o)} mudar={(s) => { setStatus({ ...status, [o.id]: s }); if (salvar && s) salvar(o.id, s); }} />)}
         </div>
-        {lista.length === 0 && <div className="pn-3d" style={{ padding: 30, textAlign: "center", color: C.suave }}>Nenhuma oportunidade neste filtro.</div>}
+        {lista.length === 0 && <div className="pn-3d" style={{ padding: 30, textAlign: "center", color: C.suave }}>{ativas.length === 0 ? "Seu painel de oportunidades está sendo preparado. Em breve ele aparece aqui." : "Nenhuma oportunidade neste filtro."}</div>}
+        {perfil && (
+          <div onClick={() => setPerfil(null)} style={{ position: "fixed", inset: 0, background: "rgba(20,24,34,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, padding: 28, width: "100%", maxWidth: 720, maxHeight: "calc(100vh - 40px)", overflowY: "auto", position: "relative", boxSizing: "border-box" }}>
+              <button onClick={() => setPerfil(null)} aria-label="Fechar" style={{ position: "absolute", top: 14, right: 14, width: 38, height: 38, border: 0, borderRadius: "50%", background: "#F0F1F3", fontSize: 24, cursor: "pointer" }}>×</button>
+              <div style={{ fontSize: 24, fontWeight: 800, color: C.tinta }}>{perfil.nome}</div>
+              <div style={{ fontWeight: 700, color: C.olivaEsc, margin: "4px 0 18px" }}>{perfil.empresa}</div>
+              {perfil.resumo ? <CartaoResumo resumo={perfil.resumo} /> : <div style={{ color: C.suave }}>Perfil ainda sem resumo.</div>}
+              {perfil.whatsapp && <button className="pn-btn esc" style={{ width: "100%", justifyContent: "center", marginTop: 18, padding: 14 }} onClick={() => abrirWhatsapp(perfil.whatsapp)}><Icone nome="whats" />Conversar pelo WhatsApp</button>}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
 }
 
-function CartaoOp({ o, status, mudar }: { o: Oportunidade; status: NonNullable<Oportunidade["status"]>; mudar: (s: Oportunidade["status"]) => void }) {
+function CartaoOp({ o, status, mudar, verPerfil }: { o: Oportunidade; status: NonNullable<Oportunidade["status"]>; mudar: (s: NonNullable<Oportunidade["status"]>) => void; verPerfil: () => void }) {
   const t = TIPOS[o.tipo];
   const etiqueta: CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: t.cor2, background: `${t.cor}1F`, borderRadius: 100, padding: "4px 9px" };
   return (
@@ -187,8 +230,8 @@ function CartaoOp({ o, status, mudar }: { o: Oportunidade; status: NonNullable<O
       </div>
       <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.5, color: C.texto, flex: 1 }}>{o.motivo}</p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button className="pn-btn esc"><Icone nome="whats" tam={16} />Chamar</button>
-        <button className="pn-btn"><Icone nome="olho" tam={16} />Ver perfil</button>
+        {o.whatsapp && <button className="pn-btn esc" onClick={() => abrirWhatsapp(o.whatsapp)}><Icone nome="whats" tam={16} />Chamar</button>}
+        <button className="pn-btn" onClick={verPerfil}><Icone nome="olho" tam={16} />Ver perfil</button>
       </div>
       <div style={{ display: "flex", gap: 6, borderTop: `1px solid ${C.borda}`, paddingTop: 10, alignItems: "center", flexWrap: "wrap" }}>
         {([["conversei", "Já conversei"], ["fechou", "Fechamos negócio"]] as const).map(([s, r]) => (

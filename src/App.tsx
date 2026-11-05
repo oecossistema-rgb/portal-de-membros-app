@@ -1,3 +1,4 @@
+import { PainelMembro } from "./Painel";
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import Membros from "./Membros";
@@ -588,9 +589,9 @@ function PortalConteudo({ membro, onSair }) {
   const [nomeInput, setNomeInput] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  type Secao = "agenda" | "membros" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
+  type Secao = "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
-  const secoesValidas: Secao[] = ["agenda", "membros", "perfil", "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  const secoesValidas: Secao[] = ["agenda", "membros", "painel", "perfil", "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [carregandoEventos, setCarregandoEventos] = useState(true);
 
@@ -764,7 +765,7 @@ function PortalConteudo({ membro, onSair }) {
       </header>
 <nav style={{background:"#fff",borderBottom:"1px solid #EAECE6"}}>
         <div style={{maxWidth:880,margin:"0 auto",padding:"10px 24px",display:"flex",gap:8,flexWrap:"wrap"}}>
-          {([["agenda","Agenda de Eventos"],["membros","Membros"],["perfil","Meu Perfil"],["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
+          {([["agenda","Agenda de Eventos"],["membros","Membros"],["painel","Meu Painel"],["perfil","Meu Perfil"],["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
         </div>
       </nav>
       {secao === "agenda" && (
@@ -863,6 +864,7 @@ function PortalConteudo({ membro, onSair }) {
   </>
 )}
       {secao === "membros" && <Membros />}
+      {secao === "painel" && <PainelMembro userId={membro.userId} nome={membro.nome} />}
       {secao === "perfil" && <MeuPerfil userId={membro.userId} />}
       {secao === "admin" && membro.isAdmin && <Admin />}
       {secao === "entregas" && <SecaoEntregas />}

@@ -11,7 +11,7 @@ const CORS = {
 };
 const resp = (s: number, c: unknown) => new Response(JSON.stringify(c), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const MODELO = Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-5-5";
-const LOTE = 4;
+const LOTE = 3;
 const MAX = 12;
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
@@ -39,13 +39,24 @@ Regras:
 async function chamarIA(pedido: string): Promise<string> {
   const chave = Deno.env.get("ANTHROPIC_API_KEY");
   if (!chave) throw new Error("ANTHROPIC_API_KEY não configurada");
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODELO, max_tokens: 2500, system: SISTEMA, messages: [{ role: "user", content: pedido }] }),
-  });
-  if (!r.ok) throw new Error(`API da IA respondeu ${r.status}`);
-  const j = await r.json();
+  let r: Response | null = null;
+  // Tenta de novo quando a IA está sobrecarregada ou limita a velocidade (429/529/5xx).
+  for (let tentativa = 0; tentativa < 4; tentativa++) {
+    r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: MODELO, max_tokens: 2500, system: SISTEMA, messages: [{ role: "user", content: pedido }] }),
+    });
+    if (r.ok || !(r.status === 429 || r.status >= 500)) break;
+    const espera = Number(r.headers.get("retry-after")) || 4 * (tentativa + 1);
+    await new Promise((ok) => setTimeout(ok, Math.min(espera, 20) * 1000));
+  }
+  if (!r!.ok) {
+    const corpo = (await r!.text()).slice(0, 300);
+    console.error("IA erro", r!.status, corpo);
+    throw new Error(`API da IA respondeu ${r!.status}`);
+  }
+  const j = await r!.json();
   return (j.content || []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("");
 }
 
@@ -109,18 +120,24 @@ Deno.serve(async (req) => {
   const { data: eu } = await db.from("membros").select("id,is_admin,ativo").eq("auth_user_id", u.user.id).maybeSingle();
   if (!eu?.ativo || !eu.is_admin) return resp(403, { erro: "somente administradores" });
 
-  let corpo: { membro_id?: string; todos?: boolean; depois_de?: string } = {};
+  let corpo: { membro_id?: string; todos?: boolean; refazer?: boolean; depois_de?: string } = {};
   try { corpo = await req.json(); } catch { /* vazio */ }
 
   const { data: pub } = await db.from("membros").select("id,nome,empresa,segmento,cidade,estado,resumo_publico").eq("ativo", true).not("resumo_publico", "is", null);
   const outros: Outro[] = (pub || []).map((p) => ({ id: p.id, nome: p.nome || "", empresa: p.empresa || "", segmento: p.segmento || "",
     cidade: [p.cidade, p.estado].filter(Boolean).join("/"), resumo: p.resumo_publico as Record<string, unknown> }));
 
-  const rodar = async (id: string) => { try { return await gerarPara(id, outros); } catch (e) { return { membro_id: id, ok: false, erro: e instanceof Error ? e.message : String(e) }; } };
+  const rodar = async (id: string) => {
+    try { return await gerarPara(id, outros); }
+    catch (e) { const erro = e instanceof Error ? e.message : String(e); console.error("oportunidades falhou", id, erro); return { membro_id: id, ok: false, erro }; }
+  };
   if (corpo.membro_id) return resp(200, { resultados: [await rodar(corpo.membro_id)] });
   if (corpo.todos) {
     const { data: concl } = await db.from("membros_onboarding").select("membro_id").not("onboarding_concluido_em", "is", null).order("membro_id");
-    const fila = (concl || []).map((c) => c.membro_id as string).filter((id) => !corpo.depois_de || id > corpo.depois_de);
+    // Sem "refazer": só monta os painéis que ainda não existem (ex.: os que deram erro).
+    const { data: comPainel } = corpo.refazer ? { data: [] } : await db.from("membros_oportunidades").select("membro_id");
+    const feitos = new Set((comPainel || []).map((x) => x.membro_id as string));
+    const fila = (concl || []).map((c) => c.membro_id as string).filter((id) => !feitos.has(id) && (!corpo.depois_de || id > corpo.depois_de));
     const resultados = [];
     for (const id of fila.slice(0, LOTE)) resultados.push(await rodar(id));
     const ultimo = fila.slice(0, LOTE).at(-1);

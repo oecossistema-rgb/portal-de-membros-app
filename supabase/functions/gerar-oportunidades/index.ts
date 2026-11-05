@@ -34,7 +34,31 @@ Regras:
 - Sobre os OUTROS membros, use só o resumo deles. Nunca cite números financeiros de ninguém.
 - "forca": 3 = muito forte, 2 = boa, 1 = leve. Afinidade nunca passa de 2.
 - No máximo ${MAX} oportunidades, as melhores primeiro; no máximo 2 afinidades. Um membro pode aparecer em mais de um tipo só se for muito forte.
-- Responda APENAS com JSON: {"oportunidades":[{"alvo":"<código do membro>","tipo":"cliente|ajuda|parceria|afinidade","motivo":"...","forca":1}]}`;
+- Entregue o resultado chamando a ferramenta salvar_oportunidades.`;
+
+const FERRAMENTA = {
+  name: "salvar_oportunidades",
+  description: "Salva as oportunidades encontradas para o empresário.",
+  input_schema: {
+    type: "object",
+    properties: {
+      oportunidades: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            alvo: { type: "string", description: "código do membro, ex.: M12" },
+            tipo: { type: "string", enum: ["cliente", "ajuda", "parceria", "afinidade"] },
+            motivo: { type: "string" },
+            forca: { type: "integer", enum: [1, 2, 3] },
+          },
+          required: ["alvo", "tipo", "motivo", "forca"],
+        },
+      },
+    },
+    required: ["oportunidades"],
+  },
+};
 
 async function chamarIA(pedido: string): Promise<string> {
   const chave = Deno.env.get("ANTHROPIC_API_KEY");
@@ -45,7 +69,7 @@ async function chamarIA(pedido: string): Promise<string> {
     r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELO, max_tokens: 2500, system: SISTEMA, messages: [{ role: "user", content: pedido }] }),
+      body: JSON.stringify({ model: MODELO, max_tokens: 3000, system: SISTEMA, messages: [{ role: "user", content: pedido }], tools: [FERRAMENTA], tool_choice: { type: "tool", name: "salvar_oportunidades" } }),
     });
     if (r.ok || !(r.status === 429 || r.status >= 500)) break;
     const espera = Number(r.headers.get("retry-after")) || 4 * (tentativa + 1);
@@ -57,6 +81,9 @@ async function chamarIA(pedido: string): Promise<string> {
     throw new Error(`API da IA respondeu ${r!.status}`);
   }
   const j = await r!.json();
+  // A resposta vem como chamada de ferramenta: o JSON já chega validado pela API.
+  const uso = (j.content || []).find((c: { type: string }) => c.type === "tool_use");
+  if (uso?.input) return JSON.stringify(uso.input);
   return (j.content || []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("");
 }
 

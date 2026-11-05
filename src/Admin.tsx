@@ -191,6 +191,22 @@ function AdminMembros() {
     setMsg({ tipo: erros ? "erro" : "ok", texto: `${feitos} resumo(s) gerado(s) para aprovação${erros ? `, ${erros} com erro (abra o membro para ver o motivo)` : ""}.` });
     carregar();
   }
+  // Monta o painel privado de oportunidades de todos os membros (usa só resumos aprovados dos outros).
+  async function gerarOportunidades() {
+    setMsg(null);
+    let feitos = 0, erros = 0, depois: string | undefined;
+    for (let volta = 0; volta < 30; volta++) {
+      setGerandoLote(`Cruzando oportunidades... ${feitos} painéis prontos`);
+      const { data, error } = await supabase.functions.invoke("gerar-oportunidades", { body: { todos: true, depois_de: depois } });
+      if (error) { erros++; break; }
+      const lote = (data?.resultados || []) as { ok: boolean }[];
+      feitos += lote.filter((x) => x.ok).length; erros += lote.filter((x) => !x.ok).length;
+      depois = data?.depois_de;
+      if (!lote.length || !data?.restantes) break;
+    }
+    setGerandoLote("");
+    setMsg({ tipo: erros ? "erro" : "ok", texto: `${feitos} painel(is) de oportunidades atualizados${erros ? `, ${erros} com erro` : ""}.` });
+  }
   const aAprovar = Object.values(resumos).filter((s) => s === "pendente").length;
 
   const chips: [typeof filtro, string, number][] = [
@@ -207,6 +223,7 @@ function AdminMembros() {
         <input style={{ ...ui.input, flex: "1 1 260px" }} placeholder="Buscar por nome, e-mail ou empresa..." value={busca} onChange={(e) => setBusca(e.target.value)} />
         <button className="cta-btn" style={ui.botao} onClick={() => { setMsg(null); setEditando({ ...MEMBRO_VAZIO }); }}>+ Novo membro</button>
         <button style={ui.botaoSecundario} onClick={gerarPendentes} disabled={!!gerandoLote}>{gerandoLote || "Gerar resumos pendentes (IA)"}</button>
+        <button style={ui.botaoSecundario} onClick={gerarOportunidades} disabled={!!gerandoLote}>{gerandoLote ? "Aguarde..." : "Gerar oportunidades (IA)"}</button>
       </div>
       {aAprovar > 0 && <div style={{ ...ui.aviso, textAlign: "left", padding: "12px 16px", marginBottom: 12, borderColor: "#E9D8A6", background: "#FFFBEF" }}>
         <strong>{aAprovar}</strong> resumo(s) aguardando sua aprovação. Abra o membro em "Onboarding" para revisar.

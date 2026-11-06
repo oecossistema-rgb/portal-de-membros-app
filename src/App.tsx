@@ -594,7 +594,7 @@ function PortalConteudo({ membro, onSair }) {
   const [buscaGeral, setBuscaGeral] = useState("");
   type Secao = "visao" | "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
-  const secoesValidas: Secao[] = [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "membros", ...(membro.equipe ? [] : ["painel", "perfil"] as Secao[]), "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  const secoesValidas: Secao[] = [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [carregandoEventos, setCarregandoEventos] = useState(true);
 
@@ -753,7 +753,7 @@ function PortalConteudo({ membro, onSair }) {
           { id: "ferramentas", titulo: "Ferramentas", icone: "ferramenta" as const, pronto: false },
         ],
         [
-          ...(membro.equipe ? [] : [{ id: "perfil", titulo: "Meu Perfil", icone: "eu" as const }]),
+          { id: "perfil", titulo: "Meu Perfil", icone: "eu" as const },
           { id: "entregas", titulo: "Nossas Entregas", icone: "estrela" as const },
           { id: "cultura", titulo: "Cultura", icone: "escudo" as const },
           { id: "regras", titulo: "Regras do Grupo", icone: "info" as const },
@@ -780,7 +780,7 @@ function PortalConteudo({ membro, onSair }) {
       )}
       {secao === "membros" && <Membros busca={buscaGeral} />}
       {secao === "painel" && <PainelMembro userId={membro.userId} nome={membro.nome} />}
-      {secao === "perfil" && <MeuPerfil userId={membro.userId} />}
+      {secao === "perfil" && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}
       {secao === "admin" && membro.isAdmin && <Admin />}
       {secao === "entregas" && <SecaoEntregas />}
       {secao === "cultura" && <SecaoCultura />}

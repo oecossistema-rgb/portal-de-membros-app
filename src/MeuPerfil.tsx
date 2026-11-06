@@ -35,7 +35,7 @@ const CAMPOS: { id: keyof Perfil; rotulo: string; longo?: boolean; dica?: string
   { id: "como_pode_contribuir", rotulo: "Como você pode contribuir", longo: true },
 ];
 
-export default function MeuPerfil({ userId }: { userId: string }) {
+export default function MeuPerfil({ userId, equipe = false }: { userId: string; equipe?: boolean }) {
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -115,8 +115,13 @@ export default function MeuPerfil({ userId }: { userId: string }) {
       <section style={ui.hero}>
         <div style={ui.heroInner}>
           <div style={ui.heroEyebrow}>Meu perfil</div>
-          <h1 style={ui.heroTitle}>Como os outros membros<br />vão te encontrar.</h1>
-          <p style={ui.heroSub}>Mantenha seus dados atualizados para gerar mais conexões dentro do Ecossistema.</p>
+          {equipe ? (<>
+            <h1 style={ui.heroTitle}>Seu perfil de equipe.</h1>
+            <p style={ui.heroSub}>Sua foto e seu nome aparecem no topo do portal. Como equipe, você não aparece na lista de membros.</p>
+          </>) : (<>
+            <h1 style={ui.heroTitle}>Como os outros membros<br />vão te encontrar.</h1>
+            <p style={ui.heroSub}>Mantenha seus dados atualizados para gerar mais conexões dentro do Ecossistema.</p>
+          </>)}
         </div>
       </section>
       <main style={ui.lista}>
@@ -136,7 +141,7 @@ export default function MeuPerfil({ userId }: { userId: string }) {
             </label>
           </div>
 
-          {CAMPOS.map((c) => (
+          {CAMPOS.filter((c) => !equipe || c.id === "nome" || c.id === "telefone_whatsapp").map((c) => (
             <div key={c.id} style={{ marginBottom: 16 }}>
               <label style={ui.label} htmlFor={`p-${c.id}`}>{c.rotulo}</label>
               {c.longo ? (
@@ -155,7 +160,7 @@ export default function MeuPerfil({ userId }: { userId: string }) {
           </button>
         </div>
 
-        <div style={ui.cartao}>
+        {!equipe && <div style={ui.cartao}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: "#E9F0EC", margin: "0 0 8px" }}>Meu perfil no Ecossistema</h2>
           <p style={{ fontSize: 13, color: "#97A69E", margin: "0 0 14px" }}>
             Resumo da sua empresa feito a partir do seu onboarding, sem dados financeiros. É o que os outros membros veem no seu perfil.
@@ -163,7 +168,7 @@ export default function MeuPerfil({ userId }: { userId: string }) {
           </p>
           {resumo.publicado ? <CartaoResumo resumo={resumo.publicado} />
             : <div style={ui.aviso}>{resumo.emRevisao ? "Seu resumo foi gerado e está em revisão pela administração. Assim que aprovado, ele aparece aqui e no seu perfil." : "Seu resumo será preparado pela administração a partir do seu onboarding."}</div>}
-        </div>
+        </div>}
       </main>
     </>
   );

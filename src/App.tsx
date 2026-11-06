@@ -96,13 +96,14 @@ type MembroLogado = {
   ativo: boolean;
   isAdmin: boolean;
   equipe: boolean;
+  foto: string | null;
   onboardingPendente: boolean;
 };
 
 async function montarMembro(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<MembroLogado> {
   const { data } = await supabase
     .from("membros")
-    .select("nome, ativo, is_admin, equipe")
+    .select("nome, ativo, is_admin, equipe, foto_url")
     .eq("auth_user_id", user.id)
     .maybeSingle();
   // Onboarding obrigatório: só bloqueia quando o banco responde "pendente".
@@ -119,6 +120,7 @@ async function montarMembro(user: { id: string; email?: string; user_metadata?: 
     ativo: !!data?.ativo,
     isAdmin: !!data?.ativo && !!data?.is_admin,
     equipe: !!data?.ativo && !!data?.equipe,
+    foto: data?.foto_url || null,
     onboardingPendente,
   };
 }
@@ -762,6 +764,7 @@ function PortalConteudo({ membro, onSair }) {
       onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)}
       nome={membro.nome}
       papel={membro.equipe ? "Equipe Ecossistema" : membro.isAdmin ? "Membro Master · Admin" : "Membro Master"}
+      foto={membro.foto}
       onSair={onSair}
       busca={buscaGeral}
       onBusca={(t) => { setBuscaGeral(t); if (secao !== "membros") mudarSecao("membros"); }}

@@ -1,4 +1,5 @@
 import { PainelMembro } from "./Painel";
+import { Agenda } from "./Agenda";
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import Membros from "./Membros";
@@ -766,105 +767,14 @@ function PortalConteudo({ membro, onSair }) {
         </div>
       </header>
 <nav style={{background:"#fff",borderBottom:"1px solid #EAECE6"}}>
-        <div style={{maxWidth:880,margin:"0 auto",padding:"10px 24px",display:"flex",gap:8,flexWrap:"wrap"}}>
-          {([["agenda","Agenda de Eventos"],["membros","Membros"],...(membro.equipe?[]:[["painel","Meu Painel"],["perfil","Meu Perfil"]]),["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} style={{border:0,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontWeight:700,fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#1A1F2B"}}>{label}</button>)}
+        <div style={{maxWidth:1120,margin:"0 auto",padding:"8px 24px",display:"flex",gap:4,overflowX:"auto",scrollbarWidth:"none"}}>
+          {([["agenda","Agenda de Eventos"],["membros","Membros"],...(membro.equipe?[]:[["painel","Meu Painel"],["perfil","Meu Perfil"]]),["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} className="nav-item" style={{border:0,borderRadius:100,padding:"9px 15px",cursor:"pointer",fontWeight:700,fontSize:14.5,whiteSpace:"nowrap",fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#3A4250"}}>{label}</button>)}
         </div>
       </nav>
       {secao === "agenda" && (
-  <>
-      <section style={S.hero}>
-        <div style={S.heroInner}>
-          <div style={S.heroEyebrow}>Agenda 26 / 27</div>
-          <h1 style={S.heroTitle}>
-            Toda a jornada do ano,<br />em um só lugar.
-          </h1>
-          <p style={S.heroSub}>
-            Consulte imersões, business day, growth sessions e reuniões de
-            conselho. Confirme sua presença em segundos — é só colocar seu nome.
-          </p>
-        </div>
-      </section>
-
-      <div style={S.filtroBar}>
-        {FILTROS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFiltro(f.id)}
-            className="filtro-btn"
-            style={{
-              ...S.filtroBtn,
-              ...(filtro === f.id ? S.filtroBtnAtivo : {}),
-            }}
-          >
-            {f.rotulo}
-          </button>
-        ))}
-      </div>
-
-      <main style={S.lista}>
-        {carregandoEventos && <div style={{ textAlign: "center", color: "#5A6472", padding: 24 }}>Carregando agenda...</div>}
-        {!carregandoEventos && eventosVisiveis.length === 0 && <div style={{ textAlign: "center", color: "#5A6472", padding: 24 }}>Nenhum evento nesta categoria.</div>}
-        {eventosVisiveis.map((evento, i) => {
-          const trilha = TRILHAS[evento.trilha] || TRILHAS.growth;
-          const confirmado = confirmacoes[evento.id];
-          return (
-            <article key={evento.id} className="evento-card" style={S.card}>
-              <div style={S.cardIndex}>{String(i + 1).padStart(2, "0")}</div>
-              <div style={S.cardBody}>
-                <span
-                  style={{
-                    ...S.tag,
-                    background: trilha.cor,
-                    color: trilha.corTexto,
-                  }}
-                >
-                  {trilha.rotulo}
-                </span>
-                <h3 style={S.cardTitulo}>{evento.titulo}</h3>
-                <div style={S.cardData}>
-                  {evento.quando}
-                  <span style={S.cardDivisor}>·</span>
-                  <span style={S.cardDia}>{evento.diaSemana}</span>
-                </div>
-              </div>
-              <div style={S.cardAcao}>
-              {confirmado ? (
-  <button
-    onClick={() => cancelarPresenca(evento)}
-    title="Clique para cancelar sua presença"
-    style={{
-      ...S.confirmadoBox,
-      border: "none",
-      background: "transparent",
-      cursor: "pointer",
-      padding: 0,
-      textAlign: "left",
-    }}
-  >
-    <div style={S.confirmadoCheck}>✓</div>
-    <div>
-      <div style={S.confirmadoLabel}>Presença confirmada</div>
-      <div style={S.confirmadoNome}>{confirmado}</div>
-    </div>
-  </button>
-) : !evento.inscrivel ? (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#8A94A2" }}>Inscrições encerradas</span>
-                ) : (
-                  <button
-                    className="cta-btn"
-                    style={S.ctaBtn}
-                    onClick={() => abrirConfirmacao(evento)}
-                  >
-                    Confirmar presença
-                  </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
-    </main>
-  </>
-)}
+        <Agenda eventos={eventos} carregando={carregandoEventos} filtro={filtro} setFiltro={setFiltro}
+          confirmacoes={confirmacoes} onConfirmar={abrirConfirmacao} onCancelar={cancelarPresenca} />
+      )}
       {secao === "membros" && <Membros />}
       {secao === "painel" && <PainelMembro userId={membro.userId} nome={membro.nome} />}
       {secao === "perfil" && <MeuPerfil userId={membro.userId} />}
@@ -964,7 +874,7 @@ const S = {
   },
   header: { background: "#1A1F2B", padding: "18px 0" },
   headerInner: {
-    maxWidth: 880,
+    maxWidth: 1120,
     margin: "0 auto",
     padding: "0 24px",
     display: "flex",

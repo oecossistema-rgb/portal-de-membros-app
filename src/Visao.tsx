@@ -53,7 +53,7 @@ export type IconeV = "casa" | "aperto" | "pessoas" | "rede" | "cal" | "dados" | 
 export function Ic({ n, t = 18 }: { n: IconeV; t?: number }) {
   const p: Record<IconeV, ReactNode> = {
     casa: <><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></>,
-    aperto: <><path d="M2 12l4-4 3 2 3-3 3 3 3-2 4 4" /><path d="M6 14l3 3 2-2 2 2 2-2 3 3" /></>,
+    aperto: <><path d="m11 17 2 2a1 1 0 1 0 3-3" /><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" /><path d="m21 3 1 11h-2" /><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" /><path d="M3 4h8" /></>,
     pessoas: <><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.6" /><path d="M16 14.2c2.9.3 5 2.6 5 5.8" /></>,
     rede: <><circle cx="6" cy="6" r="2.4" /><circle cx="18" cy="7" r="2.4" /><circle cx="9" cy="18" r="2.4" /><circle cx="18" cy="17" r="2" /><path d="M8 7.5l1 8M8.2 5.6l7.4.9M11.3 17.6l4.7-.4M17.8 9.4l.1 5.6" /></>,
     cal: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M3 10h18M8 3v4M16 3v4" /></>,

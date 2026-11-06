@@ -210,19 +210,19 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
               <div style={{ fontSize: 13, color: "#B8C0CC", marginBottom: 8 }}>
                 {revisao ? "Revisão final" : `Pergunta ${pergunta!.n} de ${TOTAL} · ${etapaAtual?.titulo}`}
               </div>
-              <div style={{ height: 6, background: "#2C3442", borderRadius: 6 }} role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
-                <div style={{ height: 6, width: `${revisao ? 100 : progresso}%`, background: "#8BAD3F", borderRadius: 6, transition: "width .3s" }} />
+              <div style={{ height: 6, background: "#14241C", borderRadius: 6 }} role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}>
+                <div style={{ height: 6, width: `${revisao ? 100 : progresso}%`, background: "#2BE36B", borderRadius: 6, transition: "width .3s" }} />
               </div>
             </div>
           )}
         </div>
       </section>
 
-      <main style={{ ...ui.lista, maxWidth: 680, textAlign: "left" }}>
+      <main style={{ ...ui.lista, maxWidth: 680, margin: "16px auto 0", padding: "0 20px 40px", textAlign: "left" }}>
         {abertura && (
           <div style={{ ...ui.cartao, textAlign: "center", padding: "32px 22px" }}>
-            <p style={{ margin: "0 0 6px", fontSize: 16, color: "#1A1F2B", fontWeight: 700 }}>São {TOTAL} perguntas, uma por tela.</p>
-            <p style={{ margin: "0 0 22px", fontSize: 14, color: "#5A6472" }}>Suas respostas ficam salvas a cada passo: se precisar sair, você continua de onde parou.</p>
+            <p style={{ margin: "0 0 6px", fontSize: 16, color: "#E9F0EC", fontWeight: 700 }}>São {TOTAL} perguntas, uma por tela.</p>
+            <p style={{ margin: "0 0 22px", fontSize: 14, color: "#97A69E" }}>Suas respostas ficam salvas a cada passo: se precisar sair, você continua de onde parou.</p>
             <button className="cta-btn" style={{ ...ui.botao, padding: "14px 28px", fontSize: 15 }} onClick={() => irPara(0)}>Começar</button>
           </div>
         )}
@@ -240,17 +240,17 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
 
         {revisao && (
           <div style={ui.cartao}>
-            <p style={{ margin: "0 0 12px", color: "#4A5568", fontSize: 15 }}>
+            <p style={{ margin: "0 0 12px", color: "#97A69E", fontSize: 15 }}>
               Confira suas respostas. Para corrigir alguma, clique em "Editar" ao lado dela.
             </p>
             {ETAPAS.map((e) => (
-              <div key={e.titulo} style={{ borderTop: "1px solid #EAECE6", padding: "12px 0 4px" }}>
-                <strong style={{ color: "#1A1F2B" }}>{e.titulo}</strong>
+              <div key={e.titulo} style={{ borderTop: "1px solid #1B2A23", padding: "12px 0 4px" }}>
+                <strong style={{ color: "#E9F0EC" }}>{e.titulo}</strong>
                 {PERGUNTAS.filter((p) => p.n >= e.de && p.n <= e.ate).map((p) => (
                   <div key={p.n} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                     <div style={{ flex: 1, minWidth: 0 }}><LinhaResposta p={p} resp={resp} destacado={faltando.includes(p.n)} /></div>
                     <button onClick={() => editar(p.n - 1)} aria-label={`Editar pergunta ${p.n}`}
-                      style={{ background: "none", border: "none", color: "#6B8E23", fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "10px 0", fontFamily: "inherit" }}>Editar</button>
+                      style={{ background: "none", border: "none", color: "#2BE36B", fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "10px 0", fontFamily: "inherit" }}>Editar</button>
                   </div>
                 ))}
               </div>
@@ -280,13 +280,13 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
 }
 
 function Pagina({ children }: { children: React.ReactNode }) {
-  return <div style={{ minHeight: "100vh", background: "#F5F6F2", fontFamily: "'Inter', system-ui, sans-serif" }}>{children}</div>;
+  return <div style={{ minHeight: "100vh", background: "radial-gradient(80% 50% at 50% 0%, rgba(43,227,107,.12) 0%, rgba(43,227,107,0) 60%), #06090A", color: "#E9F0EC", fontFamily: "'Inter', system-ui, sans-serif", width: "100vw", marginLeft: "calc(50% - 50vw)" }}>{children}</div>;
 }
 
 function Enunciado({ p, id }: { p: Pergunta; id?: string }) {
   return (
-    <label htmlFor={id} style={{ ...ui.label, fontSize: 18, fontWeight: 700, color: "#1A1F2B", lineHeight: 1.4, marginBottom: 12 }}>
-      {p.n}. {p.texto} {p.obrigatoria && <span style={{ color: "#C0392B" }} aria-label="obrigatória">*</span>}
+    <label htmlFor={id} style={{ ...ui.label, fontSize: 18, fontWeight: 700, color: "#E9F0EC", lineHeight: 1.4, marginBottom: 12 }}>
+      {p.n}. {p.texto} {p.obrigatoria && <span style={{ color: "#FF9A9A" }} aria-label="obrigatória">*</span>}
     </label>
   );
 }
@@ -297,8 +297,8 @@ function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo, autoF
 }) {
   const id = `q${p.n}`;
   const valor = resp[p.campo];
-  const caixa: CSSProperties = { marginBottom: 22, padding: destacado ? 12 : 0, borderRadius: 10, border: destacado ? "1.5px solid #E5C2C2" : "none", background: destacado ? "#FDF6F6" : "transparent" };
-  const opcao: CSSProperties = { display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#1A1F2B", margin: "8px 0", cursor: "pointer", lineHeight: 1.4 };
+  const caixa: CSSProperties = { marginBottom: 22, padding: destacado ? 12 : 0, borderRadius: 10, border: destacado ? "1.5px solid #1B2A23" : "none", background: destacado ? "#FDF6F6" : "transparent" };
+  const opcao: CSSProperties = { display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#E9F0EC", margin: "8px 0", cursor: "pointer", lineHeight: 1.4 };
 
   if (p.tipo === "curto" || p.tipo === "longo" || p.tipo === "data") {
     return (
@@ -309,7 +309,7 @@ function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo, autoF
         ) : (
           <input id={id} autoFocus={autoFoco} type={p.tipo === "data" ? "date" : "text"} style={ui.input} value={(valor as string) || ""} onChange={(e) => alterar(p.campo, e.target.value)} />
         )}
-        {p.ajuda && <div style={{ fontSize: 12, color: "#9AA3B2", marginTop: 6, fontStyle: "italic" }}>{p.ajuda}</div>}
+        {p.ajuda && <div style={{ fontSize: 12, color: "#97A69E", marginTop: 6, fontStyle: "italic" }}>{p.ajuda}</div>}
       </div>
     );
   }
@@ -318,16 +318,16 @@ function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo, autoF
     return (
       <fieldset style={{ ...caixa, border: caixa.border, margin: "0 0 22px", minWidth: 0 }}>
         <legend style={{ padding: 0 }}><Enunciado p={p} /></legend>
-        <div style={{ fontSize: 13, color: "#5A6472", fontStyle: "italic" }}>Marcar apenas uma oval.</div>
+        <div style={{ fontSize: 13, color: "#97A69E", fontStyle: "italic" }}>Marcar apenas uma oval.</div>
         {p.opcoes!.map((o) => (
           <label key={o} style={opcao}>
-            <input type="radio" name={id} checked={valor === o} onChange={() => alterar(p.campo, o)} style={{ marginTop: 2, accentColor: "#8BAD3F" }} />
+            <input type="radio" name={id} checked={valor === o} onChange={() => alterar(p.campo, o)} style={{ marginTop: 2, accentColor: "#2BE36B" }} />
             {o}
           </label>
         ))}
         {p.outro && (
           <label style={{ ...opcao, alignItems: "center" }}>
-            <input type="radio" name={id} checked={valor === OPCAO_OUTRO} onChange={() => alterar(p.campo, OPCAO_OUTRO)} style={{ accentColor: "#8BAD3F" }} />
+            <input type="radio" name={id} checked={valor === OPCAO_OUTRO} onChange={() => alterar(p.campo, OPCAO_OUTRO)} style={{ accentColor: "#2BE36B" }} />
             Outro:
             <input aria-label="Outro (especifique)" style={{ ...ui.input, padding: "7px 10px", flex: 1 }} value={(resp[p.outro.campo] as string) || ""}
               onFocus={() => alterar(p.campo, OPCAO_OUTRO)} onChange={(e) => alterar(p.outro!.campo, e.target.value)} />
@@ -343,10 +343,10 @@ function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo, autoF
     return (
       <fieldset style={{ ...caixa, border: caixa.border, margin: "0 0 22px", minWidth: 0 }}>
         <legend style={{ padding: 0 }}><Enunciado p={p} /></legend>
-        <div style={{ fontSize: 13, color: "#9AA3B2", fontStyle: "italic" }}>Marque todas que se aplicam.</div>
+        <div style={{ fontSize: 13, color: "#97A69E", fontStyle: "italic" }}>Marque todas que se aplicam.</div>
         {p.opcoes!.map((o) => (
           <label key={o} style={opcao}>
-            <input type="checkbox" checked={marcados.includes(o)} onChange={() => alternar(o)} style={{ marginTop: 2, width: 16, height: 16, accentColor: "#8BAD3F" }} />
+            <input type="checkbox" checked={marcados.includes(o)} onChange={() => alternar(o)} style={{ marginTop: 2, width: 16, height: 16, accentColor: "#2BE36B" }} />
             {o}
           </label>
         ))}
@@ -362,16 +362,16 @@ function CampoPergunta({ p, resp, alterar, destacado, enviando, onArquivo, autoF
       <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 6 }}>
         {url ? (
           <img src={url} alt={p.campo === "logo_url" ? "Logo enviada" : "Foto enviada"}
-            style={{ width: 96, height: 96, objectFit: p.campo === "logo_url" ? "contain" : "cover", borderRadius: p.campo === "logo_url" ? 12 : "50%", background: "#fff", border: "1px solid #EAECE6" }} />
+            style={{ width: 96, height: 96, objectFit: p.campo === "logo_url" ? "contain" : "cover", borderRadius: p.campo === "logo_url" ? 12 : "50%", background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)", border: "1px solid #1B2A23" }} />
         ) : (
-          <div style={{ width: 96, height: 96, borderRadius: 12, border: "1.5px dashed #D8DCD2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#9AA3B2" }}>sem imagem</div>
+          <div style={{ width: 96, height: 96, borderRadius: 12, border: "1.5px dashed #1B2A23", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#97A69E" }}>sem imagem</div>
         )}
         <label style={{ ...ui.botaoSecundario, display: "inline-block" }}>
           {enviando ? "Enviando..." : url ? "Trocar imagem" : "Enviar imagem"}
           <input id={id} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} disabled={enviando}
             onChange={(e) => onArquivo(e.target.files?.[0])} />
         </label>
-        <span style={{ fontSize: 12, color: "#9AA3B2" }}>JPG, PNG ou WEBP, até 2 MB.</span>
+        <span style={{ fontSize: 12, color: "#97A69E" }}>JPG, PNG ou WEBP, até 2 MB.</span>
       </div>
     </div>
   );
@@ -381,12 +381,12 @@ export function LinhaResposta({ p, resp, destacado }: { p: Pergunta; resp: Respo
   const texto = formatarResposta(p, resp);
   return (
     <div style={{ padding: "8px 0", borderRadius: 8, background: destacado ? "#FDF6F6" : "transparent" }}>
-      <div style={{ fontSize: 13, color: "#5A6472", fontWeight: 600 }}>{p.n}. {p.texto}</div>
+      <div style={{ fontSize: 13, color: "#97A69E", fontWeight: 600 }}>{p.n}. {p.texto}</div>
       {p.tipo === "arquivo" ? (
-        texto ? <img src={texto} alt="" style={{ marginTop: 6, width: 72, height: 72, objectFit: p.campo === "logo_url" ? "contain" : "cover", borderRadius: 10, border: "1px solid #EAECE6", background: "#fff" }} />
-          : <div style={{ fontSize: 14, color: "#C0392B" }}>Não enviada</div>
+        texto ? <img src={texto} alt="" style={{ marginTop: 6, width: 72, height: 72, objectFit: p.campo === "logo_url" ? "contain" : "cover", borderRadius: 10, border: "1px solid #1B2A23", background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)" }} />
+          : <div style={{ fontSize: 14, color: "#FF9A9A" }}>Não enviada</div>
       ) : (
-        <div style={{ fontSize: 15, color: texto ? "#1A1F2B" : "#9AA3B2", whiteSpace: "pre-wrap", marginTop: 2 }}>{texto || "Sem resposta"}</div>
+        <div style={{ fontSize: 15, color: texto ? "#E9F0EC" : "#6B7A72", whiteSpace: "pre-wrap", marginTop: 2 }}>{texto || "Sem resposta"}</div>
       )}
     </div>
   );

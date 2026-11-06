@@ -43,9 +43,10 @@ export const CSS_V = `
 @media (max-width:1180px){ .pv-meio{ grid-template-columns:1fr } .pv-ops{ grid-template-columns:repeat(2,1fr) } }
 @media (max-width:900px){
   .pv{ grid-template-columns:1fr } .pv-side{ position:static; height:auto; flex-direction:row; overflow-x:auto; padding:10px }
+  .pv-side > div:not(.pv-logo):not(.pv-promo){ display:contents !important } .pv-side .pv-logo, .pv-side .pv-promo, .pv-kbd{ display:none !important } .pv-side{ flex-wrap:nowrap; gap:4px } .pv-grafico{ grid-template-columns:1fr !important }
   .pv-side .pv-logo, .pv-side .pv-promo{ display:none } .pv-item{ width:auto; white-space:nowrap }
   .pv-kpis{ grid-template-columns:repeat(2,1fr) } .pv-ops{ grid-template-columns:1fr } .pv-top{ padding:0 14px } .pv-conteudo{ padding:16px 14px 28px }
-  .pv-top .pv-quem{ display:none }
+  .pv-quem-txt{ display:none !important }
 }`;
 
 export type IconeV = "casa" | "aperto" | "pessoas" | "rede" | "cal" | "dados" | "ferramenta" | "eu" | "engrenagem" | "ajuda" | "sino" | "busca" | "grafico" | "raio" | "estrela" | "pino" | "maleta" | "info" | "foguete" | "seta" | "check" | "escudo" | "play" | "seta-baixo" | "tag" | "sair";
@@ -105,7 +106,7 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
       <style>{CSS_V}</style>
       <aside className="pv-side">
         <div className="pv-logo" style={{ textAlign: "center", padding: "6px 4px 18px" }}>
-          <LogoM t={40} />
+          <img src="/logo-ecossistema.png" alt="Ecossistema Master Business" style={{ width: 58, height: 58, borderRadius: 14, display: "block", margin: "0 auto 6px", boxShadow: "0 0 22px -6px rgba(43,227,107,.6)" }} />
           <div style={{ fontSize: 13, color: "#DDE6E1", marginTop: 2 }}>Ecossistema</div>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", letterSpacing: -0.2 }}>Master Business</div>
           <div style={{ fontSize: 8.5, color: V.suave, marginTop: 4 }}>Conectando Negócios • Multiplicando Resultados</div>
@@ -142,7 +143,7 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
             <button onClick={() => setMenuUser(!menuUser)} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: 0, color: V.texto, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
               {foto ? <img src={foto} alt="" style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: `2px solid ${V.borda2}` }} />
                 : <span style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(145deg,#1B3A28,#0E1F16)", border: `2px solid ${V.borda2}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>{(nome || "?").charAt(0)}</span>}
-              <span style={{ textAlign: "left" }}><span style={{ display: "block", fontWeight: 800, fontSize: 14 }}>{nome}</span><span style={{ display: "block", fontSize: 11.5, color: V.suave }}>{papel}</span></span>
+              <span className="pv-quem-txt" style={{ textAlign: "left" }}><span style={{ display: "block", fontWeight: 800, fontSize: 14 }}>{nome}</span><span style={{ display: "block", fontSize: 11.5, color: V.suave }}>{papel}</span></span>
               <Ic n="seta-baixo" t={16} />
             </button>
             {menuUser && (
@@ -216,7 +217,7 @@ export function VisaoGeral({ userId, nome, eventos, confirmacoes, onIr, demo }: 
       ]);
       setOps(((o as unknown as Op[]) || []).filter((x) => x.alvo && x.status !== "descartada"));
       const lista = (ms as { nome: string; created_at: string }[]) || [];
-      setNovos(lista.slice(0, 2));
+      setNovos(lista.slice(0, 3));
       setCrescimento(lista.map((x) => x.created_at).filter(Boolean).sort());
     })();
   }, [userId]);
@@ -247,7 +248,7 @@ export function VisaoGeral({ userId, nome, eventos, confirmacoes, onIr, demo }: 
   const atividades: { icone: IconeV; titulo: string; sub: string }[] = [
     ...(ops.length ? [{ icone: "maleta" as IconeV, titulo: "Novas oportunidades encontradas", sub: `${ops.length} conexões para você` }] : []),
     ...ops.filter((x) => x.status === "conversei" || x.status === "fechou").slice(0, 1).map((x) => ({ icone: "aperto" as IconeV, titulo: x.status === "fechou" ? "Negócio fechado" : "Conexão confirmada", sub: x.alvo?.empresa || x.alvo?.nome || "" })),
-    ...novos.map((m) => ({ icone: "eu" as IconeV, titulo: "Novo membro no ecossistema", sub: m.nome })),
+    ...novos.filter((m) => m.nome !== nome).slice(0, 2).map((m) => ({ icone: "eu" as IconeV, titulo: "Novo membro no ecossistema", sub: m.nome })),
     ...(prox && confirmacoes[prox.id] ? [{ icone: "cal" as IconeV, titulo: "Evento confirmado", sub: prox.titulo }] : []),
   ].slice(0, 4);
 
@@ -291,7 +292,7 @@ export function VisaoGeral({ userId, nome, eventos, confirmacoes, onIr, demo }: 
             <div className="pv-seg">{[[7, "7 dias"], [30, "30 dias"], [90, "90 dias"], [365, "1 ano"]].map(([d, r]) => (
               <button key={d} className={periodo === d ? "on" : ""} onClick={() => setPeriodo(d as number)}>{r}</button>))}</div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 14, alignItems: "center" }}>
+          <div className="pv-grafico" style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 14, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
               <svg viewBox={`0 0 ${W} ${H + 20}`} style={{ width: "100%", height: "auto", display: "block" }} onMouseLeave={() => setHover(null)}>
                 <defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={V.verde} stopOpacity=".32" /><stop offset="1" stopColor={V.verde} stopOpacity="0" /></linearGradient></defs>

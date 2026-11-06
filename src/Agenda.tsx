@@ -6,37 +6,37 @@ export type EventoAgenda = { id: string; trilha: string; titulo: string; quando:
 
 const TIPOS: Record<string, { rotulo: string; plural: string; cor: string }> = {
   imersao: { rotulo: "Imersão", plural: "Imersões", cor: "#8BAD3F" },
-  "business-day": { rotulo: "Business Day", plural: "Business Day", cor: "#1A1F2B" },
+  "business-day": { rotulo: "Business Day", plural: "Business Day", cor: "#E9F0EC" },
   growth: { rotulo: "Growth Session", plural: "Growth Sessions", cor: "#B8C98A" },
   conselho: { rotulo: "Conselho", plural: "Conselho", cor: "#5B6577" },
 };
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const SEMANA = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
-const C = { tinta: "#1A1F2B", texto: "#3A4250", suave: "#6B7482", claro: "#9AA2AE", oliva: "#8BAD3F", olivaEsc: "#4A6118", olivaClaro: "#F1F6E6", borda: "#E7E9E3", fundo: "#F5F6F2" };
+const C = { tinta: "#E9F0EC", texto: "#C9D3CD", suave: "#97A69E", claro: "#6B7A72", oliva: "#2BE36B", olivaEsc: "#2BE36B", olivaClaro: "rgba(43,227,107,.1)", borda: "#1B2A23", fundo: "#0A100E", tinta2: "#0F1915" };
 
 const CSS = `
 .ag{ text-align:left }
-.ag-hero{ background:${C.tinta}; color:#fff }
-.ag-hero-in{ max-width:1120px; margin:0 auto; padding:34px 24px 30px; display:flex; gap:24px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap }
+.ag-hero{ background:radial-gradient(120% 140% at 100% 0%, rgba(43,227,107,.2) 0%, rgba(43,227,107,0) 45%), linear-gradient(100deg,#06090A 0%,#0A1410 55%,#0D1F16 100%); color:#fff; border-radius:14px; border:1px solid #1B2A23 }
+.ag-hero-in{ padding:26px 26px 24px; display:flex; gap:24px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap }
 .ag-prox{ background:linear-gradient(145deg,#252C3B,#1F2531); border:1px solid #2E3647; border-radius:16px; padding:16px 18px; min-width:260px; box-shadow:inset 0 1px 0 rgba(255,255,255,.05) }
-.ag-barra{ background:#fff; border-bottom:1px solid ${C.borda}; position:sticky; top:0; z-index:5 }
-.ag-barra-in{ max-width:1120px; margin:0 auto; padding:12px 24px; display:flex; gap:6px; overflow-x:auto }
+.ag-barra{ background:linear-gradient(180deg,#0E1714 0%,#0B1210 100%); border-bottom:1px solid ${C.borda}; position:sticky; top:64px; z-index:5; border:0; background:#06090A; margin-top:8px }
+.ag-barra-in{ padding:10px 0; display:flex; gap:6px; overflow-x:auto }
 .ag-filtro{ border:1px solid transparent; background:transparent; border-radius:100px; padding:8px 14px; font:inherit; font-size:14px; font-weight:700; color:${C.texto}; cursor:pointer; white-space:nowrap; display:flex; gap:7px; align-items:center }
 .ag-filtro:hover{ background:${C.fundo} }
-.ag-filtro.on{ background:${C.tinta}; color:#fff }
-.ag-lista{ max-width:1120px; margin:0 auto; padding:26px 24px 56px }
+.ag-filtro.on{ background:#2BE36B; color:#03140A }
+.ag-lista{ padding:16px 0 24px }
 .ag-mes{ display:flex; align-items:center; gap:12px; margin:26px 0 12px; font-size:12px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:${C.suave} }
 .ag-mes:first-child{ margin-top:0 }
 .ag-mes::after{ content:""; flex:1; height:1px; background:${C.borda} }
-.ag-ev{ display:grid; grid-template-columns:76px 1fr auto; gap:18px; align-items:center; background:#fff; border:1px solid ${C.borda}; border-radius:16px; padding:14px 18px 14px 14px; margin-bottom:10px; transition:box-shadow .18s ease, transform .18s ease, border-color .18s ease }
+.ag-ev{ display:grid; grid-template-columns:76px 1fr auto; gap:18px; align-items:center; background:linear-gradient(180deg,#0E1714 0%,#0B1210 100%); border:1px solid ${C.borda}; border-radius:16px; padding:14px 18px 14px 14px; margin-bottom:10px; transition:box-shadow .18s ease, transform .18s ease, border-color .18s ease }
 .ag-ev:hover{ box-shadow:0 12px 28px -16px rgba(26,31,43,.28); transform:translateY(-1px) }
 .ag-ev.prox{ border-color:${C.oliva}; box-shadow:0 0 0 3px ${C.oliva}22 }
 .ag-ev.passado{ opacity:.55 }
 .ag-data{ border-radius:12px; background:${C.fundo}; text-align:center; padding:9px 0 8px }
-.ag-btn{ border:1px solid ${C.tinta}; background:${C.tinta}; color:#fff; border-radius:10px; padding:10px 16px; font:inherit; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap }
-.ag-btn:hover{ background:#2A3242 }
-.ag-ok{ display:flex; align-items:center; gap:10px; border:1px solid #D5E4B5; background:${C.olivaClaro}; color:${C.olivaEsc}; border-radius:10px; padding:8px 12px; font:inherit; cursor:pointer; text-align:left }
+.ag-btn{ border:0; background:linear-gradient(180deg,#43F07F 0%,#22D262 100%); color:#03140A; box-shadow:0 6px 18px -8px #2BE36B; border-radius:10px; padding:10px 16px; font:inherit; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap }
+.ag-btn:hover{ filter:brightness(1.06) }
+.ag-ok{ display:flex; align-items:center; gap:10px; border:1px solid #1B2A23; background:${C.olivaClaro}; color:${C.olivaEsc}; border-radius:10px; padding:8px 12px; font:inherit; cursor:pointer; text-align:left }
 .ag-ok:hover .ag-ok-sub{ text-decoration:underline }
 @media (max-width:640px){
   .ag-ev{ grid-template-columns:62px 1fr; gap:12px }

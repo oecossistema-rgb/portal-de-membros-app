@@ -1,5 +1,6 @@
 import { PainelMembro } from "./Painel";
 import { Agenda } from "./Agenda";
+import { PortalShell, VisaoGeral } from "./Visao";
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
 import Membros from "./Membros";
@@ -353,11 +354,7 @@ function AuthShell({ children }) {
     <div style={S.loginPage}>
       <style>{CSS}</style>
       <div style={S.loginCard}>
-        <div style={S.logoMark}>
-          <span style={S.logoDotA} />
-          <span style={S.logoDotB} />
-          <span style={S.logoDotC} />
-        </div>
+        <img src="/logo-ecossistema.png" alt="" style={{ width: 64, height: 64, borderRadius: 16, display: "block", margin: "0 auto", boxShadow: "0 0 26px -6px rgba(43,227,107,.6)" }} />
         <div style={S.loginEyebrow}>Ecossistema Master Business</div>
         {children}
       </div>
@@ -581,7 +578,7 @@ function SecaoCultura() {
 }
 
 function SecaoRegras() {
- const tons:any={permitido:{b:"#8BAD3F",bg:"#E8F0D8",c:"#4A6118",r:"Recomendado"},evitar:{b:"#D98A8A",bg:"#F7E4E4",c:"#9A3B3B",r:"Não permitido"},info:{b:"#8A94A2",bg:"#EAECEF",c:"#45505F",r:"Importante"}};
+ const tons:any={permitido:{b:"#2BE36B",bg:"rgba(43,227,107,.12)",c:"#2BE36B",r:"Recomendado"},evitar:{b:"#FF7A7A",bg:"rgba(255,90,90,.12)",c:"#FF9A9A",r:"Não permitido"},info:{b:"#6B7A72",bg:"rgba(255,255,255,.06)",c:"#C9D3CD",r:"Importante"}};
  return <><section style={S.hero}><div style={S.heroInner}><div style={S.heroEyebrow}>Grupo de WhatsApp</div><h1 style={S.heroTitle}>Regras de convivência.<br/>Um ambiente de alto nível.</h1><p style={S.heroSub}>Diretrizes para mantermos um ambiente produtivo, organizado e rico em conexões, trocas e oportunidades para todos.</p></div></section><main style={S.lista}><div style={S.blocoTexto}>{REGRAS_GRUPO.intro.map((p,i)=><p key={i} style={S.paragrafo}>{p}</p>)}</div>{REGRAS_GRUPO.blocos.map((x:any,i)=>{const t=tons[x.tom];return <article key={i} style={{...S.regraCard,borderLeft:`4px solid ${t.b}`}}><div style={S.regraHead}><span style={S.regraTitulo}>{x.titulo}</span><span style={{...S.regraChip,background:t.bg,color:t.c}}>{t.r}</span></div><p style={S.regraTexto}>{x.texto}</p>{x.itens&&<ul style={S.entregaLista}>{x.itens.map((v:string,j:number)=><li key={j} style={S.entregaItem}>{v}</li>)}</ul>}</article>})}</main></>;
 }
 
@@ -592,9 +589,10 @@ function PortalConteudo({ membro, onSair }) {
   const [nomeInput, setNomeInput] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  type Secao = "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
+  const [buscaGeral, setBuscaGeral] = useState("");
+  type Secao = "visao" | "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
-  const secoesValidas: Secao[] = ["agenda", "membros", ...(membro.equipe ? [] : ["painel", "perfil"] as Secao[]), "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  const secoesValidas: Secao[] = [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "membros", ...(membro.equipe ? [] : ["painel", "perfil"] as Secao[]), "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [carregandoEventos, setCarregandoEventos] = useState(true);
 
@@ -619,7 +617,7 @@ function PortalConteudo({ membro, onSair }) {
         setCarregandoEventos(false);
       });
   }, []);
-  const [secao, setSecao] = useState<Secao>(secoesValidas.includes(hashInicial) ? hashInicial : (membro.equipe ? "admin" : "agenda"));
+  const [secao, setSecao] = useState<Secao>(secoesValidas.includes(hashInicial) ? hashInicial : (membro.equipe ? "admin" : "visao"));
 
   const mudarSecao = (novaSecao: Secao) => {
     setSecao(novaSecao);
@@ -742,40 +740,42 @@ function PortalConteudo({ membro, onSair }) {
     }
   }
   return (
-    <div style={S.page}>
+    <PortalShell
+      itens={[
+        [
+          ...(membro.equipe ? [] : [{ id: "visao", titulo: "Visão Geral", icone: "casa" as const }, { id: "painel", titulo: "Oportunidades", icone: "aperto" as const }]),
+          { id: "membros", titulo: "Meus Membros", icone: "pessoas" as const },
+          { id: "conexoes", titulo: "Conexões", icone: "rede" as const, pronto: false },
+          { id: "agenda", titulo: "Eventos", icone: "cal" as const },
+          { id: "dados", titulo: "Inteligência de Dados", icone: "dados" as const, pronto: false },
+          { id: "ferramentas", titulo: "Ferramentas", icone: "ferramenta" as const, pronto: false },
+        ],
+        [
+          ...(membro.equipe ? [] : [{ id: "perfil", titulo: "Meu Perfil", icone: "eu" as const }]),
+          { id: "entregas", titulo: "Nossas Entregas", icone: "estrela" as const },
+          { id: "cultura", titulo: "Cultura", icone: "escudo" as const },
+          { id: "regras", titulo: "Regras do Grupo", icone: "info" as const },
+          ...(membro.isAdmin ? [{ id: "admin", titulo: "Administração", icone: "engrenagem" as const }] : []),
+        ],
+      ]}
+      ativo={secao}
+      onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)}
+      nome={membro.nome}
+      papel={membro.equipe ? "Equipe Ecossistema" : membro.isAdmin ? "Membro Master · Admin" : "Membro Master"}
+      onSair={onSair}
+      busca={buscaGeral}
+      onBusca={(t) => { setBuscaGeral(t); if (secao !== "membros") mudarSecao("membros"); }}
+    >
       <style>{CSS}</style>
-
-      <header style={S.header}>
-        <div style={S.headerInner}>
-          <div style={S.brandRow}>
-            <div style={S.logoMark}>
-              <span style={S.logoDotA} />
-              <span style={S.logoDotB} />
-              <span style={S.logoDotC} />
-            </div>
-            <div>
-              <div style={S.brandEyebrow}>Ecossistema Master Business</div>
-              <div style={S.brandTitle}>Portal de Membros</div>
-            </div>
-          </div>
-          <div style={S.headerRight}>
-            <span style={S.headerNote}>{membro.nome}</span>
-            <button className="sair-btn" style={S.sairBtn} onClick={onSair}>
-              Sair
-            </button>
-          </div>
-        </div>
-      </header>
-<nav style={{background:"#fff",borderBottom:"1px solid #EAECE6"}}>
-        <div style={{maxWidth:1120,margin:"0 auto",padding:"8px 24px",display:"flex",gap:4,overflowX:"auto",scrollbarWidth:"none"}}>
-          {([["agenda","Agenda de Eventos"],["membros","Membros"],...(membro.equipe?[]:[["painel","Meu Painel"],["perfil","Meu Perfil"]]),["entregas","Nossas Entregas"],["cultura","Cultura"],["regras","Regras do Grupo"],...(membro.isAdmin?[["admin","Administração"]]:[])] as [Secao,string][]).map(([id,label])=><button key={id} onClick={()=>mudarSecao(id)} className="nav-item" style={{border:0,borderRadius:100,padding:"9px 15px",cursor:"pointer",fontWeight:700,fontSize:14.5,whiteSpace:"nowrap",fontFamily:"inherit",background:secao===id?"#1A1F2B":"transparent",color:secao===id?"#fff":"#3A4250"}}>{label}</button>)}
-        </div>
-      </nav>
+      {secao === "visao" && (
+        <VisaoGeral userId={membro.userId} nome={membro.nome} eventos={eventos} confirmacoes={confirmacoes}
+          onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)} />
+      )}
       {secao === "agenda" && (
         <Agenda eventos={eventos} carregando={carregandoEventos} filtro={filtro} setFiltro={setFiltro}
           confirmacoes={confirmacoes} onConfirmar={abrirConfirmacao} onCancelar={cancelarPresenca} />
       )}
-      {secao === "membros" && <Membros />}
+      {secao === "membros" && <Membros busca={buscaGeral} />}
       {secao === "painel" && <PainelMembro userId={membro.userId} nome={membro.nome} />}
       {secao === "perfil" && <MeuPerfil userId={membro.userId} />}
       {secao === "admin" && membro.isAdmin && <Admin />}
@@ -783,9 +783,6 @@ function PortalConteudo({ membro, onSair }) {
       {secao === "cultura" && <SecaoCultura />}
       {secao === "regras" && <SecaoRegras />}
 
-<footer style={S.footer}>
-        Ecossistema Master Business — Portal exclusivo de membros
-      </footer>
 
       {modalEvento && (
         <div style={S.overlay} onClick={fecharModal}>
@@ -833,7 +830,7 @@ function PortalConteudo({ membro, onSair }) {
           </div>
         </div>
       )}
-    </div>
+    </PortalShell>
   );
 }
 
@@ -842,29 +839,29 @@ function PortalConteudo({ membro, onSair }) {
 // ------------------------------------------------------------
 const S = {
 
-  grupoLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#8A94A2",marginBottom:14},
-  entregaCard:{background:"#fff",border:"1px solid #EAECE6",borderRadius:14,marginBottom:12,overflow:"hidden"},
+  grupoLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#2BE36B",marginBottom:14},
+  entregaCard:{background:"linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",border:"1px solid #1B2A23",borderRadius:14,marginBottom:12,overflow:"hidden"},
   entregaHead:{display:"flex",alignItems:"center",gap:16,width:"100%",padding:"20px 22px",background:"none",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"inherit"},
-  entregaNumero:{fontSize:15,fontWeight:800,color:"#C0C6BB",minWidth:28},
+  entregaNumero:{fontSize:15,fontWeight:800,color:"#2BE36B",minWidth:28},
   entregaHeadTexto:{flex:1,display:"flex",flexDirection:"column",gap:3},
-  entregaTitulo:{fontSize:17,fontWeight:700,color:"#1A1F2B"}, entregaResumo:{fontSize:13.5,color:"#5A6472"}, entregaSeta:{fontSize:20,color:"#8BAD3F",fontWeight:700},
-  entregaCorpo:{padding:"0 22px 22px",borderTop:"1px solid #F0F2EC"}, entregaDescricao:{fontSize:14.5,lineHeight:1.65,color:"#3A4250",margin:"18px 0"},
-  entregaTopicosTitulo:{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#6B8E23",marginBottom:10},
-  entregaLista:{margin:"0 0 18px",paddingLeft:22}, entregaItem:{fontSize:14,lineHeight:1.55,color:"#3A4250",marginBottom:8},
-  entregaObjetivo:{background:"#F4F7EC",borderRadius:10,padding:"14px 16px",fontSize:14,lineHeight:1.6,color:"#2C3315"},
-  entregaObjetivoLabel:{display:"block",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#6B8E23",marginBottom:4},
-  fecho:{textAlign:"center",fontSize:16,fontWeight:600,color:"#4A5568",fontStyle:"italic",margin:"36px 0 8px"},
-  blocoTexto:{marginBottom:24}, paragrafo:{fontSize:15,lineHeight:1.7,color:"#3A4250",margin:"0 0 14px"},
+  entregaTitulo:{fontSize:16,fontWeight:800,color:"#E9F0EC"}, entregaResumo:{fontSize:13.5,color:"#97A69E"}, entregaSeta:{fontSize:20,color:"#2BE36B",fontWeight:700},
+  entregaCorpo:{padding:"0 22px 22px",borderTop:"1px solid #1B2A23"}, entregaDescricao:{fontSize:14.5,lineHeight:1.65,color:"#C9D3CD",margin:"18px 0"},
+  entregaTopicosTitulo:{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#2BE36B",marginBottom:10},
+  entregaLista:{margin:"0 0 18px",paddingLeft:22}, entregaItem:{fontSize:14,lineHeight:1.55,color:"#C9D3CD",marginBottom:8},
+  entregaObjetivo:{background:"rgba(43,227,107,.08)",border:"1px solid rgba(43,227,107,.22)",borderRadius:10,padding:"14px 16px",fontSize:14,lineHeight:1.6,color:"#E9F0EC"},
+  entregaObjetivoLabel:{display:"block",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#2BE36B",marginBottom:4},
+  fecho:{textAlign:"center",fontSize:16,fontWeight:600,color:"#97A69E",fontStyle:"italic",margin:"36px 0 8px"},
+  blocoTexto:{marginBottom:24}, paragrafo:{fontSize:15,lineHeight:1.7,color:"#C9D3CD",margin:"0 0 14px"},
   vmvGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12},
-  vmvCard:{background:"#fff",border:"1px solid #EAECE6",borderRadius:14,padding:"20px 22px",marginBottom:12},
-  vmvLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#6B8E23",marginBottom:10},
-  vmvTexto:{fontSize:14.5,lineHeight:1.6,color:"#3A4250",margin:0}, valoresRow:{display:"flex",flexWrap:"wrap",gap:8},
-  valorChip:{fontSize:13,fontWeight:600,color:"#2C3315",background:"#E8F0D8",padding:"6px 14px",borderRadius:100},
-  mandamentoFrase:{fontSize:15,fontWeight:600,fontStyle:"italic",color:"#2C3315",borderLeft:"3px solid #8BAD3F",paddingLeft:14,marginTop:6},
-  regraCard:{background:"#fff",border:"1px solid #EAECE6",borderRadius:14,padding:"20px 22px",marginBottom:12},
+  vmvCard:{background:"linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",border:"1px solid #1B2A23",borderRadius:14,padding:"20px 22px",marginBottom:12},
+  vmvLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#2BE36B",marginBottom:10},
+  vmvTexto:{fontSize:14.5,lineHeight:1.6,color:"#C9D3CD",margin:0}, valoresRow:{display:"flex",flexWrap:"wrap",gap:8},
+  valorChip:{fontSize:13,fontWeight:700,color:"#2BE36B",background:"rgba(43,227,107,.12)",border:"1px solid rgba(43,227,107,.28)",padding:"6px 14px",borderRadius:100},
+  mandamentoFrase:{fontSize:15,fontWeight:600,fontStyle:"italic",color:"#E9F0EC",borderLeft:"3px solid #2BE36B",paddingLeft:14,marginTop:6},
+  regraCard:{background:"linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",border:"1px solid #1B2A23",borderRadius:14,padding:"20px 22px",marginBottom:12},
   regraHead:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"},
-  regraTitulo:{fontSize:16.5,fontWeight:700,color:"#1A1F2B"}, regraChip:{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:6,whiteSpace:"nowrap"},
-  regraTexto:{fontSize:14.5,lineHeight:1.65,color:"#3A4250",margin:"0 0 6px"},
+  regraTitulo:{fontSize:16,fontWeight:800,color:"#E9F0EC"}, regraChip:{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:6,whiteSpace:"nowrap"},
+  regraTexto:{fontSize:14.5,lineHeight:1.65,color:"#C9D3CD",margin:"0 0 6px"},
 
   page: {
     minHeight: "100vh",
@@ -911,37 +908,37 @@ const S = {
   },
 
   loginPage: {
-    minHeight: "100vh", background: "#1A1F2B", display: "flex",
+    minHeight: "100vh", background: "radial-gradient(80% 60% at 50% 0%, rgba(43,227,107,.14) 0%, rgba(43,227,107,0) 60%), #06090A", display: "flex",
     alignItems: "center", justifyContent: "center", padding: 20,
     fontFamily: "'Inter', system-ui, sans-serif",
   },
   loginCard: {
-    background: "#fff", borderRadius: 20, padding: "40px 34px",
-    maxWidth: 400, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,.35)",
+    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)", border: "1px solid #1F4A31", borderRadius: 20, padding: "40px 34px", color: "#E9F0EC",
+    maxWidth: 400, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,.5), 0 0 40px -20px rgba(43,227,107,.5)",
   },
   loginEyebrow: {
     fontSize: 11, letterSpacing: 2, textTransform: "uppercase",
-    color: "#8BAD3F", fontWeight: 700, marginTop: 20, marginBottom: 6,
+    color: "#2BE36B", fontWeight: 700, marginTop: 20, marginBottom: 6,
   },
-  loginTitulo: { fontSize: 26, fontWeight: 800, margin: "0 0 6px", color: "#1A1F2B" },
-  loginSub: { fontSize: 14, color: "#5A6472", margin: "0 0 26px" },
+  loginTitulo: { fontSize: 26, fontWeight: 800, margin: "0 0 6px", color: "#FFFFFF" },
+  loginSub: { fontSize: 14, color: "#97A69E", margin: "0 0 26px" },
   linkBtn: {
     display: "block", width: "100%", marginTop: 16, background: "none",
-    border: "none", color: "#6B8E23", fontSize: 13, fontWeight: 600,
+    border: "none", color: "#2BE36B", fontSize: 13, fontWeight: 600,
     cursor: "pointer", textAlign: "center", padding: 4,
   },
 
-  hero: { background: "#1A1F2B", padding: "12px 0 56px" },
-  heroInner: { maxWidth: 880, margin: "0 auto", padding: "0 24px" },
+  hero: { background: "transparent", padding: "0 0 6px" },
+  heroInner: { maxWidth: "none", margin: 0, padding: 0 },
   heroEyebrow: {
     fontSize: 12, letterSpacing: 3, textTransform: "uppercase",
-    color: "#8BAD3F", fontWeight: 600, marginBottom: 16,
+    color: "#2BE36B", fontWeight: 700, marginBottom: 10,
   },
   heroTitle: {
-    fontSize: 40, lineHeight: 1.1, fontWeight: 800, color: "#fff",
+    fontSize: 28, lineHeight: 1.15, fontWeight: 800, color: "#fff",
     margin: "0 0 16px", letterSpacing: -0.5,
   },
-  heroSub: { fontSize: 16, lineHeight: 1.6, color: "#B8C0CC", maxWidth: 520, margin: 0 },
+  heroSub: { fontSize: 15, lineHeight: 1.6, color: "#97A69E", maxWidth: 760, margin: 0 },
 
   filtroBar: {
     maxWidth: 880, margin: "-28px auto 0", padding: "0 24px 8px",
@@ -956,7 +953,7 @@ const S = {
     background: "#1A1F2B", color: "#fff", borderColor: "#1A1F2B",
   },
 
-  lista: { maxWidth: 880, margin: "24px auto 0", padding: "0 24px 48px" },
+  lista: { maxWidth: 980, margin: "12px 0 0", padding: "0 0 24px" },
   card: {
     display: "flex", alignItems: "center", gap: 20, background: "#fff",
     border: "1px solid #EAECE6", borderRadius: 14, padding: "20px 22px",
@@ -977,7 +974,7 @@ const S = {
   cardDia: { color: "#8A94A2" },
   cardAcao: { flexShrink: 0 },
   ctaBtn: {
-    background: "#8BAD3F", color: "#1A2410", border: "none", borderRadius: 10,
+    background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)", color: "#03140A", border: "none", borderRadius: 10,
     padding: "11px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer",
     transition: "background .15s",
   },
@@ -1001,7 +998,7 @@ const S = {
     padding: 20, zIndex: 50, backdropFilter: "blur(3px)",
   },
   modal: {
-    background: "#fff", borderRadius: 18, padding: "32px 28px",
+    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)", border: "1px solid #24392F", color: "#E9F0EC", borderRadius: 18, padding: "32px 28px",
     maxWidth: 420, width: "100%", position: "relative",
     boxShadow: "0 24px 60px rgba(0,0,0,.28)",
   },
@@ -1012,15 +1009,15 @@ const S = {
   },
   modalEyebrow: {
     fontSize: 11, letterSpacing: 2, textTransform: "uppercase",
-    color: "#8BAD3F", fontWeight: 700, marginBottom: 8,
+    color: "#2BE36B", fontWeight: 700, marginBottom: 8,
   },
-  modalTitulo: { fontSize: 22, fontWeight: 800, margin: "0 0 6px", color: "#1A1F2B" },
-  modalData: { fontSize: 14, color: "#5A6472", marginBottom: 24 },
-  modalLabel: { fontSize: 13, fontWeight: 600, color: "#4A5568", display: "block", marginBottom: 8 },
+  modalTitulo: { fontSize: 22, fontWeight: 800, margin: "0 0 6px", color: "#fff" },
+  modalData: { fontSize: 14, color: "#97A69E", marginBottom: 24 },
+  modalLabel: { fontSize: 13, fontWeight: 600, color: "#C9D3CD", display: "block", marginBottom: 8 },
   modalInput: {
     width: "100%", padding: "13px 15px", borderRadius: 10,
-    border: "1.5px solid #D8DCD2", fontSize: 15, boxSizing: "border-box",
-    outline: "none", fontFamily: "inherit",
+    border: "1.5px solid #24392F", fontSize: 15, boxSizing: "border-box",
+    outline: "none", fontFamily: "inherit", background: "#0A100E", color: "#E9F0EC",
   },
   modalErro: { color: "#C0392B", fontSize: 13, marginTop: 10, fontWeight: 500 },
   modalBtn: { width: "100%", marginTop: 18, padding: "14px", fontSize: 15 },
@@ -1031,10 +1028,10 @@ const S = {
 
 const CSS = `
   .filtro-btn:hover { border-color: #8BAD3F; }
-  .cta-btn:hover { background: #7A9A35; }
+  .cta-btn:hover { filter: brightness(1.06); }
   .sair-btn:hover { border-color: #8BAD3F; color: #C9D9A0; }
   .evento-card:hover { box-shadow: 0 8px 24px rgba(26,31,43,.08); transform: translateY(-1px); }
-  input:focus { border-color: #8BAD3F !important; }
+  input:focus, textarea:focus, select:focus { border-color: #2BE36B !important; }
   @media (max-width: 640px) {
     .evento-card { flex-direction: column; align-items: flex-start !important; }
   }

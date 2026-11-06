@@ -38,11 +38,11 @@ export function PainelMembro({ userId, nome }: { userId: string; nome: string })
       })));
     })();
   }, [userId]);
-  if (ops === null) return <div style={{ padding: 40, textAlign: "center", color: "#6B7482" }}>Carregando seu painel...</div>;
+  if (ops === null) return <div style={{ padding: 40, textAlign: "center", color: "#97A69E" }}>Carregando seu painel...</div>;
   return <Painel nome={nome} oportunidades={ops} salvar={async (id, st) => { await supabase.rpc("marcar_oportunidade", { p_id: id, p_status: st }); }} />;
 }
 
-const C = { tinta: "#1A1F2B", tinta2: "#252C3B", texto: "#3A4250", suave: "#6B7482", oliva: "#8BAD3F", olivaEsc: "#4A6118", olivaClaro: "#F3F7EA", fundo: "#F2F3EE", borda: "#E4E7DE" };
+const C = { tinta: "#E9F0EC", texto: "#C9D3CD", suave: "#97A69E", claro: "#6B7A72", oliva: "#2BE36B", olivaEsc: "#2BE36B", olivaClaro: "rgba(43,227,107,.1)", borda: "#1B2A23", fundo: "#0A100E", tinta2: "#0F1915" };
 
 const TIPOS: Record<TipoOp, { titulo: string; curto: string; desc: string; cor: string; cor2: string; icone: IconeNome }> = {
   cliente: { titulo: "Possíveis clientes", curto: "Clientes", desc: "Membros que se encaixam no que você vende", cor: "#8BAD3F", cor2: "#5E7D22", icone: "alvo" },
@@ -90,24 +90,24 @@ function Cubo({ cor, cor2, icone, tam = 46 }: { cor: string; cor2: string; icone
 }
 
 const CSS = `
-.pn{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - 140px);background:${C.fundo};text-align:left;width:100vw;margin-left:calc(50% - 50vw);box-sizing:border-box}
-.pn-menu{background:${C.tinta};padding:22px 14px;display:flex;flex-direction:column;gap:6px}
+.pn{display:block;text-align:left;box-sizing:border-box}
+.pn-menu{display:none !important;background:#06090A;padding:22px 14px;display:flex;flex-direction:column;gap:6px}
 .pn-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:#AEB6C2;font-weight:700;font-size:14.5px;border:0;background:transparent;cursor:pointer;font-family:inherit;text-align:left;width:100%}
 .pn-item:hover{background:rgba(255,255,255,.06);color:#fff}
 .pn-item.on{background:linear-gradient(145deg,#2E3746,#232A37);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 14px rgba(0,0,0,.25)}
-.pn-main{padding:32px 40px 56px;max-width:1320px;width:100%;box-sizing:border-box;margin:0 auto}
-.pn-3d{background:linear-gradient(180deg,#FFFFFF 0%,#FAFBF8 100%);border:1px solid ${C.borda};border-radius:20px;
-  box-shadow:0 1px 0 #fff inset,0 1px 2px rgba(26,31,43,.04),0 12px 28px -14px rgba(26,31,43,.22);transition:transform .2s ease,box-shadow .2s ease}
-.pn-op:hover{transform:perspective(900px) rotateX(2deg) translateY(-4px);box-shadow:0 1px 0 #fff inset,0 22px 40px -18px rgba(26,31,43,.35)}
+.pn-main{padding:0;width:100%;box-sizing:border-box}
+.pn-3d{background:linear-gradient(180deg,#0E1714 0%,#0B1210 100%);border:1px solid ${C.borda};border-radius:14px;
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 1px 2px rgba(26,31,43,.04),0 12px 28px -14px rgba(26,31,43,.22);transition:transform .2s ease,box-shadow .2s ease}
+.pn-op:hover{transform:perspective(900px) rotateX(2deg) translateY(-4px);box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 22px 40px -18px rgba(26,31,43,.35)}
 .pn-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 @media (max-width:1100px){.pn-kpis{grid-template-columns:repeat(2,1fr)}}
 .pn-kpi{cursor:pointer;text-align:left;font-family:inherit;padding:18px;display:flex;gap:14px;align-items:center}
 .pn-kpi.on{border-color:${C.oliva};box-shadow:0 0 0 2px ${C.oliva}55,0 16px 30px -16px rgba(26,31,43,.3)}
 .pn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
-.pn-btn{display:inline-flex;align-items:center;gap:7px;border-radius:11px;padding:9px 13px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;border:1px solid ${C.borda};background:#fff;color:${C.tinta}}
-.pn-btn.esc{background:linear-gradient(145deg,#2A3242,#1A1F2B);color:#fff;border-color:#1A1F2B;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 6px 14px -6px rgba(26,31,43,.6)}
-.pn-chip{border:1px solid ${C.borda};background:#fff;border-radius:100px;padding:7px 14px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;color:${C.texto}}
-.pn-chip.on{background:${C.tinta};color:#fff;border-color:${C.tinta}}
+.pn-btn{display:inline-flex;align-items:center;gap:7px;border-radius:11px;padding:9px 13px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;border:1px solid ${C.borda};background:linear-gradient(180deg,#0E1714 0%,#0B1210 100%);color:${C.tinta}}
+.pn-btn.esc{background:linear-gradient(180deg,#43F07F 0%,#22D262 100%);color:#03140A;border-color:transparent;box-shadow:0 6px 18px -8px #2BE36B}
+.pn-chip{border:1px solid ${C.borda};background:linear-gradient(180deg,#0E1714 0%,#0B1210 100%);border-radius:100px;padding:7px 14px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;color:${C.texto}}
+.pn-chip.on{background:#2BE36B;color:#03140A;border-color:#2BE36B}
 @media (max-width:860px){
   .pn{grid-template-columns:1fr}
   .pn-menu{flex-direction:row;overflow-x:auto;padding:10px}
@@ -194,8 +194,8 @@ export function Painel({ nome, oportunidades = DEMO, salvar }: { nome: string; o
         {lista.length === 0 && <div className="pn-3d" style={{ padding: 30, textAlign: "center", color: C.suave }}>{ativas.length === 0 ? "Seu painel de oportunidades está sendo preparado. Em breve ele aparece aqui." : "Nenhuma oportunidade neste filtro."}</div>}
         {perfil && (
           <div onClick={() => setPerfil(null)} style={{ position: "fixed", inset: 0, background: "rgba(20,24,34,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, padding: 28, width: "100%", maxWidth: 720, maxHeight: "calc(100vh - 40px)", overflowY: "auto", position: "relative", boxSizing: "border-box" }}>
-              <button onClick={() => setPerfil(null)} aria-label="Fechar" style={{ position: "absolute", top: 14, right: 14, width: 38, height: 38, border: 0, borderRadius: "50%", background: "#F0F1F3", fontSize: 24, cursor: "pointer" }}>×</button>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)", borderRadius: 20, padding: 28, width: "100%", maxWidth: 720, maxHeight: "calc(100vh - 40px)", overflowY: "auto", position: "relative", boxSizing: "border-box" }}>
+              <button onClick={() => setPerfil(null)} aria-label="Fechar" style={{ position: "absolute", top: 14, right: 14, width: 38, height: 38, border: 0, borderRadius: "50%", background: "#0F1915", fontSize: 24, cursor: "pointer" }}>×</button>
               <div style={{ fontSize: 24, fontWeight: 800, color: C.tinta }}>{perfil.nome}</div>
               <div style={{ fontWeight: 700, color: C.olivaEsc, margin: "4px 0 18px" }}>{perfil.empresa}</div>
               {perfil.resumo ? <CartaoResumo resumo={perfil.resumo} /> : <div style={{ color: C.suave }}>Perfil ainda sem resumo.</div>}
@@ -239,7 +239,7 @@ function CartaoOp({ o, status, mudar, verPerfil }: { o: Oportunidade; status: No
             {status === s && <Icone nome="check" tam={13} />}{r}
           </button>
         ))}
-        <button onClick={() => mudar("descartada")} title="Não faz sentido" style={{ marginLeft: "auto", border: 0, background: "transparent", color: "#A2A9B4", cursor: "pointer", display: "flex", padding: 4 }}><Icone nome="x" tam={15} /></button>
+        <button onClick={() => mudar("descartada")} title="Não faz sentido" style={{ marginLeft: "auto", border: 0, background: "transparent", color: "#97A69E", cursor: "pointer", display: "flex", padding: 4 }}><Icone nome="x" tam={15} /></button>
       </div>
     </article>
   );

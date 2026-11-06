@@ -42,8 +42,8 @@ export default function RespostasOnboarding({ membroId, atualizar = 0 }: { membr
         {status.texto}
       </div>
       {ETAPAS.map((e) => (
-        <div key={e.titulo} style={{ borderTop: "1px solid #EAECE6", padding: "12px 0" }}>
-          <div style={{ fontWeight: 800, color: "#1A1F2B", marginBottom: 4 }}>{e.titulo}</div>
+        <div key={e.titulo} style={{ borderTop: "1px solid #1B2A23", padding: "12px 0" }}>
+          <div style={{ fontWeight: 800, color: "#E9F0EC", marginBottom: 4 }}>{e.titulo}</div>
           {PERGUNTAS.filter((p) => p.n >= e.de && p.n <= e.ate).map((p) => (
             <LinhaResposta key={p.n} p={p} resp={resp} />
           ))}

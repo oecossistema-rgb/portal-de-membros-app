@@ -22,9 +22,10 @@ type Membro = {
   resumo_publico: Resumo | null;
 };
 
-export default function Membros() {
+export default function Membros({ busca: buscaTopo = "" }: { busca?: string } = {}) {
   const [membros, setMembros] = useState<Membro[]>([]);
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(buscaTopo);
+  useEffect(() => { setBusca(buscaTopo); }, [buscaTopo]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
   const [selecionado, setSelecionado] = useState<Membro | null>(null);
@@ -259,7 +260,7 @@ export default function Membros() {
                 <h2
                   style={{
                     ...styles.modalNome,
-                    color: "#1A1F2B",
+                    color: "#E9F0EC",
                     fontSize: 26,
                     fontWeight: 800,
                     lineHeight: 1.15,
@@ -373,9 +374,7 @@ function Bloco({
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    maxWidth: 1100,
-    margin: "0 auto",
-    padding: "40px 24px 70px",
+    textAlign: "left",
   },
 
   topo: {
@@ -392,25 +391,27 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: "uppercase",
     letterSpacing: 2,
     fontWeight: 700,
-    color: "#8BAD3F",
+    color: "#2BE36B",
   },
 
   titulo: {
-    fontSize: 38,
-    margin: "6px 0",
-    color: "#1A1F2B",
+    fontSize: 28,
+    fontWeight: 800,
+    letterSpacing: -0.5,
+    margin: "8px 0 6px",
+    color: "#FFFFFF",
   },
 
   subtitulo: {
     margin: 0,
-    color: "#667085",
+    color: "#97A69E",
   },
 
   contador: {
     fontSize: 13,
     fontWeight: 700,
-    background: "#E9EEDB",
-    color: "#46551F",
+    background: "rgba(43,227,107,.1)",
+    color: "#2BE36B",
     padding: "8px 14px",
     borderRadius: 20,
   },
@@ -420,34 +421,36 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     padding: "15px 18px",
     borderRadius: 12,
-    border: "1px solid #D7DBD0",
+    border: "1px solid #1B2A23",
     fontSize: 15,
     outline: "none",
-    marginBottom: 30,
-    background: "#FFFFFF",
+    marginBottom: 22,
+    background: "#0C1311",
+    color: "#E9F0EC",
   },
 
   grid: {
     display: "grid",
     gridTemplateColumns:
-      "repeat(auto-fill, minmax(250px, 1fr))",
-    gap: 20,
+      "repeat(auto-fill, minmax(260px, 1fr))",
+    gap: 16,
   },
 
   card: {
-    background: "#FFFFFF",
+    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",
     borderRadius: 16,
     overflow: "hidden",
-    border: "1px solid #E5E7E2",
-    boxShadow: "0 5px 18px rgba(0,0,0,.06)",
+    border: "1px solid #1B2A23",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.03)",
     display: "flex",
     flexDirection: "column",
-    minHeight: 390,
+    minHeight: 330,
   },
 
   fotoArea: {
-    height: 190,
-    background: "#EEF1E8",
+    height: 130,
+    background: "radial-gradient(120% 120% at 50% 0%, rgba(43,227,107,.18) 0%, rgba(43,227,107,0) 60%), #0A120E",
+    borderBottom: "1px solid #1B2A23",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -461,12 +464,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: "50%",
-    background: "#1A1F2B",
-    color: "#FFFFFF",
-    fontSize: 34,
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    background: "linear-gradient(145deg,#173A26,#0C1F15)",
+    border: "1px solid #24392F",
+    boxShadow: "0 0 22px -8px #2BE36B",
+    color: "#2BE36B",
+    fontSize: 28,
     fontWeight: 700,
     display: "flex",
     alignItems: "center",
@@ -481,28 +486,29 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   nome: {
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: 800,
     margin: "0 0 5px",
-    color: "#1A1F2B",
+    color: "#E9F0EC",
   },
 
   empresa: {
     fontWeight: 600,
     fontSize: 14,
-    color: "#46551F",
+    color: "#2BE36B",
     marginBottom: 5,
   },
 
   segmento: {
     fontSize: 13,
-    color: "#667085",
+    color: "#97A69E",
     minHeight: 36,
   },
 
   local: {
     marginTop: 10,
     fontSize: 12,
-    color: "#8A919D",
+    color: "#97A69E",
   },
 
   acoes: {
@@ -514,9 +520,9 @@ const styles: Record<string, React.CSSProperties> = {
 
   perfilBtn: {
     flex: 1,
-    border: "1px solid #1A1F2B",
-    background: "#FFFFFF",
-    color: "#1A1F2B",
+    border: "1px solid #24392F",
+    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",
+    color: "#E9F0EC",
     padding: "9px 10px",
     borderRadius: 8,
     cursor: "pointer",
@@ -526,10 +532,10 @@ const styles: Record<string, React.CSSProperties> = {
   whatsappBtn: {
     flex: 1,
     border: 0,
-    background: "#1A1F2B",
-    color: "#FFFFFF",
+    background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)",
+    color: "#03140A",
     padding: "10px 12px",
-    borderRadius: 8,
+    borderRadius: 10,
     cursor: "pointer",
     fontWeight: 700,
   },
@@ -537,13 +543,13 @@ const styles: Record<string, React.CSSProperties> = {
   mensagem: {
     textAlign: "center",
     padding: 50,
-    color: "#667085",
+    color: "#97A69E",
   },
 
   erro: {
     textAlign: "center",
     padding: 30,
-    color: "#A33",
+    color: "#FF9A9A",
   },
 
   tentar: {
@@ -565,7 +571,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   modal: {
     position: "relative",
-    background: "#FFFFFF",
+    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",
     width: "100%",
     maxWidth: 720,
     maxHeight: "calc(100vh - 40px)",
@@ -584,8 +590,8 @@ const styles: Record<string, React.CSSProperties> = {
     height: 38,
     border: 0,
     borderRadius: "50%",
-    background: "#F0F1F3",
-    color: "#1A1F2B",
+    background: "#0F1915",
+    color: "#E9F0EC",
     fontSize: 25,
     lineHeight: 1,
     cursor: "pointer",
@@ -599,7 +605,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 8,
     paddingRight: 46,
     paddingBottom: 24,
-    borderBottom: "1px solid #E7E9EC",
+    borderBottom: "1px solid #1B2A23",
   },
 
   modalFoto: {
@@ -613,7 +619,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: 100,
     height: 100,
     borderRadius: 14,
-    background: "#1A1F2B",
+    background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)",
     color: "#FFFFFF",
     display: "flex",
     alignItems: "center",
@@ -630,17 +636,17 @@ const styles: Record<string, React.CSSProperties> = {
   modalEmpresa: {
     marginTop: 5,
     fontWeight: 700,
-    color: "#46551F",
+    color: "#2BE36B",
   },
 
   modalSegmento: {
     marginTop: 4,
-    color: "#667085",
+    color: "#97A69E",
   },
 
   bloco: {
     padding: "16px 0",
-    borderTop: "1px solid #ECEEE8",
+    borderTop: "1px solid #1B2A23",
   },
 
   blocoTitulo: {
@@ -648,14 +654,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: 1,
-    color: "#8BAD3F",
+    color: "#2BE36B",
     marginBottom: 6,
   },
 
   blocoTexto: {
     fontSize: 14,
     lineHeight: 1.6,
-    color: "#333A45",
+    color: "#C9D3CD",
     whiteSpace: "pre-wrap",
   },
 };

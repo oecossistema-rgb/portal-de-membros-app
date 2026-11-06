@@ -11,11 +11,11 @@ export const V = {
 };
 
 export const CSS_V = `
-.pv{ min-height:100vh; background:${V.fundo}; color:${V.texto}; display:grid; grid-template-columns:186px 1fr; text-align:left; line-height:1.35; letter-spacing:normal;
-  font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif; width:100vw; margin-left:calc(50% - 50vw); box-sizing:border-box }
+.pv{ min-height:100vh; background:${V.fundo}; color:${V.texto}; display:grid; grid-template-columns:248px 1fr; text-align:left; line-height:1.35; letter-spacing:normal;
+  font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif; width:100%; box-sizing:border-box }
 .pv *{ box-sizing:border-box } .pv h1,.pv h2,.pv h3,.pv p{ line-height:1.2 } .pv svg{ flex:0 0 auto }
-.pv-side{ background:linear-gradient(180deg,#070B09 0%,#050807 100%); border-right:1px solid ${V.borda}; padding:16px 12px; display:flex; flex-direction:column; gap:4px; position:sticky; top:0; height:100vh; overflow-y:auto }
-.pv-item{ display:flex; align-items:center; gap:11px; padding:10px 10px; border-radius:10px; color:#C9D3CD; font:inherit; font-size:13.5px; font-weight:600; border:0; background:transparent; cursor:pointer; width:100%; text-align:left }
+.pv-side{ background:linear-gradient(180deg,#070B09 0%,#050807 100%); border-right:1px solid ${V.borda}; padding:18px 16px; display:flex; flex-direction:column; gap:4px; position:sticky; top:0; height:100vh; overflow-y:auto }
+.pv-item{ display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:10px; color:#C9D3CD; font:inherit; font-size:14.5px; white-space:nowrap; font-weight:600; border:0; background:transparent; cursor:pointer; width:100%; text-align:left }
 .pv-item:hover{ background:#0F1915; color:#fff }
 .pv-item.on{ background:linear-gradient(90deg,#0F5C2E 0%,#0B3A1E 100%); color:#fff; box-shadow:inset 3px 0 0 ${V.verde}, 0 0 18px -6px ${V.verde}88 }
 .pv-item.on svg{ color:${V.verde} }

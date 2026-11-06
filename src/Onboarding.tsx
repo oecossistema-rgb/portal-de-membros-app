@@ -280,7 +280,7 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
 }
 
 function Pagina({ children }: { children: React.ReactNode }) {
-  return <div style={{ minHeight: "100vh", background: "radial-gradient(80% 50% at 50% 0%, rgba(43,227,107,.12) 0%, rgba(43,227,107,0) 60%), #06090A", color: "#E9F0EC", fontFamily: "'Inter', system-ui, sans-serif", width: "100vw", marginLeft: "calc(50% - 50vw)" }}>{children}</div>;
+  return <div style={{ minHeight: "100vh", background: "radial-gradient(80% 50% at 50% 0%, rgba(43,227,107,.12) 0%, rgba(43,227,107,0) 60%), #06090A", color: "#E9F0EC", fontFamily: "'Inter', system-ui, sans-serif", width: "100%" }}>{children}</div>;
 }
 
 function Enunciado({ p, id }: { p: Pergunta; id?: string }) {

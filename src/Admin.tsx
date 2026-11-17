@@ -5,6 +5,7 @@ import { ui } from "./ui";
 import RespostasOnboarding from "./RespostasOnboarding";
 import { RevisaoResumo } from "./ResumoPerfil";
 import { OportunidadesDoMembro } from "./Painel";
+import { baixarPlanilhaOnboarding } from "./planilha";
 
 type Aba = "membros" | "eventos" | "presencas";
 
@@ -199,6 +200,18 @@ function AdminMembros() {
     carregar();
   }
   // Monta o painel privado de oportunidades de todos os membros (usa só resumos aprovados dos outros).
+  const [baixando, setBaixando] = useState(false);
+  async function baixarPlanilha() {
+    setBaixando(true); setMsg(null);
+    try {
+      const n = await baixarPlanilhaOnboarding();
+      setMsg({ tipo: "ok", texto: `Planilha baixada com ${n} membros e as 40 respostas do onboarding. Contém dados privados dos membros: guarde em local restrito.` });
+    } catch (e) {
+      setMsg({ tipo: "erro", texto: `Não foi possível gerar a planilha: ${e instanceof Error ? e.message : e}` });
+    }
+    setBaixando(false);
+  }
+
   async function gerarOportunidades() {
     setMsg(null);
     let feitos = 0, erros = 0, depois: string | undefined;
@@ -232,6 +245,7 @@ function AdminMembros() {
         <button className="cta-btn" style={ui.botao} onClick={() => { setMsg(null); setEditando({ ...MEMBRO_VAZIO }); }}>+ Novo membro</button>
         <button style={ui.botaoSecundario} onClick={gerarPendentes} disabled={!!gerandoLote}>{gerandoLote || "Gerar resumos pendentes (IA)"}</button>
         <button style={ui.botaoSecundario} onClick={gerarOportunidades} disabled={!!gerandoLote}>{gerandoLote ? "Aguarde..." : "Gerar oportunidades (IA)"}</button>
+        <button style={ui.botaoSecundario} onClick={baixarPlanilha} disabled={baixando}>{baixando ? "Gerando planilha..." : "Baixar planilha (Excel)"}</button>
       </div>
       {aAprovar > 0 && <div style={{ ...ui.aviso, textAlign: "left", padding: "12px 16px", marginBottom: 12, borderColor: "#1B2A23", background: "rgba(242,193,78,.08)" }}>
         <strong>{aAprovar}</strong> resumo(s) aguardando sua aprovação. Abra o membro em "Onboarding" para revisar.

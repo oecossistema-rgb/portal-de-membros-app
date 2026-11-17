@@ -778,7 +778,7 @@ function PortalConteudo({ membro, onSair }) {
         <Agenda eventos={eventos} carregando={carregandoEventos} filtro={filtro} setFiltro={setFiltro}
           confirmacoes={confirmacoes} onConfirmar={abrirConfirmacao} onCancelar={cancelarPresenca} />
       )}
-      {secao === "membros" && <Membros busca={buscaGeral} />}
+      {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin} />}
       {secao === "painel" && <PainelMembro userId={membro.userId} nome={membro.nome} />}
       {secao === "perfil" && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}
       {secao === "admin" && membro.isAdmin && <Admin />}

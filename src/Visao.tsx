@@ -47,6 +47,7 @@ export const CSS_V = `
   .pv-side .pv-logo, .pv-side .pv-promo{ display:none } .pv-item{ width:auto; white-space:nowrap }
   .pv-kpis{ grid-template-columns:repeat(2,1fr) } .pv-ops{ grid-template-columns:1fr } .pv-top{ padding:0 14px } .pv-conteudo{ padding:16px 14px 28px }
   .pv-quem-txt{ display:none !important }
+  .pv-busca{ min-width:0; flex:1 1 auto } .pv-busca input{ min-width:0; width:100% } .pv-kbd{ display:none !important } .pv-top{ gap:10px } .pv-seg{ max-width:100%; overflow-x:auto } .pv-meio > *, .pv > * { min-width:0 }
 }`;
 
 export type IconeV = "casa" | "aperto" | "pessoas" | "rede" | "cal" | "dados" | "ferramenta" | "eu" | "engrenagem" | "ajuda" | "sino" | "busca" | "grafico" | "raio" | "estrela" | "pino" | "maleta" | "info" | "foguete" | "seta" | "check" | "escudo" | "play" | "seta-baixo" | "tag" | "sair";

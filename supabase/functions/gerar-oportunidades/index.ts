@@ -1,7 +1,11 @@
 // Função "gerar-oportunidades": monta o painel privado de oportunidades de cada membro.
 // Entrada da IA: onboarding completo do PRÓPRIO membro (ele é o único que vê o resultado)
 // + somente o resumo público APROVADO dos outros membros (nunca dados privados de terceiros).
-// Quem chama: administrador -> { membro_id } ou { todos: true } (em lotes).
+// Quem chama:
+//   - administrador (login do portal) -> { membro_id } ou { todos: true } (em lotes)
+//   - o próprio banco (cabeçalho x-portal-interno) -> { membro_id } logo depois que o resumo do membro é publicado,
+//     ou { varredura: true } a cada 10 minutos: monta os painéis que faltam e refaz, aos poucos, os painéis
+//     montados antes da publicação do membro mais recente (assim o membro novo aparece para os outros).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const CORS = {
@@ -12,6 +16,7 @@ const CORS = {
 const resp = (s: number, c: unknown) => new Response(JSON.stringify(c), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const MODELO = Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-5-5";
 const LOTE = 3;
+const LOTE_AUTO = 3;
 const MAX = 12;
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
@@ -142,20 +147,29 @@ async function gerarPara(membroId: string, outros: Outro[]) {
     const { error } = await db.from("membros_oportunidades").insert(novas);
     if (error) throw new Error(error.message);
   }
+  await db.from("membros_painel_estado").upsert({ membro_id: membroId, gerado_em: new Date().toISOString(), tentado_em: new Date().toISOString() });
   return { membro_id: membroId, ok: true, total: novas.length };
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return resp(405, { erro: "método não permitido" });
-  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  const { data: u } = await db.auth.getUser(jwt);
-  if (!u?.user) return resp(401, { erro: "não autenticado" });
-  const { data: eu } = await db.from("membros").select("id,is_admin,ativo").eq("auth_user_id", u.user.id).maybeSingle();
-  if (!eu?.ativo || !eu.is_admin) return resp(403, { erro: "somente administradores" });
-
-  let corpo: { membro_id?: string; todos?: boolean; refazer?: boolean; depois_de?: string } = {};
+  let corpo: { membro_id?: string; todos?: boolean; refazer?: boolean; depois_de?: string; varredura?: boolean } = {};
   try { corpo = await req.json(); } catch { /* vazio */ }
+
+  const interno = req.headers.get("x-portal-interno");
+  if (interno) {
+    const { data: valido } = await db.rpc("token_interno_valido", { p_token: interno });
+    if (valido !== true) return resp(401, { erro: "código interno inválido" });
+    if (corpo.todos) return resp(400, { erro: "use varredura" });
+  } else {
+    const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    const { data: u } = await db.auth.getUser(jwt);
+    if (!u?.user) return resp(401, { erro: "não autenticado" });
+    const { data: eu } = await db.from("membros").select("id,is_admin,ativo").eq("auth_user_id", u.user.id).maybeSingle();
+    if (!eu?.ativo || !eu.is_admin) return resp(403, { erro: "somente administradores" });
+    if (corpo.varredura) return resp(400, { erro: "varredura é só automática" });
+  }
 
   const { data: pub } = await db.from("membros").select("id,nome,empresa,segmento,cidade,estado,resumo_publico").eq("ativo", true).eq("equipe", false).not("resumo_publico", "is", null);
   const outros: Outro[] = (pub || []).map((p) => ({ id: p.id, nome: p.nome || "", empresa: p.empresa || "", segmento: p.segmento || "",
@@ -163,8 +177,30 @@ Deno.serve(async (req) => {
 
   const rodar = async (id: string) => {
     try { return await gerarPara(id, outros); }
-    catch (e) { const erro = e instanceof Error ? e.message : String(e); console.error("oportunidades falhou", id, erro); return { membro_id: id, ok: false, erro }; }
+    catch (e) {
+      const erro = e instanceof Error ? e.message : String(e); console.error("oportunidades falhou", id, erro);
+      await db.from("membros_painel_estado").upsert({ membro_id: id, tentado_em: new Date().toISOString() });
+      return { membro_id: id, ok: false, erro };
+    }
   };
+  if (corpo.varredura) {
+    // Membros com resumo publicado (só eles têm painel) cujo painel falta ou é anterior à última publicação de OUTRO membro.
+    const { data: est } = await db.from("membros_painel_estado").select("membro_id,gerado_em,tentado_em");
+    type Estado = { membro_id: string; gerado_em: string | null; tentado_em: string | null };
+    const estado = new Map<string, Estado>(((est || []) as Estado[]).map((e) => [e.membro_id, e]));
+    const { data: pubs } = await db.from("membros").select("id,resumo_publicado_em").eq("ativo", true).eq("equipe", false).not("resumo_publico", "is", null);
+    const datas = (pubs || []).map((p) => ({ id: p.id as string, t: new Date(p.resumo_publicado_em || 0).getTime() }));
+    const umaHora = Date.now() - 3600_000;
+    const vencidos = datas.filter(({ id }) => {
+      const e = estado.get(id);
+      if (e?.tentado_em && new Date(e.tentado_em).getTime() > umaHora && (!e.gerado_em || e.tentado_em > e.gerado_em)) return false; // falhou há pouco: espera
+      const ultimaDosOutros = Math.max(0, ...datas.filter((d) => d.id !== id).map((d) => d.t));
+      return !e?.gerado_em || new Date(e.gerado_em).getTime() < ultimaDosOutros;
+    }).sort((a, b) => (estado.has(a.id) ? 1 : 0) - (estado.has(b.id) ? 1 : 0)); // quem nunca teve painel vem primeiro
+    const resultados = [];
+    for (const { id } of vencidos.slice(0, LOTE_AUTO)) resultados.push(await rodar(id));
+    return resp(200, { resultados, restantes: Math.max(vencidos.length - LOTE_AUTO, 0) });
+  }
   if (corpo.membro_id) return resp(200, { resultados: [await rodar(corpo.membro_id)] });
   if (corpo.todos) {
     const { data: concl } = await db.from("membros_onboarding").select("membro_id").not("onboarding_concluido_em", "is", null).order("membro_id");

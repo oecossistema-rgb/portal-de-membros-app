@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { CartaoResumo } from "./ResumoPerfil";
 import type { Resumo } from "./ResumoPerfil";
+import { OportunidadesDoMembro } from "./Painel";
 
 type Membro = {
   id: string;
@@ -22,7 +23,8 @@ type Membro = {
   resumo_publico: Resumo | null;
 };
 
-export default function Membros({ busca: buscaTopo = "" }: { busca?: string } = {}) {
+export default function Membros({ busca: buscaTopo = "", admin = false }: { busca?: string; admin?: boolean } = {}) {
+  const [aba, setAba] = useState<"resumo" | "oportunidades">("resumo");
   const [membros, setMembros] = useState<Membro[]>([]);
   const [busca, setBusca] = useState(buscaTopo);
   useEffect(() => { setBusca(buscaTopo); }, [buscaTopo]);
@@ -192,7 +194,7 @@ export default function Membros({ busca: buscaTopo = "" }: { busca?: string } = 
                 <div style={styles.acoes}>
                   <button
                     style={styles.perfilBtn}
-                    onClick={() => setSelecionado(membro)}
+                    onClick={() => { setAba("resumo"); setSelecionado(membro); }}
                   >
                     Ver perfil
                   </button>
@@ -228,7 +230,7 @@ export default function Membros({ busca: buscaTopo = "" }: { busca?: string } = 
           onClick={() => setSelecionado(null)}
         >
           <div
-            style={styles.modal}
+            style={admin && aba === "oportunidades" ? { ...styles.modal, maxWidth: 1120 } : styles.modal}
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -280,7 +282,20 @@ export default function Membros({ busca: buscaTopo = "" }: { busca?: string } = 
               </div>
             </div>
 
-            {selecionado.resumo_publico ? (
+            {admin && (
+              <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+                {([["resumo", "Resumo"], ["oportunidades", "Oportunidades"]] as const).map(([id, r]) => (
+                  <button key={id} onClick={() => setAba(id)} style={{ background: aba === id ? "rgba(43,227,107,.12)" : "#0B1210", color: "#E9F0EC", border: `1px solid ${aba === id ? "#2BE36B" : "#24392F"}`, borderRadius: 100, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
+                ))}
+                <span style={{ alignSelf: "center", fontSize: 12, color: "#97A69E" }}>Só administradores veem esta aba.</span>
+              </div>
+            )}
+
+            {admin && aba === "oportunidades" ? (
+              <div className="pv" style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+                <OportunidadesDoMembro membroId={selecionado.id} nome={selecionado.nome || ""} />
+              </div>
+            ) : selecionado.resumo_publico ? (
               <div style={{ marginTop: 20 }}>
                 <CartaoResumo resumo={selecionado.resumo_publico} />
               </div>
@@ -577,7 +592,7 @@ const styles: Record<string, React.CSSProperties> = {
     maxHeight: "calc(100vh - 40px)",
     overflowY: "auto",
     borderRadius: 20,
-    padding: 32,
+    padding: "clamp(18px, 4vw, 32px)",
     boxSizing: "border-box",
     boxShadow: "0 28px 80px rgba(0,0,0,.28)",
   },

@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import { ui } from "./ui";
 import RespostasOnboarding from "./RespostasOnboarding";
 import { RevisaoResumo } from "./ResumoPerfil";
+import { OportunidadesDoMembro } from "./Painel";
 
 type Aba = "membros" | "eventos" | "presencas";
 
@@ -102,7 +103,7 @@ function AdminMembros() {
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [onboarding, setOnboarding] = useState<Record<string, string | null>>({}); // membro_id -> concluído em
   const [vendoOnboarding, setVendoOnboarding] = useState<Membro | null>(null);
-  const [abaOnb, setAbaOnb] = useState<"resumo" | "respostas">("resumo");
+  const [abaOnb, setAbaOnb] = useState<"resumo" | "respostas" | "oportunidades">("resumo");
   const [resumos, setResumos] = useState<Record<string, string>>({}); // membro_id -> status do resumo
   const [gerandoLote, setGerandoLote] = useState("");
 
@@ -309,13 +310,13 @@ function AdminMembros() {
       )}
 
       {vendoOnboarding && (
-        <Modal titulo={`Onboarding · ${vendoOnboarding.nome || "Sem nome"}`} onFechar={() => setVendoOnboarding(null)} largura={720}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-            {([["resumo", "Resumo do perfil (IA)"], ["respostas", "Respostas completas"]] as const).map(([id, r]) => (
+        <Modal titulo={`Onboarding · ${vendoOnboarding.nome || "Sem nome"}`} onFechar={() => setVendoOnboarding(null)} largura={abaOnb === "oportunidades" ? 1120 : 720}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            {([["resumo", "Resumo do perfil (IA)"], ["oportunidades", "Oportunidades"], ["respostas", "Respostas completas"]] as const).map(([id, r]) => (
               <button key={id} onClick={() => setAbaOnb(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, ...(abaOnb === id ? { background: "rgba(43,227,107,.12)", borderColor: "#8BAD3F" } : {}) }}>{r}</button>
             ))}
           </div>
-          {abaOnb === "resumo" ? <RevisaoResumo key={vendoOnboarding.id} membroId={vendoOnboarding.id} nome={vendoOnboarding.nome || ""} onAlterado={carregar} onPublicado={() => { const nome = vendoOnboarding.nome || "membro"; setVendoOnboarding(null); setMsg({ tipo: "ok", texto: `Resumo de ${nome} publicado. Já aparece no perfil em "Membros", no bloco "Sobre a empresa".` }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
+          {abaOnb === "resumo" ? <RevisaoResumo key={vendoOnboarding.id} membroId={vendoOnboarding.id} nome={vendoOnboarding.nome || ""} onAlterado={carregar} onPublicado={() => { const nome = vendoOnboarding.nome || "membro"; setVendoOnboarding(null); setMsg({ tipo: "ok", texto: `Resumo de ${nome} publicado. Já aparece no perfil em "Membros", no bloco "Sobre a empresa".` }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /> : abaOnb === "oportunidades" ? <div className="pv" style={{ display: "flex", flexDirection: "column", gap: 16 }}><OportunidadesDoMembro membroId={vendoOnboarding.id} nome={vendoOnboarding.nome || ""} /></div> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
         </Modal>
       )}
     </main>

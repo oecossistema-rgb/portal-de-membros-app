@@ -73,8 +73,15 @@ ISTO É UM RESUMO, NÃO UM DIAGNÓSTICO:
 - Use somente as informações fornecidas. Não invente clientes, números, prêmios ou serviços.
 - Se uma informação não existir nas respostas, devolva o campo vazio ("" ou []).
 
-PROIBIDO (mesmo que apareça nas respostas): faturamento, receita, lucro, metas financeiras, valores em R$,
-números de crescimento, tamanho de equipe, limitações, dificuldades, problemas internos.
+PROIBIDO (mesmo que apareça nas respostas, inclusive escondido dentro de outra resposta):
+- dinheiro: faturamento, receita, lucro, metas financeiras, valores em R$, preços, dívidas, investimentos, números de crescimento;
+- a empresa por dentro: tamanho de equipe, limitações, gargalos, dificuldades, desafios, problemas internos, decisões pendentes,
+  falta de planejamento, áreas em que precisa de ajuda, mentorias ou grupos de que participa ou participou;
+- a pessoa: saúde, família, vida amorosa, religião, política, processos na justiça, conflitos com sócios, clientes ou funcionários,
+  momentos difíceis, desabafos, autoavaliações ("sou desorganizado", "tenho dificuldade de...");
+- contatos e documentos: telefone, e-mail, endereço, CPF, CNPJ, links;
+- qualquer coisa que o empresário provavelmente não gostaria que os outros membros lessem.
+Na dúvida, deixe de fora.
 
 ESTILO: português do Brasil, terceira pessoa, direto e positivo. Textos CURTOS: o perfil é visual, não um texto corrido.
 Respeite os limites de palavras de cada campo.
@@ -103,6 +110,26 @@ export type Resumo = {
   oportunidades: string[]; busca: string[]; contribui: string[]; proposito: string; fora_do_trabalho: string[];
 };
 
+// Segunda checagem: outra leitura da IA, só sobre o resumo PRONTO, procurando qualquer coisa sensível,
+// inclusive o que não estiver na lista acima. Se ela achar algo (ou falhar), o resumo fica para revisão.
+export const SISTEMA_REVISAO = `Você é o revisor de privacidade do portal do Ecossistema Master Business.
+Recebe o resumo da empresa de um membro, que será publicado para TODOS os outros membros do grupo.
+Diga se há QUALQUER informação que o empresário provavelmente não gostaria de ver publicada, por exemplo:
+dinheiro (faturamento, valores, preços, metas, dívidas, investimentos), tamanho da equipe, problemas, limitações,
+desafios ou decisões internas da empresa, autoavaliações negativas, saúde, família, vida pessoal, religião, política,
+processos na justiça, conflitos, contatos pessoais (telefone, e-mail, endereço), documentos, ou algo constrangedor.
+Também conta como sensível qualquer coisa parecida que não esteja nesta lista.
+NÃO é sensível: o que a empresa faz e vende, para quem, cidade, ano de fundação, canais de venda, propósito, o que busca e como contribui no grupo, esportes e hobbies.
+Responda APENAS com JSON: {"sensivel": true ou false, "trechos": ["o trecho exato e o motivo, até 3 itens"]}`;
+
+export function lerRevisao(textoIA: string): { sensivel: boolean; trechos: string[] } {
+  const b = textoIA.trim();
+  const j = JSON.parse(b.slice(b.indexOf("{"), b.lastIndexOf("}") + 1));
+  if (typeof j.sensivel !== "boolean") throw new Error("revisão sem resposta clara");
+  const trechos = Array.isArray(j.trechos) ? j.trechos.filter((x: unknown) => typeof x === "string").slice(0, 3) : [];
+  return { sensivel: j.sensivel, trechos };
+}
+
 // Lê a resposta da IA, garante o formato e aponta qualquer sinal de dado sensível para o administrador revisar.
 export function validar(textoIA: string, fatos: Fatos): { resumo: Resumo; alertas: string[] } {
   const bruto = textoIA.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -124,9 +151,17 @@ export function validar(textoIA: string, fatos: Fatos): { resumo: Resumo; alerta
 }
 
 const PADROES: [RegExp, string][] = [
-  [/R\$\s*\d/i, "valor em R$"],
+  [/R\$\s*\d|\d\s*reais\b/i, "valor em R$"],
+  [/[\w.+-]+@[\w-]+\.[\w.]+/, "e-mail"],
+  [/\(?\b\d{2}\)?\s*9?\d{4}[-\s]?\d{4}\b/, "telefone"],
+  [/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/, "CPF/CNPJ"],
+  [/d[íi]vida|endividad|empr[ée]stimo|inadimpl|fal[êe]ncia|recupera[çc][ãa]o judicial/i, "dívida ou situação financeira"],
+  [/processo judicial|na justi[çc]a|a[çc][ãa]o trabalhista|\bprocessad/i, "processo na justiça"],
+  [/doen[çc]a|c[âa]ncer|depress|ansiedade|div[óo]rcio|separa[çc][ãa]o conjugal|\bluto\b|faleceu/i, "saúde ou vida pessoal"],
+  [/\b(igreja|evang[ée]lic|cat[óo]lic|esp[íi]rita|partido pol|bolsonar|lula\b|petista)/i, "religião ou política"],
+  [/desafio|decis[ãa]o pendente|n[ãa]o tem planejamento|sem planejamento|precisa de (apoio|ajuda)/i, "assunto interno da empresa"],
   [/\b\d+([.,]\d+)?\s*(mil|milh(ão|ões|oes)|bilh|mm|k)\b/i, "valor numérico (mil/milhão)"],
-  [/fatura|receita|lucro|ticket m[ée]dio|margem/i, "termo financeiro"],
+  [/fatura|\blucro|ticket m[ée]dio|margem de lucro/i, "termo financeiro"],
   [/limita[çc]|ponto fraco|fraqueza|dificuldade|gargalo/i, "possível ponto fraco"],
   [/\b\d+\s*(funcion[áa]rios|colaboradores|pessoas)\b/i, "tamanho de equipe"],
 ];

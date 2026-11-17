@@ -155,7 +155,7 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
     setSalvando(false);
     if (error) { setErro("Não foi possível enviar agora. Tente novamente."); return; }
     if (data?.ok) {
-      supabase.functions.invoke("gerar-resumo", { body: {} }).catch(() => { /* o admin pode gerar depois */ });
+      // O resumo e o painel de oportunidades agora são gerados pelo próprio banco, ao concluir.
       onConcluido();
       return;
     }

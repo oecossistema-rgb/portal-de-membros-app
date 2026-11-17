@@ -1,0 +1,6 @@
+-- Desfaz a automação de 17/11/2026 (resumos e painéis já gerados continuam).
+select cron.unschedule('portal-varredura') where exists (select 1 from cron.job where jobname = 'portal-varredura');
+drop trigger if exists trg_onboarding_concluido on public.membros_onboarding;
+drop function if exists private.onboarding_concluido();
+drop function if exists private.chamar_funcao(text, jsonb);
+-- Depois, reimplantar as versões anteriores das funções gerar-resumo e gerar-oportunidades.

@@ -4,8 +4,9 @@
 // Quem chama:
 //   - administrador (login do portal) -> { membro_id } ou { todos: true } (em lotes)
 //   - o próprio banco (cabeçalho x-portal-interno) -> { membro_id } logo depois que o resumo do membro é publicado,
-//     ou { varredura: true } a cada 10 minutos: monta os painéis que faltam e refaz, aos poucos, os painéis
-//     montados antes da publicação do membro mais recente (assim o membro novo aparece para os outros).
+//     ou { varredura: true } a cada 10 minutos (só o que faltou para membros NOVOS).
+//   Para cada membro novo são DUAS chamadas à IA, nunca mais: (1) o painel dele; (2) uma única leitura
+//   que encaixa o membro novo nos painéis dos outros, sem refazer nenhum painel existente.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const CORS = {
@@ -16,7 +17,6 @@ const CORS = {
 const resp = (s: number, c: unknown) => new Response(JSON.stringify(c), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const MODELO = Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-5-5";
 const LOTE = 3;
-const LOTE_AUTO = 3;
 const MAX = 12;
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
@@ -65,7 +65,7 @@ const FERRAMENTA = {
   },
 };
 
-async function chamarIA(pedido: string): Promise<string> {
+async function chamarIA(pedido: string, sistema = SISTEMA): Promise<string> {
   const chave = Deno.env.get("ANTHROPIC_API_KEY");
   if (!chave) throw new Error("ANTHROPIC_API_KEY não configurada");
   let r: Response | null = null;
@@ -74,7 +74,7 @@ async function chamarIA(pedido: string): Promise<string> {
     r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELO, max_tokens: 3000, system: SISTEMA, messages: [{ role: "user", content: pedido }], tools: [FERRAMENTA] }),
+      body: JSON.stringify({ model: MODELO, max_tokens: 3000, system: sistema, messages: [{ role: "user", content: pedido }], tools: [FERRAMENTA] }),
     });
     if (r.ok || !(r.status === 429 || r.status >= 500)) break;
     const espera = Number(r.headers.get("retry-after")) || 4 * (tentativa + 1);
@@ -151,6 +151,53 @@ async function gerarPara(membroId: string, outros: Outro[]) {
   return { membro_id: membroId, ok: true, total: novas.length };
 }
 
+// Encaixa o membro NOVO nos painéis dos outros com UMA chamada à IA. Usa só resumos públicos aprovados
+// (do novo e dos outros). Não apaga nem refaz nada: só acrescenta o novo onde ele faz sentido.
+const SISTEMA_REVERSO = `Um empresário NOVO entrou no Ecossistema Master Business. Você recebe o resumo dele e a lista
+dos outros membros. Aponte PARA QUAIS OUTROS MEMBROS o novo é uma boa oportunidade.
+Tipos, do ponto de vista do OUTRO membro:
+- "cliente": o novo tem perfil de cliente para o que o outro vende.
+- "ajuda": o novo oferece algo que o outro busca.
+- "parceria": atendem o mesmo público sem concorrer, ou se complementam.
+- "afinidade": mesma cidade, esporte ou hobby.
+Regras: use só as informações dadas, não invente. "motivo": 1 frase curta (máximo 22 palavras) falando com o OUTRO membro ("você"),
+explicando por que o novo membro faz sentido para ele. "forca": 3 = muito forte, 2 = boa, 1 = leve; afinidade nunca passa de 2.
+Só oportunidades boas de verdade, no máximo 15. Nunca cite números financeiros. Entregue chamando a ferramenta salvar_oportunidades,
+usando em "alvo" o código do OUTRO membro.`;
+
+async function incluirNosOutros(novoId: string, outros: Outro[]) {
+  const novo = outros.find((x) => x.id === novoId);
+  const candidatos = outros.filter((x) => x.id !== novoId);
+  if (!novo || candidatos.length === 0) return { membro_id: novoId, ok: false, erro: "sem resumo publicado ou sem outros membros" };
+  const codigos = new Map(candidatos.map((c, i) => [`M${i + 1}`, c.id]));
+  const pedido = `MEMBRO NOVO: ${novo.nome}, ${novo.empresa}, ${novo.segmento}, ${novo.cidade} | ${compactar(novo.resumo)}\n\n` +
+    `OUTROS MEMBROS (código: nome, empresa, segmento, cidade | resumo):\n` +
+    candidatos.map((c, i) => `M${i + 1}: ${c.nome}, ${c.empresa}, ${c.segmento}, ${c.cidade} | ${compactar(c.resumo)}`).join("\n");
+  let j: { oportunidades?: unknown } = {};
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    const bruto = (await chamarIA(pedido, SISTEMA_REVERSO)).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    try { j = JSON.parse(bruto.slice(bruto.indexOf("{"), bruto.lastIndexOf("}") + 1)); break; }
+    catch (e) { if (tentativa === 2) throw e; }
+  }
+  const tipos = new Set(["cliente", "ajuda", "parceria", "afinidade"]);
+  const { data: ja } = await db.from("membros_oportunidades").select("membro_id,tipo").eq("alvo_id", novoId);
+  const vistos = new Set((ja || []).map((x) => `${x.membro_id}|${x.tipo}`));
+  const linhas = (Array.isArray(j.oportunidades) ? j.oportunidades : []).map((x: Record<string, unknown>) => ({
+    membro_id: codigos.get(String(x.alvo)) as string, alvo_id: novoId, tipo: String(x.tipo), motivo: String(x.motivo || "").trim().slice(0, 240),
+    forca: Math.min(String(x.tipo) === "afinidade" ? 2 : 3, Math.max(1, Number(x.forca) || 2)),
+  })).filter((x: { membro_id?: string; tipo: string; motivo: string }) => {
+    const k = `${x.membro_id}|${x.tipo}`;
+    if (!x.membro_id || !tipos.has(x.tipo) || !x.motivo || vistos.has(k)) return false;
+    vistos.add(k); return true;
+  }).slice(0, 15);
+  if (linhas.length) {
+    const { error } = await db.from("membros_oportunidades").insert(linhas);
+    if (error) throw new Error(error.message);
+  }
+  await db.from("membros_painel_estado").upsert({ membro_id: novoId, incluido_nos_outros_em: new Date().toISOString() });
+  return { membro_id: novoId, ok: true, incluido_em: linhas.length };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return resp(405, { erro: "método não permitido" });
@@ -183,24 +230,37 @@ Deno.serve(async (req) => {
       return { membro_id: id, ok: false, erro };
     }
   };
+  // Membro novo (chamada interna): o painel dele + encaixar ele nos painéis dos outros. Duas chamadas à IA.
+  const novoCompleto = async (id: string) => {
+    // Marca a tentativa já no início, para a varredura não rodar o mesmo membro ao mesmo tempo.
+    await db.from("membros_painel_estado").upsert({ membro_id: id, tentado_em: new Date().toISOString() });
+    const r1 = await rodar(id);
+    let r2: unknown = null;
+    try { r2 = await incluirNosOutros(id, outros); }
+    catch (e) { const erro = e instanceof Error ? e.message : String(e); console.error("encaixe falhou", id, erro); r2 = { membro_id: id, ok: false, erro }; }
+    return { painel: r1, nos_outros: r2 };
+  };
   if (corpo.varredura) {
-    // Membros com resumo publicado (só eles têm painel) cujo painel falta ou é anterior à última publicação de OUTRO membro.
-    const { data: est } = await db.from("membros_painel_estado").select("membro_id,gerado_em,tentado_em");
-    type Estado = { membro_id: string; gerado_em: string | null; tentado_em: string | null };
+    // Só membros NOVOS: resumo publicado e (sem painel OU ainda não encaixado nos outros). Nunca refaz painel existente.
+    const { data: est } = await db.from("membros_painel_estado").select("membro_id,gerado_em,tentado_em,incluido_nos_outros_em");
+    type Estado = { membro_id: string; gerado_em: string | null; tentado_em: string | null; incluido_nos_outros_em: string | null };
     const estado = new Map<string, Estado>(((est || []) as Estado[]).map((e) => [e.membro_id, e]));
-    const { data: pubs } = await db.from("membros").select("id,resumo_publicado_em").eq("ativo", true).eq("equipe", false).not("resumo_publico", "is", null);
-    const datas = (pubs || []).map((p) => ({ id: p.id as string, t: new Date(p.resumo_publicado_em || 0).getTime() }));
     const umaHora = Date.now() - 3600_000;
-    const vencidos = datas.filter(({ id }) => {
+    const pendentes = outros.map((o) => o.id).filter((id) => {
       const e = estado.get(id);
-      if (e?.tentado_em && new Date(e.tentado_em).getTime() > umaHora && (!e.gerado_em || e.tentado_em > e.gerado_em)) return false; // falhou há pouco: espera
-      const ultimaDosOutros = Math.max(0, ...datas.filter((d) => d.id !== id).map((d) => d.t));
-      return !e?.gerado_em || new Date(e.gerado_em).getTime() < ultimaDosOutros;
-    }).sort((a, b) => (estado.has(a.id) ? 1 : 0) - (estado.has(b.id) ? 1 : 0)); // quem nunca teve painel vem primeiro
+      if (e?.gerado_em && e?.incluido_nos_outros_em) return false;
+      if (e?.tentado_em && new Date(e.tentado_em).getTime() > umaHora) return false; // tentou há pouco: espera
+      return true;
+    });
     const resultados = [];
-    for (const { id } of vencidos.slice(0, LOTE_AUTO)) resultados.push(await rodar(id));
-    return resp(200, { resultados, restantes: Math.max(vencidos.length - LOTE_AUTO, 0) });
+    for (const id of pendentes.slice(0, 1)) {
+      await db.from("membros_painel_estado").upsert({ membro_id: id, tentado_em: new Date().toISOString() });
+      const e = estado.get(id);
+      resultados.push(e?.gerado_em ? { nos_outros: await incluirNosOutros(id, outros).catch((x) => ({ ok: false, erro: String(x) })) } : await novoCompleto(id));
+    }
+    return resp(200, { resultados, restantes: Math.max(pendentes.length - 1, 0) });
   }
+  if (corpo.membro_id && interno) return resp(200, { resultados: [await novoCompleto(corpo.membro_id)] });
   if (corpo.membro_id) return resp(200, { resultados: [await rodar(corpo.membro_id)] });
   if (corpo.todos) {
     const { data: concl } = await db.from("membros_onboarding").select("membro_id").not("onboarding_concluido_em", "is", null).order("membro_id");

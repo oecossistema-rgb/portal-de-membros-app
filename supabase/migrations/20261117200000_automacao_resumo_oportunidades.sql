@@ -2,7 +2,9 @@
 -- 1) Concluiu o onboarding (pelo portal ou importado) -> o banco chama "gerar-resumo" sozinho.
 -- 2) Resumo limpo nas duas travas -> publica sozinho e monta o painel de oportunidades do membro.
 --    Algo sensível -> fica "pendente" para um administrador revisar.
--- 3) A cada 10 minutos, uma varredura: resumos que faltaram e painéis que precisam incluir o membro novo.
+-- 3) Membro novo = no máximo DUAS chamadas à IA: o painel dele e uma leitura que o encaixa nos painéis
+--    dos outros (acrescenta, não refaz). Nenhum painel existente é refeito.
+-- 4) A cada 10 minutos, uma varredura só do que faltou (falha ou aprovação manual de um resumo retido).
 -- O código interno que autoriza essas chamadas é gerado AQUI, aleatório, guardado no cofre (vault)
 -- do Supabase. Ninguém digita nem vê esse código.
 -- Reversão: 20261117200000_automacao_REVERTER.sql.txt
@@ -60,14 +62,15 @@ create trigger trg_onboarding_concluido
 create table if not exists public.membros_painel_estado (
   membro_id uuid primary key references public.membros(id) on delete cascade,
   gerado_em timestamptz,
-  tentado_em timestamptz
+  tentado_em timestamptz,
+  incluido_nos_outros_em timestamptz
 );
 alter table public.membros_painel_estado enable row level security;
 revoke all on public.membros_painel_estado from anon, authenticated;
 grant select, insert, update, delete on public.membros_painel_estado to service_role;
--- Os painéis que já existem contam como atualizados agora (não refaz os 60 de uma vez).
-insert into public.membros_painel_estado (membro_id, gerado_em, tentado_em)
-select distinct membro_id, now(), now() from public.membros_oportunidades
+-- Os membros que já têm painel contam como prontos (a automação só trata os novos daqui para frente).
+insert into public.membros_painel_estado (membro_id, gerado_em, tentado_em, incluido_nos_outros_em)
+select distinct membro_id, now(), now(), now() from public.membros_oportunidades
 on conflict (membro_id) do nothing;
 
 -- Varredura a cada 10 minutos.

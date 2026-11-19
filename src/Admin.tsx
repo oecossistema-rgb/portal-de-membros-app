@@ -6,6 +6,7 @@ import RespostasOnboarding from "./RespostasOnboarding";
 import { RevisaoResumo } from "./ResumoPerfil";
 import { OportunidadesDoMembro } from "./Painel";
 import { baixarPlanilhaOnboarding } from "./planilha";
+import Solicitacoes from "./Solicitacoes";
 
 type Aba = "membros" | "eventos" | "presencas";
 
@@ -64,7 +65,7 @@ function dataCurta(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function Admin() {
+export default function Admin({ onSolicitacoes }: { onSolicitacoes?: () => void } = {}) {
   const [aba, setAba] = useState<Aba>("membros");
   return (
     <>
@@ -75,6 +76,7 @@ export default function Admin() {
           <p style={ui.heroSub}>Gerencie quem tem acesso ao portal, a agenda de eventos e as confirmações de presença.</p>
         </div>
       </section>
+      <Solicitacoes onMudou={onSolicitacoes} />
       <div style={{ margin: "14px 0 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
         {([["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"]] as [Aba, string][]).map(([id, r]) => (
           <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}</button>

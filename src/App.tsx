@@ -6,6 +6,7 @@ import { supabase } from "./supabase";
 import Membros from "./Membros";
 import MeuPerfil from "./MeuPerfil";
 import Admin from "./Admin";
+import { contarSolicitacoes } from "./Solicitacoes";
 import Onboarding from "./Onboarding";
 // ============================================================
 // ARQUITETURA ATUAL
@@ -176,7 +177,17 @@ export default function PortalAgenda() {
 
   if (membroLogado) {
     if (!membroLogado.ativo) {
-      return <TelaSemAcesso email={membroLogado.login} onSair={sairMembro} />;
+      return (
+        <TelaSemAcesso
+          email={membroLogado.login}
+          nomeInicial={membroLogado.nome}
+          onSair={sairMembro}
+          onLiberado={async () => {
+            const { data } = await supabase.auth.getUser();
+            if (data.user) setMembroLogado(await montarMembro(data.user));
+          }}
+        />
+      );
     }
     if (membroLogado.onboardingPendente) {
       return (
@@ -336,17 +347,84 @@ function TelaNovaSenha({ onConcluir }) {
   );
 }
 
-function TelaSemAcesso({ email, onSair }) {
+// Quem tem login mas não está liberado: pede acesso (vira uma solicitação na Administração).
+type Solicitacao = { status: "pendente" | "aprovada" | "recusada"; nome: string; whatsapp: string; empresa: string };
+function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: string; nomeInicial: string; onSair: () => void; onLiberado: () => Promise<void> }) {
+  const [sol, setSol] = useState<Solicitacao | null | undefined>(undefined);
+  const [nome, setNome] = useState(nomeInicial || "");
+  const [whats, setWhats] = useState("");
+  const [empresa, setEmpresa] = useState("");
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [conferindo, setConferindo] = useState(false);
+
+  async function carregar() {
+    const { data } = await supabase.from("solicitacoes_acesso").select("status,nome,whatsapp,empresa").maybeSingle();
+    setSol((data as Solicitacao) || null);
+    if (data) { setNome(data.nome); setWhats(data.whatsapp); setEmpresa(data.empresa); }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function enviar() {
+    const d = whats.replace(/\D/g, "");
+    if (nome.trim().length < 2 || d.length < 10 || empresa.trim().length < 2) {
+      setErro("Preencha seu nome, o WhatsApp com DDD e o nome da empresa.");
+      return;
+    }
+    setEnviando(true); setErro("");
+    const { data, error } = await supabase.rpc("solicitar_acesso", { p_nome: nome, p_whatsapp: whats, p_empresa: empresa });
+    setEnviando(false);
+    if (error) { setErro("Não foi possível enviar agora. Tente de novo em instantes."); return; }
+    if (data === "ja_liberado") { onLiberado(); return; }
+    carregar();
+  }
+
+  async function conferir() {
+    setConferindo(true);
+    await onLiberado();
+    await carregar();
+    setConferindo(false);
+  }
+
+  if (sol === undefined) return <AuthShell><p style={S.loginSub}>Carregando...</p></AuthShell>;
+
+  if (sol?.status === "pendente") {
+    return (
+      <AuthShell>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--p-accent-bg)", color: "var(--p-accent-text)", display: "flex", alignItems: "center", justifyContent: "center", margin: "6px auto 14px", fontSize: 26 }}>✓</div>
+        <h1 style={S.loginTitulo}>Solicitação enviada</h1>
+        <p style={S.loginSub}>
+          Recebemos o seu pedido de acesso. Assim que a administração aprovar, você recebe uma mensagem no
+          WhatsApp <strong>{sol.whatsapp}</strong> e já pode entrar com o e-mail <strong>{email}</strong>.
+        </p>
+        <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={conferir} disabled={conferindo}>
+          {conferindo ? "Verificando..." : "Já fui aprovado? Verificar"}
+        </button>
+        <button style={S.linkBtn} onClick={onSair}>Sair</button>
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell>
-      <h1 style={S.loginTitulo}>Acesso não liberado</h1>
+      <h1 style={S.loginTitulo}>Solicitar acesso</h1>
       <p style={S.loginSub}>
-        O e-mail <strong>{email}</strong> não está na lista de membros ativos do Ecossistema.
-        Se você é membro, fale com a administração para liberar seu acesso.
+        {sol?.status === "recusada"
+          ? "Sua solicitação anterior não foi aprovada. Se achar que foi um engano, confira seus dados e envie de novo."
+          : <>O e-mail <strong>{email}</strong> ainda não está liberado no portal. Preencha abaixo e a administração analisa o seu acesso.</>}
       </p>
-      <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={onSair}>
-        Sair
+      <label style={S.modalLabel} htmlFor="sol-nome">Nome completo</label>
+      <input id="sol-nome" style={S.modalInput} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="seu nome" />
+      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="sol-whats">WhatsApp com DDD</label>
+      <input id="sol-whats" style={S.modalInput} value={whats} onChange={(e) => setWhats(e.target.value)} placeholder="(71) 99999-9999" inputMode="tel" />
+      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="sol-empresa">Nome da empresa</label>
+      <input id="sol-empresa" style={S.modalInput} value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="sua empresa"
+        onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} />
+      {erro && <div style={S.modalErro}>{erro}</div>}
+      <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={enviar} disabled={enviando}>
+        {enviando ? "Enviando..." : "Solicitar acesso"}
       </button>
+      <button style={S.linkBtn} onClick={onSair}>Sair</button>
     </AuthShell>
   );
 }
@@ -592,6 +670,10 @@ function PortalConteudo({ membro, onSair }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [buscaGeral, setBuscaGeral] = useState("");
+  // Administradores veem no menu quantas solicitações de acesso estão em aberto.
+  const [solicitacoesAbertas, setSolicitacoesAbertas] = useState(0);
+  const atualizarSolicitacoes = () => { if (membro.isAdmin) contarSolicitacoes().then(setSolicitacoesAbertas).catch(() => {}); };
+  useEffect(() => { atualizarSolicitacoes(); }, [membro.isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
   type Secao = "visao" | "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
   const secoesValidas: Secao[] = [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
@@ -757,7 +839,7 @@ function PortalConteudo({ membro, onSair }) {
           { id: "entregas", titulo: "Nossas Entregas", icone: "estrela" as const },
           { id: "cultura", titulo: "Cultura", icone: "escudo" as const },
           { id: "regras", titulo: "Regras do Grupo", icone: "info" as const },
-          ...(membro.isAdmin ? [{ id: "admin", titulo: "Administração", icone: "engrenagem" as const }] : []),
+          ...(membro.isAdmin ? [{ id: "admin", titulo: "Administração", icone: "engrenagem" as const, badge: solicitacoesAbertas }] : []),
         ],
       ]}
       ativo={secao}
@@ -781,7 +863,7 @@ function PortalConteudo({ membro, onSair }) {
       {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin} />}
       {secao === "painel" && <PainelMembro userId={membro.userId} nome={membro.nome} />}
       {secao === "perfil" && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}
-      {secao === "admin" && membro.isAdmin && <Admin />}
+      {secao === "admin" && membro.isAdmin && <Admin onSolicitacoes={atualizarSolicitacoes} />}
       {secao === "entregas" && <SecaoEntregas />}
       {secao === "cultura" && <SecaoCultura />}
       {secao === "regras" && <SecaoRegras />}

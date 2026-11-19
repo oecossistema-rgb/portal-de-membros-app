@@ -1,0 +1,4 @@
+-- Desfaz a solicitação de acesso (os membros já aprovados continuam membros).
+drop function if exists public.solicitar_acesso(text, text, text);
+drop table if exists public.solicitacoes_acesso;
+-- Depois, remover a função "decidir-acesso" e reimplantar a versão anterior do portal.

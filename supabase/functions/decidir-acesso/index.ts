@@ -81,14 +81,14 @@ async function enviarAprovacao(telefone: string, nome: string, email: string): P
   return { ...t, tipo: "texto" };
 }
 
-async function enviarZapi(rota: string, corpo: Record<string, string>): Promise<{ ok: boolean; erro?: string }> {
+async function enviarZapi(rota: string, dados: Record<string, string>): Promise<{ ok: boolean; erro?: string }> {
   const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
   if (!inst || !tok || !cli) return { ok: false, erro: "credenciais da Z-API não configuradas" };
   try {
     const r = await fetch(`https://api.z-api.io/instances/${inst}/token/${tok}/${rota}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Client-Token": cli },
-      body: JSON.stringify(corpo),
+      body: JSON.stringify(dados),
     });
     const corpo = await r.text();
     if (!r.ok) { console.error("Z-API", r.status, corpo.slice(0, 200)); return { ok: false, erro: `Z-API respondeu ${r.status}: ${corpo.slice(0, 120)}` }; }

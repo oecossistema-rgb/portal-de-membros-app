@@ -518,6 +518,7 @@ function TelaLogin({ onIrCadastro, onEsqueci }) {
 function TelaCadastro({ onVoltar }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
+  const [whats, setWhats] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -526,8 +527,9 @@ function TelaCadastro({ onVoltar }) {
   async function cadastrar() {
     const emailNormalizado = email.trim().toLowerCase();
 
-    if (nome.trim().length < 2 || !emailNormalizado || senha.length < 6) {
-      setErro("Preencha seu nome, e-mail e uma senha de pelo menos 6 caracteres.");
+    const whatsDigitos = whats.replace(/\D/g, "");
+    if (nome.trim().length < 2 || !emailNormalizado || whatsDigitos.length < 10 || senha.length < 6) {
+      setErro("Preencha seu nome, e-mail, WhatsApp com DDD e uma senha de pelo menos 6 caracteres.");
       return;
     }
 
@@ -541,6 +543,8 @@ function TelaCadastro({ onVoltar }) {
         options: {
           data: {
             nome: nome.trim(),
+            // Vai junto com o pedido de acesso (para quem não está pré-cadastrado) e serve para o aviso de aprovação.
+            whatsapp: whatsDigitos,
           },
         },
       });
@@ -616,6 +620,15 @@ function TelaCadastro({ onVoltar }) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="o e-mail cadastrado no Ecossistema"
+      />
+      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-whats">WhatsApp com DDD</label>
+      <input
+        id="c-whats"
+        style={S.modalInput}
+        value={whats}
+        onChange={(e) => setWhats(e.target.value)}
+        placeholder="(71) 99999-9999"
+        inputMode="tel"
       />
       <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-senha">Crie uma senha</label>
       <input

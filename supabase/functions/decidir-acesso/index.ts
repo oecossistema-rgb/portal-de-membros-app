@@ -11,7 +11,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 import { initWasm, Resvg } from "npm:@resvg/resvg-wasm@2.6.2";
-import { svgCartaoFinal } from "./cartao.ts";
+import { svgCartaoFinal, svgMembroFinal } from "./cartao.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -40,6 +40,46 @@ async function gerarCartao(nome: string): Promise<string> {
   const { fonte, fundo } = await recursosCartao();
   const png = new Resvg(svgCartaoFinal(nome, fundo), { font: { fontBuffers: [fonte], defaultFontFamily: "Inter", loadSystemFonts: false } }).render().asPng();
   return `data:image/png;base64,${encodeBase64(png)}`;
+}
+
+// Cartão de membro (modelo escolhido): fundo publicado no portal + nome em Inter SemiBold.
+let prontoMembro: Promise<{ fonte: Uint8Array; fundo: string }> | null = null;
+function recursosMembro() {
+  if (!prontoMembro) prontoMembro = (async () => {
+    await recursosCartao(); // garante o wasm iniciado
+    const [fonte, fundo] = await Promise.all([
+      fetch("https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter@0.2.3/Inter_600SemiBold.ttf").then((r) => r.arrayBuffer()),
+      fetch(`${PORTAL}/cartao-membro-fundo.png`).then((r) => { if (!r.ok) throw new Error(`fundo ${r.status}`); return r.arrayBuffer(); }),
+    ]);
+    return { fonte: new Uint8Array(fonte), fundo: encodeBase64(new Uint8Array(fundo)) };
+  })().catch((e) => { prontoMembro = null; throw e; });
+  return prontoMembro;
+}
+async function gerarCartaoMembro(nome: string): Promise<string> {
+  const { fonte, fundo } = await recursosMembro();
+  const png = new Resvg(svgMembroFinal(nome, fundo), { font: { fontBuffers: [fonte], defaultFontFamily: "Inter", loadSystemFonts: false } }).render().asPng();
+  return `data:image/png;base64,${encodeBase64(png)}`;
+}
+
+// Envio novo: cartão de membro + botão "Acessar o portal". Se o botão for recusado, vai o cartão com legenda curta;
+// se a imagem falhar, vai o texto.
+export const LEGENDA_CURTA = `Entre com o e-mail e a senha que você cadastrou:\n${PORTAL}`;
+async function enviarCartaoMembro(telefone: string, nome: string, email: string): Promise<{ ok: boolean; erro?: string; tipo?: string }> {
+  try {
+    const imagem = await gerarCartaoMembro(nome);
+    const b = await enviarZapi("send-button-actions", {
+      phone: telefone, image: imagem, message: "Entre com o e-mail e a senha que você cadastrou.", footer: "Ecossistema Master Business",
+      buttonActions: [{ id: "1", type: "URL", url: PORTAL, label: "Acessar o portal" }],
+    });
+    if (b.ok) return { ...b, tipo: "cartao_botao" };
+    console.error("botão recusado, indo para cartão com legenda", b.erro);
+    const i = await enviarZapi("send-image", { phone: telefone, image: imagem, caption: LEGENDA_CURTA });
+    if (i.ok) return { ...i, tipo: "cartao_legenda" };
+  } catch (e) {
+    console.error("cartão de membro não gerado, indo para texto", e instanceof Error ? e.message : e);
+  }
+  const t = await enviarZapi("send-text", { phone: telefone, message: mensagemAprovacao(nome, email) });
+  return { ...t, tipo: "texto" };
 }
 
 // Telefone no formato que a Z-API espera: só números, com 55 na frente.
@@ -81,7 +121,7 @@ async function enviarAprovacao(telefone: string, nome: string, email: string): P
   return { ...t, tipo: "texto" };
 }
 
-async function enviarZapi(rota: string, dados: Record<string, string>): Promise<{ ok: boolean; erro?: string }> {
+async function enviarZapi(rota: string, dados: Record<string, unknown>): Promise<{ ok: boolean; erro?: string }> {
   const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
   if (!inst || !tok || !cli) return { ok: false, erro: "credenciais da Z-API não configuradas" };
   try {
@@ -106,13 +146,20 @@ Deno.serve(async (req) => {
   if (interno) {
     const { data: valido } = await db.rpc("token_interno_valido", { p_token: interno });
     if (valido !== true) return resp(401, { erro: "código interno inválido" });
-    let ci: { acao?: string; nome?: string } = {};
+    let ci: { acao?: string; nome?: string; telefone?: string } = {};
     try { ci = await req.json(); } catch { /* vazio */ }
     if (ci.acao === "cartao") {
       // Gera o cartão no servidor, sem enviar nada: confere que imagem, fonte e fundo estão funcionando.
       const t0 = Date.now();
       try { const img = await gerarCartao(ci.nome || "Teste"); return resp(200, { cartao: "ok", bytes: Math.round(img.length * 0.75), ms: Date.now() - t0 }); }
       catch (e) { return resp(200, { cartao: "falhou", erro: e instanceof Error ? e.message : String(e) }); }
+    }
+    if (ci.acao === "teste_envio") {
+      // Teste do envio novo para um número informado (usado só pela equipe, pelo banco).
+      if (!ci.telefone) return resp(400, { erro: "informe telefone" });
+      const t0 = Date.now();
+      const w = await enviarCartaoMembro(telefoneZapi(ci.telefone), ci.nome || "Membro", "");
+      return resp(200, { ...w, ms: Date.now() - t0 });
     }
     const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
     if (!inst || !tok || !cli) return resp(200, { credenciais: "faltando", tem: { inst: !!inst, tok: !!tok, cli: !!cli } });

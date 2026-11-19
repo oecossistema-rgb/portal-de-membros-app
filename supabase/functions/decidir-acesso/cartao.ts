@@ -117,3 +117,14 @@ export function svgCartao(nome: string, logoPngBase64: string, comNome = true): 
   <text x="540" y="1028" text-anchor="middle" font-family="Inter" font-weight="800" font-size="30" letter-spacing="3" fill="#FFFFFF">MASTER BUSINESS</text>
 </svg>`;
 }
+
+// ── Modelo escolhido (19/11): "cartão de membro", 1080x1350 ──────────────────
+// Fundo pronto publicado em public/cartao-membro-fundo.png; aqui só se escreve o nome no cartão preto.
+export function svgMembroFinal(nome: string, fundoPngBase64: string): string {
+  const n = nomeCartao(nome) || "Membro";
+  const t = Math.round(Math.min(64, 740 / (0.57 * Math.max(n.length, 1))));
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <image x="0" y="0" width="1080" height="1350" xlink:href="data:image/png;base64,${fundoPngBase64}" href="data:image/png;base64,${fundoPngBase64}"/>
+  <text x="170" y="${1050 + t}" font-family="Inter" font-weight="600" font-size="${t}" fill="#FFFFFF" letter-spacing="${(-t * 0.02).toFixed(2)}">${esc(n)}</text>
+</svg>`;
+}

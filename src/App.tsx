@@ -350,7 +350,7 @@ function TelaNovaSenha({ onConcluir }) {
 }
 
 // Quem tem login mas não está liberado: pede acesso (vira uma solicitação na Administração).
-type Solicitacao = { status: "pendente" | "aprovada" | "recusada"; nome: string; whatsapp: string; empresa: string };
+type Solicitacao = { status: "pendente" | "aprovada" | "recusada"; nome: string; whatsapp: string | null; empresa: string | null };
 function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: string; nomeInicial: string; onSair: () => void; onLiberado: () => Promise<void> }) {
   const [sol, setSol] = useState<Solicitacao | null | undefined>(undefined);
   const [nome, setNome] = useState(nomeInicial || "");
@@ -363,7 +363,7 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
   async function carregar() {
     const { data } = await supabase.from("solicitacoes_acesso").select("status,nome,whatsapp,empresa").maybeSingle();
     setSol((data as Solicitacao) || null);
-    if (data) { setNome(data.nome); setWhats(data.whatsapp); setEmpresa(data.empresa); }
+    if (data) { setNome(data.nome || ""); setWhats(data.whatsapp || ""); setEmpresa(data.empresa || ""); }
   }
   useEffect(() => { carregar(); }, []);
 
@@ -390,7 +390,8 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
 
   if (sol === undefined) return <AuthShell><p style={S.loginSub}>Carregando...</p></AuthShell>;
 
-  if (sol?.status === "pendente") {
+  // O pedido já nasce ao criar a conta; a tela de "enviada" só aparece depois que a pessoa completa WhatsApp e empresa.
+  if (sol?.status === "pendente" && sol.whatsapp) {
     return (
       <AuthShell>
         <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--p-accent-bg)", color: "var(--p-accent-text)", display: "flex", alignItems: "center", justifyContent: "center", margin: "6px auto 14px", fontSize: 26 }}>✓</div>

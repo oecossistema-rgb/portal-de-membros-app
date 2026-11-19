@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
       membroId = existente.id;
     } else {
       const { data: novo, error } = await db.from("membros").insert({
-        nome: s.nome, email: s.email, empresa: s.empresa, telefone_whatsapp: s.whatsapp, ativo: true, auth_user_id: s.auth_user_id, is_admin: false, equipe: false,
+        nome: s.nome, email: s.email, empresa: s.empresa || null, telefone_whatsapp: s.whatsapp || null, ativo: true, auth_user_id: s.auth_user_id, is_admin: false, equipe: false,
       }).select("id").single();
       if (error) { console.error("criar membro", error.message); return resp(500, { erro: `não foi possível criar o cadastro (${error.message})` }); }
       membroId = novo.id;
@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
     return resp(409, { erro: "só dá para reenviar o WhatsApp de uma solicitação aprovada" });
   }
 
+  if (!s.whatsapp) return resp(200, { ok: true, status: "aprovada", membro_id: membroId, whatsapp: "sem_numero" });
   const w = await enviarWhatsApp(telefoneZapi(s.whatsapp), mensagemAprovacao(s.nome, s.email));
   await db.from("solicitacoes_acesso").update(w.ok ? { whatsapp_enviado_em: new Date().toISOString(), whatsapp_erro: null } : { whatsapp_erro: w.erro }).eq("id", s.id);
   return resp(200, { ok: true, status: "aprovada", membro_id: membroId, whatsapp: w.ok ? "enviado" : "falhou", whatsapp_erro: w.erro });

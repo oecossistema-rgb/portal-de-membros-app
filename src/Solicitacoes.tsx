@@ -5,11 +5,12 @@ import { supabase } from "./supabase";
 import { ui } from "./ui";
 
 type Sol = {
-  id: string; nome: string; email: string; whatsapp: string; empresa: string; status: string;
+  id: string; nome: string; email: string; whatsapp: string | null; empresa: string | null; status: string;
   criado_em: string; decidido_em: string | null; whatsapp_enviado_em: string | null; whatsapp_erro: string | null;
 };
 
-const fone = (d: string) => {
+const fone = (d: string | null) => {
+  if (!d) return "";
   const n = d.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
   return n.length === 11 ? `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}` : n.length === 10 ? `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}` : d;
 };
@@ -29,7 +30,7 @@ export default function Solicitacoes({ onMudou }: { onMudou?: () => void }) {
     // Pendentes + aprovações recentes cujo WhatsApp falhou (para reenviar).
     const { data } = await supabase.from("solicitacoes_acesso")
       .select("id,nome,email,whatsapp,empresa,status,criado_em,decidido_em,whatsapp_enviado_em,whatsapp_erro")
-      .or("status.eq.pendente,and(status.eq.aprovada,whatsapp_enviado_em.is.null)")
+      .or("status.eq.pendente,and(status.eq.aprovada,whatsapp_enviado_em.is.null,whatsapp.not.is.null)")
       .order("criado_em", { ascending: true });
     setLista((data as Sol[]) || []);
   }
@@ -38,6 +39,7 @@ export default function Solicitacoes({ onMudou }: { onMudou?: () => void }) {
   async function decidir(s: Sol, acao: "aprovar" | "recusar" | "reenviar") {
     const primeiro = s.nome.split(" ")[0];
     if (acao === "recusar" && !confirm(`Recusar o acesso de ${s.nome}? Nenhuma mensagem é enviada.`)) return;
+    if (acao === "aprovar" && !s.whatsapp && !confirm(`${s.nome} ainda não informou o WhatsApp. Aprovar mesmo assim? Ele não vai receber o aviso, mas já consegue entrar.`)) return;
     setOcupado(s.id); setMsg(null);
     const { data, error } = await supabase.functions.invoke("decidir-acesso", { body: { id: s.id, acao } });
     setOcupado(null);
@@ -48,6 +50,8 @@ export default function Solicitacoes({ onMudou }: { onMudou?: () => void }) {
       setMsg({ tipo: "erro", texto: `Não foi possível concluir${motivo ? `: ${motivo}` : ". Tente de novo em instantes; se continuar, avise o suporte."}` });
     } else if (acao === "recusar") {
       setMsg({ tipo: "ok", texto: `Solicitação de ${primeiro} recusada.` });
+    } else if (data.whatsapp === "sem_numero") {
+      setMsg({ tipo: "ok", texto: `${primeiro} aprovado. Como não informou WhatsApp, não recebeu aviso: avise por outro canal que o acesso está liberado.` });
     } else if (data.whatsapp === "enviado") {
       setMsg({ tipo: "ok", texto: acao === "aprovar" ? `${primeiro} aprovado e avisado no WhatsApp. No primeiro acesso, ele preenche o onboarding.` : `WhatsApp reenviado para ${primeiro}.` });
     } else {
@@ -74,10 +78,11 @@ export default function Solicitacoes({ onMudou }: { onMudou?: () => void }) {
         {lista.map((s) => (
           <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", padding: "12px 14px", borderRadius: 14, background: "var(--p-card2)", border: "1px solid var(--p-line)" }}>
             <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 15, color: "var(--p-text)" }}>{s.nome} <span style={{ fontWeight: 400, color: "var(--p-muted)" }}>· {s.empresa}</span></div>
+              <div style={{ fontWeight: 600, fontSize: 15, color: "var(--p-text)" }}>{s.nome}{s.empresa && <span style={{ fontWeight: 400, color: "var(--p-muted)" }}> · {s.empresa}</span>}</div>
               <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 3, overflowWrap: "anywhere" }}>
-                {s.email} · WhatsApp {fone(s.whatsapp)} · pediu em {quando(s.criado_em)}
+                {s.email} · {s.whatsapp ? `WhatsApp ${fone(s.whatsapp)}` : "WhatsApp ainda não informado"} · pediu em {quando(s.criado_em)}
               </div>
+              {s.status === "pendente" && !s.whatsapp && <div style={{ fontSize: 12.5, color: "var(--p-warn)", marginTop: 4 }}>Criou a conta, mas ainda não completou WhatsApp e empresa. Se aprovar agora, a pessoa não recebe o aviso no WhatsApp.</div>}
               {s.status === "aprovada" && <div style={{ fontSize: 12.5, color: "var(--p-danger)", marginTop: 4 }}>Aprovado, mas o WhatsApp não saiu: {s.whatsapp_erro || "sem resposta"}</div>}
             </div>
             {s.status === "pendente" ? (

@@ -188,7 +188,7 @@ export default function Onboarding({ userId, modo, onConcluido, onSair }: Props)
   const abertura = idx < 0;
   const revisao = idx >= TOTAL;
   const progresso = Math.round((Math.max(idx, 0) / TOTAL) * 100);
-  const linkTopo: CSSProperties = { position: "absolute", top: 0, right: 24, background: "none", border: "none", color: "#B8C0CC", cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 4 };
+  const linkTopo: CSSProperties = { position: "absolute", top: 0, right: 24, background: "var(--p-card)", border: "1px solid var(--p-line2)", color: "var(--p-text)", cursor: "pointer", fontSize: 13.5, fontWeight: 600, fontFamily: "inherit", padding: "7px 16px", borderRadius: 980, zIndex: 2 };
 
   return (
     <Pagina>

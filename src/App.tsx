@@ -1,5 +1,5 @@
 import { PainelMembro } from "./Painel";
-import { Agenda } from "./Agenda";
+import { Agenda, type Galeria } from "./Agenda";
 import { PortalShell, VisaoGeral } from "./Visao";
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "./supabase";
@@ -24,6 +24,8 @@ type EventoAgenda = {
   diaSemana: string;
   dataOrdenacao: string;
   inscrivel: boolean;
+  local?: string | null;
+  galeria?: Galeria | null;
 };
 
 const TRILHAS = {
@@ -683,7 +685,7 @@ function PortalConteudo({ membro, onSair }) {
   useEffect(() => {
     supabase
       .from("eventos")
-      .select("id, trilha, titulo, quando, dia_semana, data_inicio, inscricoes_abertas")
+      .select("id, trilha, titulo, quando, dia_semana, data_inicio, inscricoes_abertas, local, galeria")
       .eq("ativo", true)
       .order("data_inicio")
       .then(({ data }) => {
@@ -696,6 +698,8 @@ function PortalConteudo({ membro, onSair }) {
             diaSemana: e.dia_semana || "",
             dataOrdenacao: e.data_inicio,
             inscrivel: e.inscricoes_abertas,
+            local: e.local,
+            galeria: e.galeria,
           }))
         );
         setCarregandoEventos(false);

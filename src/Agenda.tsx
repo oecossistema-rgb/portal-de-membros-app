@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 // Agenda de Eventos: visual minimalista, agrupado por mês, com bloco de data e destaque do próximo encontro.
-export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean };
+// Galeria de fotos e vídeos do evento: pastas do Google Drive compartilhadas por link (nada fica nos nossos servidores).
+export type Galeria = { pasta?: string; dias: { titulo: string; pastas: { nome: string; id: string }[] }[] };
+export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean; local?: string | null; galeria?: Galeria | null };
 
 const TIPOS: Record<string, { rotulo: string; plural: string; cor: string }> = {
   imersao: { rotulo: "Imersão", plural: "Imersões", cor: "#8BAD3F" },
@@ -32,7 +34,21 @@ const CSS = `
 .ag-ev{ display:grid; grid-template-columns:76px 1fr auto; gap:18px; align-items:center; background:linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%); border:1px solid ${C.borda}; border-radius:20px; box-shadow:var(--p-shadow); padding:14px 18px 14px 14px; margin-bottom:10px; transition:box-shadow .18s ease, transform .18s ease, border-color .18s ease }
 .ag-ev:hover{ box-shadow:0 12px 28px -16px rgba(26,31,43,.28); transform:translateY(-1px) }
 .ag-ev.prox{ border-color:${C.oliva}; box-shadow:0 0 0 3px var(--p-accent-bg) }
-.ag-ev.passado{ opacity:.55 }
+.ag-ev.passado .ag-data{ opacity:.7 }
+.ag-secao{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:34px 0 4px }
+.ag-secao h2{ margin:0; font-size:22px; font-weight:700; letter-spacing:-0.02em; color:var(--p-text) }
+.ag-btn2{ display:inline-flex; align-items:center; gap:8px; text-decoration:none; border:1px solid var(--p-line2); background:var(--p-card); color:var(--p-text); border-radius:980px; padding:9px 16px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap }
+.ag-btn2:hover{ background:var(--p-hover) }
+.gal-fundo{ position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:10000; display:flex; align-items:center; justify-content:center; padding:20px }
+.gal{ background:var(--p-card); color:var(--p-text); border:1px solid var(--p-line); border-radius:22px; width:min(1180px,100%); height:min(860px,100%); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.35) }
+.gal-topo{ padding:18px 22px 12px; border-bottom:1px solid var(--p-line); display:flex; flex-direction:column; gap:12px }
+.gal-x{ border:0; background:var(--p-hover); color:var(--p-text); width:34px; height:34px; border-radius:50%; font-size:18px; cursor:pointer; flex:0 0 auto }
+.gal-chips{ display:flex; gap:6px; flex-wrap:wrap }
+.gal-chip{ border:1px solid var(--p-line2); background:transparent; color:var(--p-text2); border-radius:980px; padding:6px 14px; font:inherit; font-size:13px; font-weight:500; cursor:pointer }
+.gal-chip.on{ background:var(--p-accent); border-color:var(--p-accent); color:var(--p-on-accent); font-weight:600 }
+.gal-corpo{ flex:1; min-height:0; background:#fff }
+.gal-corpo iframe{ width:100%; height:100%; border:0; display:block }
+@media (max-width:640px){ .gal-fundo{ padding:0 } .gal{ border-radius:0; height:100% } }
 .ag-data{ border-radius:12px; background:${C.fundo}; text-align:center; padding:9px 0 8px }
 .ag-btn{ border:0; background:linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%); color:var(--p-on-accent); border-radius:980px; padding:10px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap }
 .ag-btn:hover{ filter:brightness(1.06) }
@@ -63,10 +79,11 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
   const hoje = hoje0();
   const ordenados = useMemo(() => [...eventos].sort((a, b) => (a.dataOrdenacao || "").localeCompare(b.dataOrdenacao || "")), [eventos]);
   const proximo = ordenados.find((e) => { const d = dataDe(e); return d && d >= hoje; });
-  const [verRealizados, setVerRealizados] = useState(false);
+  const [galeriaDe, setGaleriaDe] = useState<EventoAgenda | null>(null);
   const doFiltro = filtro === "todos" ? ordenados : ordenados.filter((e) => e.trilha === filtro);
-  const realizados = doFiltro.filter((e) => { const d = dataDe(e); return d && d < hoje; }).length;
-  const visiveis = verRealizados ? doFiltro : doFiltro.filter((e) => { const d = dataDe(e); return !d || d >= hoje; });
+  // Encontros já realizados ficam sempre visíveis, numa seção própria, do mais recente para o mais antigo.
+  const realizados = doFiltro.filter((e) => { const d = dataDe(e); return d && d < hoje; }).reverse();
+  const visiveis = doFiltro.filter((e) => { const d = dataDe(e); return !d || d >= hoje; });
   const conta = (t: string) => ordenados.filter((e) => e.trilha === t).length;
   const confirmados = Object.keys(confirmacoes).filter((id) => ordenados.some((e) => e.id === id)).length;
 
@@ -85,7 +102,9 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
   const acao = (e: EventoAgenda): ReactNode => {
     const conf = confirmacoes[e.id];
     const d = dataDe(e);
-    if (d && d < hoje) return <span style={{ fontSize: 13, fontWeight: 700, color: C.claro }}>Realizado</span>;
+    if (d && d < hoje) return e.galeria?.dias?.length
+      ? <button className="ag-btn" onClick={() => setGaleriaDe(e)}>📷 Fotos e vídeos</button>
+      : <span style={{ fontSize: 13, fontWeight: 600, color: C.claro }}>Realizado</span>;
     if (conf) return (
       <button className="ag-ok" onClick={() => onCancelar(e)} title="Clique para cancelar sua presença">
         <span style={{ width: 22, height: 22, borderRadius: "50%", background: C.oliva, color: "var(--p-text)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>✓</span>
@@ -97,9 +116,36 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
     return <button className="ag-btn" onClick={() => onConfirmar(e)}>Confirmar presença</button>;
   };
 
+  const cartao = (e: EventoAgenda) => {
+    const t = TIPOS[e.trilha] || TIPOS.growth;
+    const d = dataDe(e);
+    const passado = !!d && d < hoje;
+    const ehProx = proximo?.id === e.id;
+    return (
+      <article key={e.id} className={`ag-ev${ehProx ? " prox" : ""}${passado ? " passado" : ""}`}>
+        <div className="ag-data" style={{ borderTop: `3px solid ${t.cor}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: C.suave }}>{d ? SEMANA[d.getDay()] : ""}</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: C.tinta, lineHeight: 1.1 }}>{d ? d.getDate() : "–"}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.suave, textTransform: "uppercase" }}>{d ? MESES[d.getMonth()].slice(0, 3) : ""}</div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: C.suave }}>
+            <Ponto cor={t.cor} />{t.rotulo}
+            {ehProx && <span style={{ marginLeft: 4, background: C.olivaClaro, color: C.olivaEsc, borderRadius: 100, padding: "2px 8px", letterSpacing: 0.5 }}>Próximo</span>}
+            {passado && <span style={{ marginLeft: 4, background: "var(--p-hover)", color: C.suave, borderRadius: 100, padding: "2px 8px", letterSpacing: 0.5 }}>Realizado</span>}
+          </div>
+          <h3 style={{ margin: "4px 0 2px", fontSize: 17, fontWeight: 700, color: C.tinta, letterSpacing: -0.2 }}>{e.titulo}{e.local ? ` · ${e.local}` : ""}</h3>
+          <div style={{ fontSize: 14, color: C.suave }}>{e.quando}{e.diaSemana ? ` · ${e.diaSemana}` : ""}</div>
+        </div>
+        <div className="ag-acao">{acao(e)}</div>
+      </article>
+    );
+  };
+
   return (
     <div className="ag">
       <style>{CSS}</style>
+      {galeriaDe?.galeria && <GaleriaEvento evento={galeriaDe} galeria={galeriaDe.galeria} onFechar={() => setGaleriaDe(null)} />}
       <section className="ag-hero">
         <div className="ag-hero-in">
           <div style={{ maxWidth: 560 }}>
@@ -137,42 +183,63 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
 
       <main className="ag-lista">
         {carregando && <div style={{ color: C.suave, padding: 20 }}>Carregando agenda...</div>}
-        {!carregando && visiveis.length === 0 && <div style={{ color: C.suave, padding: 20 }}>Nenhum evento nesta categoria.</div>}
-        {!carregando && realizados > 0 && (
-          <button onClick={() => setVerRealizados(!verRealizados)} style={{ border: 0, background: "transparent", color: C.suave, fontWeight: 700, fontSize: 13.5, cursor: "pointer", fontFamily: "inherit", padding: "0 0 14px" }}>
-            {verRealizados ? "Ocultar encontros realizados" : `Ver encontros realizados (${realizados})`}
-          </button>
-        )}
+        {!carregando && visiveis.length === 0 && realizados.length === 0 && <div style={{ color: C.suave, padding: 20 }}>Nenhum evento nesta categoria.</div>}
+        {!carregando && visiveis.length > 0 && <div className="ag-secao" style={{ marginTop: 6 }}><h2>Próximos encontros</h2></div>}
         {grupos.map((g) => (
           <section key={g.chave}>
             <div className="ag-mes">{g.titulo}</div>
-            {g.itens.map((e) => {
-              const t = TIPOS[e.trilha] || TIPOS.growth;
-              const d = dataDe(e);
-              const passado = !!d && d < hoje;
-              const ehProx = proximo?.id === e.id;
-              return (
-                <article key={e.id} className={`ag-ev${ehProx ? " prox" : ""}${passado ? " passado" : ""}`}>
-                  <div className="ag-data" style={{ borderTop: `3px solid ${t.cor}` }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: C.suave }}>{d ? SEMANA[d.getDay()] : ""}</div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: C.tinta, lineHeight: 1.1 }}>{d ? d.getDate() : "–"}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.suave, textTransform: "uppercase" }}>{d ? MESES[d.getMonth()].slice(0, 3) : ""}</div>
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: C.suave }}>
-                      <Ponto cor={t.cor} />{t.rotulo}
-                      {ehProx && <span style={{ marginLeft: 4, background: C.olivaClaro, color: C.olivaEsc, borderRadius: 100, padding: "2px 8px", letterSpacing: 0.5 }}>Próximo</span>}
-                    </div>
-                    <h3 style={{ margin: "4px 0 2px", fontSize: 17, fontWeight: 700, color: C.tinta, letterSpacing: -0.2 }}>{e.titulo}</h3>
-                    <div style={{ fontSize: 14, color: C.suave }}>{e.quando}{e.diaSemana ? ` · ${e.diaSemana}` : ""}</div>
-                  </div>
-                  <div className="ag-acao">{acao(e)}</div>
-                </article>
-              );
-            })}
+            {g.itens.map(cartao)}
           </section>
         ))}
+        {!carregando && realizados.length > 0 && (
+          <section>
+            <div className="ag-secao"><h2>Encontros realizados</h2><span style={{ fontSize: 13.5, color: C.suave }}>{realizados.length} {realizados.length === 1 ? "encontro" : "encontros"}</span></div>
+            <p style={{ margin: "0 0 14px", fontSize: 14, color: C.suave }}>Reveja os encontros que já aconteceram. Onde houver, as fotos e os vídeos estão a um clique.</p>
+            {realizados.map(cartao)}
+          </section>
+        )}
       </main>
+    </div>
+  );
+}
+
+// Galeria do evento: abas por dia e por videomaker; cada pasta do Drive aparece embutida no portal.
+function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; galeria: Galeria; onFechar: () => void }) {
+  const [dia, setDia] = useState(0);
+  const [pasta, setPasta] = useState(0);
+  const d = galeria.dias[dia];
+  const p = d?.pastas[pasta] || d?.pastas[0];
+  useEffect(() => {
+    const esc = (ev: KeyboardEvent) => { if (ev.key === "Escape") onFechar(); };
+    window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
+  }, [onFechar]);
+  return (
+    <div className="gal-fundo" onClick={onFechar}>
+      <div className="gal" role="dialog" aria-label={`Fotos e vídeos: ${evento.titulo}`} onClick={(ev) => ev.stopPropagation()}>
+        <div className="gal-topo">
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--p-accent-text)" }}>Fotos e vídeos</div>
+              <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>{evento.titulo}{evento.local ? ` · ${evento.local}` : ""}</div>
+              <div style={{ fontSize: 13.5, color: "var(--p-muted)" }}>{evento.quando}</div>
+            </div>
+            {galeria.pasta && <a className="ag-btn2" href={`https://drive.google.com/drive/folders/${galeria.pasta}`} target="_blank" rel="noreferrer">Abrir no Drive</a>}
+            <button className="gal-x" onClick={onFechar} aria-label="Fechar">×</button>
+          </div>
+          <div className="pv-seg" style={{ alignSelf: "flex-start" }}>
+            {galeria.dias.map((x, i) => <button key={x.titulo} className={i === dia ? "on" : ""} onClick={() => { setDia(i); setPasta(0); }}>{x.titulo}</button>)}
+          </div>
+          {d && d.pastas.length > 1 && (
+            <div className="gal-chips">
+              {d.pastas.map((x, i) => <button key={x.id} className={`gal-chip${p?.id === x.id ? " on" : ""}`} onClick={() => setPasta(i)}>{x.nome}</button>)}
+            </div>
+          )}
+        </div>
+        <div className="gal-corpo">
+          {p ? <iframe key={p.id} title={`${d.titulo} · ${p.nome}`} src={`https://drive.google.com/embeddedfolderview?id=${p.id}#grid`} loading="lazy" />
+            : <div style={{ padding: 30, color: "#555" }}>Nenhuma pasta neste dia.</div>}
+        </div>
+      </div>
     </div>
   );
 }

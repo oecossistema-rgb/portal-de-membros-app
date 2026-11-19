@@ -61,18 +61,18 @@ async function gerarCartaoMembro(nome: string): Promise<string> {
   return `data:image/png;base64,${encodeBase64(png)}`;
 }
 
-// Envio novo: cartão de membro + botão "Acessar o portal". Se o botão for recusado, vai o cartão com legenda curta;
-// se a imagem falhar, vai o texto.
+// Envio novo: cartão de membro + legenda curta com o link. (O envio com botão existe só para teste: em 19/11 a Z-API
+// aceitou, mas a mensagem com botão não chegou ao celular.) Se a imagem falhar, vai o texto.
 export const LEGENDA_CURTA = `Entre com o e-mail e a senha que você cadastrou:\n${PORTAL}`;
-async function enviarCartaoMembro(telefone: string, nome: string, email: string): Promise<{ ok: boolean; erro?: string; tipo?: string }> {
+async function enviarCartaoMembro(telefone: string, nome: string, email: string, comBotao = false): Promise<{ ok: boolean; erro?: string; tipo?: string }> {
   try {
     const imagem = await gerarCartaoMembro(nome);
-    const b = await enviarZapi("send-button-actions", {
+    const b = !comBotao ? { ok: false, erro: "sem botão" } : await enviarZapi("send-button-actions", {
       phone: telefone, image: imagem, message: "Entre com o e-mail e a senha que você cadastrou.", footer: "Ecossistema Master Business",
       buttonActions: [{ id: "1", type: "URL", url: PORTAL, label: "Acessar o portal" }],
     });
     if (b.ok) return { ...b, tipo: "cartao_botao" };
-    console.error("botão recusado, indo para cartão com legenda", b.erro);
+    if (comBotao) console.error("botão recusado, indo para cartão com legenda", b.erro);
     const i = await enviarZapi("send-image", { phone: telefone, image: imagem, caption: LEGENDA_CURTA });
     if (i.ok) return { ...i, tipo: "cartao_legenda" };
   } catch (e) {
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
   if (interno) {
     const { data: valido } = await db.rpc("token_interno_valido", { p_token: interno });
     if (valido !== true) return resp(401, { erro: "código interno inválido" });
-    let ci: { acao?: string; nome?: string; telefone?: string } = {};
+    let ci: { acao?: string; nome?: string; telefone?: string; formato?: string } = {};
     try { ci = await req.json(); } catch { /* vazio */ }
     if (ci.acao === "cartao") {
       // Gera o cartão no servidor, sem enviar nada: confere que imagem, fonte e fundo estão funcionando.
@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
       // Teste do envio novo para um número informado (usado só pela equipe, pelo banco).
       if (!ci.telefone) return resp(400, { erro: "informe telefone" });
       const t0 = Date.now();
-      const w = await enviarCartaoMembro(telefoneZapi(ci.telefone), ci.nome || "Membro", "");
+      const w = await enviarCartaoMembro(telefoneZapi(ci.telefone), ci.nome || "Membro", "", ci.formato === "botao");
       return resp(200, { ...w, ms: Date.now() - t0 });
     }
     const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");

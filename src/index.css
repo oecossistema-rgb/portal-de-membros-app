@@ -55,7 +55,7 @@
   max-width: 100%;
   margin: 0;
   text-align: center;
-  background: #06090A;
+  background: var(--p-bg);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -64,6 +64,7 @@
 
 body {
   margin: 0;
+  background: var(--p-bg);
 }
 
 h1,
@@ -109,3 +110,40 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ===== Tema do portal (estilo Apple): claro e escuro, verde só nos detalhes =====
+   O tema vem do atributo data-tema no <html> ("claro" ou "escuro"); sem escolha, segue o aparelho. */
+:root, :root[data-tema="claro"] {
+  --p-bg: #F5F5F7; --p-side: rgba(251,251,253,.78); --p-card: #FFFFFF; --p-card2: #FAFAFC; --p-field: #FFFFFF; --p-hover: rgba(0,0,0,.04);
+  --p-line: #E5E5EA; --p-line2: #D2D2D7;
+  --p-text: #1D1D1F; --p-text2: #424245; --p-muted: #6E6E73; --p-faint: #86868B;
+  --p-accent: #1F9D55; --p-accent-text: #15803D; --p-on-accent: #FFFFFF; --p-accent-bg: #E8F7EE;
+  --p-danger: #D70015; --p-danger-line: #F5C2C7; --p-warn: #B25000;
+  --p-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+  --p-shadow-hover: 0 2px 6px rgba(0,0,0,.06), 0 16px 40px rgba(0,0,0,.10);
+  --p-top: rgba(245,245,247,.78);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --p-bg: #000000; --p-side: rgba(22,22,23,.78); --p-card: #1C1C1E; --p-card2: #2C2C2E; --p-field: #1C1C1E; --p-hover: rgba(255,255,255,.06);
+    --p-line: #2C2C2E; --p-line2: #3A3A3C;
+    --p-text: #F5F5F7; --p-text2: #D1D1D6; --p-muted: #98989D; --p-faint: #8E8E93;
+    --p-accent: #30D158; --p-accent-text: #30D158; --p-on-accent: #00210C; --p-accent-bg: rgba(48,209,88,.14);
+    --p-danger: #FF6961; --p-danger-line: #5C1F1C; --p-warn: #FFB340;
+    --p-shadow: 0 1px 0 rgba(255,255,255,.04) inset; --p-shadow-hover: 0 1px 0 rgba(255,255,255,.06) inset, 0 16px 40px rgba(0,0,0,.5);
+    --p-top: rgba(0,0,0,.72);
+    color-scheme: dark;
+  }
+}
+:root[data-tema="escuro"] {
+  --p-bg: #000000; --p-side: rgba(22,22,23,.78); --p-card: #1C1C1E; --p-card2: #2C2C2E; --p-field: #1C1C1E; --p-hover: rgba(255,255,255,.06);
+  --p-line: #2C2C2E; --p-line2: #3A3A3C;
+  --p-text: #F5F5F7; --p-text2: #D1D1D6; --p-muted: #98989D; --p-faint: #8E8E93;
+  --p-accent: #30D158; --p-accent-text: #30D158; --p-on-accent: #00210C; --p-accent-bg: rgba(48,209,88,.14);
+  --p-danger: #FF6961; --p-danger-line: #5C1F1C; --p-warn: #FFB340;
+  --p-shadow: 0 1px 0 rgba(255,255,255,.04) inset; --p-shadow-hover: 0 1px 0 rgba(255,255,255,.06) inset, 0 16px 40px rgba(0,0,0,.5);
+  --p-top: rgba(0,0,0,.72);
+  color-scheme: dark;
+}
+body, #root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif; }

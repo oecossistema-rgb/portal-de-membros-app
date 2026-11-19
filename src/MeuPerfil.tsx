@@ -130,7 +130,7 @@ export default function MeuPerfil({ userId, equipe = false }: { userId: string; 
             {perfil.foto_url ? (
               <img src={perfil.foto_url} alt="Sua foto" style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover" }} />
             ) : (
-              <div style={{ width: 84, height: 84, borderRadius: "50%", background: "rgba(43,227,107,.12)", color: "#2BE36B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800 }}>
+              <div style={{ width: 84, height: 84, borderRadius: "50%", background: "color-mix(in srgb, var(--p-accent) 12%, transparent)", color: "var(--p-accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 700 }}>
                 {(perfil.nome || "?").charAt(0).toUpperCase()}
               </div>
             )}
@@ -161,8 +161,8 @@ export default function MeuPerfil({ userId, equipe = false }: { userId: string; 
         </div>
 
         {!equipe && <div style={ui.cartao}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#E9F0EC", margin: "0 0 8px" }}>Meu perfil no Ecossistema</h2>
-          <p style={{ fontSize: 13, color: "#97A69E", margin: "0 0 14px" }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--p-text)", margin: "0 0 8px" }}>Meu perfil no Ecossistema</h2>
+          <p style={{ fontSize: 13, color: "var(--p-muted)", margin: "0 0 14px" }}>
             Resumo da sua empresa feito a partir do seu onboarding, sem dados financeiros. É o que os outros membros veem no seu perfil.
             As respostas completas do onboarding ficam só com a administração.
           </p>

@@ -163,7 +163,7 @@ export default function PortalAgenda() {
   if (carregandoSessao) {
     return (
       <div style={S.loginPage}>
-        <div style={{ color: "#fff", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div style={{ color: "var(--p-text)", fontFamily: "'Inter', system-ui, sans-serif" }}>
           Carregando...
         </div>
       </div>
@@ -356,7 +356,7 @@ function AuthShell({ children }) {
     <div style={S.loginPage}>
       <style>{CSS}</style>
       <div style={S.loginCard}>
-        <img src="/logo-ecossistema.png" alt="" style={{ width: 64, height: 64, borderRadius: 16, display: "block", margin: "0 auto", boxShadow: "0 0 26px -6px rgba(43,227,107,.6)" }} />
+        <img src="/logo-ecossistema.png" alt="" style={{ width: 64, height: 64, borderRadius: 16, display: "block", margin: "0 auto", boxShadow: "0 0 26px -6px color-mix(in srgb, var(--p-accent) 60%, transparent)" }} />
         <div style={S.loginEyebrow}>Ecossistema Master Business</div>
         {children}
       </div>
@@ -580,7 +580,7 @@ function SecaoCultura() {
 }
 
 function SecaoRegras() {
- const tons:any={permitido:{b:"#2BE36B",bg:"rgba(43,227,107,.12)",c:"#2BE36B",r:"Recomendado"},evitar:{b:"#FF7A7A",bg:"rgba(255,90,90,.12)",c:"#FF9A9A",r:"Não permitido"},info:{b:"#6B7A72",bg:"rgba(255,255,255,.06)",c:"#C9D3CD",r:"Importante"}};
+ const tons:any={permitido:{b:"var(--p-accent)",bg:"color-mix(in srgb, var(--p-accent) 12%, transparent)",c:"var(--p-accent)",r:"Recomendado"},evitar:{b:"var(--p-danger)",bg:"color-mix(in srgb, var(--p-danger) 12%, transparent)",c:"var(--p-danger)",r:"Não permitido"},info:{b:"var(--p-faint)",bg:"rgba(255,255,255,.06)",c:"var(--p-text2)",r:"Importante"}};
  return <><section style={S.hero}><div style={S.heroInner}><div style={S.heroEyebrow}>Grupo de WhatsApp</div><h1 style={S.heroTitle}>Regras de convivência.<br/>Um ambiente de alto nível.</h1><p style={S.heroSub}>Diretrizes para mantermos um ambiente produtivo, organizado e rico em conexões, trocas e oportunidades para todos.</p></div></section><main style={S.lista}><div style={S.blocoTexto}>{REGRAS_GRUPO.intro.map((p,i)=><p key={i} style={S.paragrafo}>{p}</p>)}</div>{REGRAS_GRUPO.blocos.map((x:any,i)=>{const t=tons[x.tom];return <article key={i} style={{...S.regraCard,borderLeft:`4px solid ${t.b}`}}><div style={S.regraHead}><span style={S.regraTitulo}>{x.titulo}</span><span style={{...S.regraChip,background:t.bg,color:t.c}}>{t.r}</span></div><p style={S.regraTexto}>{x.texto}</p>{x.itens&&<ul style={S.entregaLista}>{x.itens.map((v:string,j:number)=><li key={j} style={S.entregaItem}>{v}</li>)}</ul>}</article>})}</main></>;
 }
 
@@ -842,29 +842,29 @@ function PortalConteudo({ membro, onSair }) {
 // ------------------------------------------------------------
 const S = {
 
-  grupoLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#2BE36B",marginBottom:14},
-  entregaCard:{background:"linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",border:"1px solid #1B2A23",borderRadius:14,marginBottom:12,overflow:"hidden"},
+  grupoLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"var(--p-accent)",marginBottom:14},
+  entregaCard:{background:"linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)",border:"1px solid var(--p-line)",borderRadius:14,marginBottom:12,overflow:"hidden"},
   entregaHead:{display:"flex",alignItems:"center",gap:16,width:"100%",padding:"20px 22px",background:"none",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"inherit"},
-  entregaNumero:{fontSize:15,fontWeight:800,color:"#2BE36B",minWidth:28},
+  entregaNumero:{fontSize:15,fontWeight:800,color:"var(--p-accent)",minWidth:28},
   entregaHeadTexto:{flex:1,display:"flex",flexDirection:"column",gap:3},
-  entregaTitulo:{fontSize:16,fontWeight:800,color:"#E9F0EC"}, entregaResumo:{fontSize:13.5,color:"#97A69E"}, entregaSeta:{fontSize:20,color:"#2BE36B",fontWeight:700},
-  entregaCorpo:{padding:"0 22px 22px",borderTop:"1px solid #1B2A23"}, entregaDescricao:{fontSize:14.5,lineHeight:1.65,color:"#C9D3CD",margin:"18px 0"},
-  entregaTopicosTitulo:{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#2BE36B",marginBottom:10},
-  entregaLista:{margin:"0 0 18px",paddingLeft:22}, entregaItem:{fontSize:14,lineHeight:1.55,color:"#C9D3CD",marginBottom:8},
-  entregaObjetivo:{background:"rgba(43,227,107,.08)",border:"1px solid rgba(43,227,107,.22)",borderRadius:10,padding:"14px 16px",fontSize:14,lineHeight:1.6,color:"#E9F0EC"},
-  entregaObjetivoLabel:{display:"block",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"#2BE36B",marginBottom:4},
-  fecho:{textAlign:"center",fontSize:16,fontWeight:600,color:"#97A69E",fontStyle:"italic",margin:"36px 0 8px"},
-  blocoTexto:{marginBottom:24}, paragrafo:{fontSize:15,lineHeight:1.7,color:"#C9D3CD",margin:"0 0 14px"},
+  entregaTitulo:{fontSize:16,fontWeight:800,color:"var(--p-text)"}, entregaResumo:{fontSize:13.5,color:"var(--p-muted)"}, entregaSeta:{fontSize:20,color:"var(--p-accent)",fontWeight:700},
+  entregaCorpo:{padding:"0 22px 22px",borderTop:"1px solid var(--p-line)"}, entregaDescricao:{fontSize:14.5,lineHeight:1.65,color:"var(--p-text2)",margin:"18px 0"},
+  entregaTopicosTitulo:{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"var(--p-accent)",marginBottom:10},
+  entregaLista:{margin:"0 0 18px",paddingLeft:22}, entregaItem:{fontSize:14,lineHeight:1.55,color:"var(--p-text2)",marginBottom:8},
+  entregaObjetivo:{background:"color-mix(in srgb, var(--p-accent) 8%, transparent)",border:"1px solid color-mix(in srgb, var(--p-accent) 22%, transparent)",borderRadius:10,padding:"14px 16px",fontSize:14,lineHeight:1.6,color:"var(--p-text)"},
+  entregaObjetivoLabel:{display:"block",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:"var(--p-accent)",marginBottom:4},
+  fecho:{textAlign:"center",fontSize:16,fontWeight:600,color:"var(--p-muted)",fontStyle:"italic",margin:"36px 0 8px"},
+  blocoTexto:{marginBottom:24}, paragrafo:{fontSize:15,lineHeight:1.7,color:"var(--p-text2)",margin:"0 0 14px"},
   vmvGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12},
-  vmvCard:{background:"linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",border:"1px solid #1B2A23",borderRadius:14,padding:"20px 22px",marginBottom:12},
-  vmvLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#2BE36B",marginBottom:10},
-  vmvTexto:{fontSize:14.5,lineHeight:1.6,color:"#C9D3CD",margin:0}, valoresRow:{display:"flex",flexWrap:"wrap",gap:8},
-  valorChip:{fontSize:13,fontWeight:700,color:"#2BE36B",background:"rgba(43,227,107,.12)",border:"1px solid rgba(43,227,107,.28)",padding:"6px 14px",borderRadius:100},
-  mandamentoFrase:{fontSize:15,fontWeight:600,fontStyle:"italic",color:"#E9F0EC",borderLeft:"3px solid #2BE36B",paddingLeft:14,marginTop:6},
-  regraCard:{background:"linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",border:"1px solid #1B2A23",borderRadius:14,padding:"20px 22px",marginBottom:12},
+  vmvCard:{background:"linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)",border:"1px solid var(--p-line)",borderRadius:14,padding:"20px 22px",marginBottom:12},
+  vmvLabel:{fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"var(--p-accent)",marginBottom:10},
+  vmvTexto:{fontSize:14.5,lineHeight:1.6,color:"var(--p-text2)",margin:0}, valoresRow:{display:"flex",flexWrap:"wrap",gap:8},
+  valorChip:{fontSize:13,fontWeight:700,color:"var(--p-accent)",background:"color-mix(in srgb, var(--p-accent) 12%, transparent)",border:"1px solid color-mix(in srgb, var(--p-accent) 28%, transparent)",padding:"6px 14px",borderRadius:100},
+  mandamentoFrase:{fontSize:15,fontWeight:600,fontStyle:"italic",color:"var(--p-text)",borderLeft:"3px solid var(--p-accent)",paddingLeft:14,marginTop:6},
+  regraCard:{background:"linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)",border:"1px solid var(--p-line)",borderRadius:14,padding:"20px 22px",marginBottom:12},
   regraHead:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"},
-  regraTitulo:{fontSize:16,fontWeight:800,color:"#E9F0EC"}, regraChip:{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:6,whiteSpace:"nowrap"},
-  regraTexto:{fontSize:14.5,lineHeight:1.65,color:"#C9D3CD",margin:"0 0 6px"},
+  regraTitulo:{fontSize:16,fontWeight:800,color:"var(--p-text)"}, regraChip:{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:6,whiteSpace:"nowrap"},
+  regraTexto:{fontSize:14.5,lineHeight:1.65,color:"var(--p-text2)",margin:"0 0 6px"},
 
   page: {
     minHeight: "100vh",
@@ -901,7 +901,7 @@ const S = {
     fontSize: 10, letterSpacing: 2, textTransform: "uppercase",
     color: "#8BAD3F", fontWeight: 600,
   },
-  brandTitle: { fontSize: 17, fontWeight: 700, color: "#fff" },
+  brandTitle: { fontSize: 17, fontWeight: 700, color: "var(--p-text)" },
   headerNote: { fontSize: 12, color: "#9AA3B2", letterSpacing: 0.5 },
   headerRight: { display: "flex", alignItems: "center", gap: 14 },
   sairBtn: {
@@ -911,23 +911,23 @@ const S = {
   },
 
   loginPage: {
-    minHeight: "100vh", background: "radial-gradient(80% 60% at 50% 0%, rgba(43,227,107,.14) 0%, rgba(43,227,107,0) 60%), #06090A", display: "flex",
+    minHeight: "100vh", background: "radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--p-accent) 14%, transparent) 0%, color-mix(in srgb, var(--p-accent) 0%, transparent) 60%), var(--p-bg)", display: "flex",
     alignItems: "center", justifyContent: "center", padding: 20,
     fontFamily: "'Inter', system-ui, sans-serif",
   },
   loginCard: {
-    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)", border: "1px solid #1F4A31", borderRadius: 20, padding: "40px 34px", color: "#E9F0EC",
-    maxWidth: 400, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,.5), 0 0 40px -20px rgba(43,227,107,.5)",
+    background: "linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)", border: "1px solid var(--p-line)", borderRadius: 20, padding: "40px 34px", color: "var(--p-text)",
+    maxWidth: 400, width: "100%", boxShadow: "var(--p-shadow-hover)",
   },
   loginEyebrow: {
     fontSize: 11, letterSpacing: 2, textTransform: "uppercase",
-    color: "#2BE36B", fontWeight: 700, marginTop: 20, marginBottom: 6,
+    color: "var(--p-accent)", fontWeight: 700, marginTop: 20, marginBottom: 6,
   },
-  loginTitulo: { fontSize: 26, fontWeight: 800, margin: "0 0 6px", color: "#FFFFFF" },
-  loginSub: { fontSize: 14, color: "#97A69E", margin: "0 0 26px" },
+  loginTitulo: { fontSize: 26, fontWeight: 700, margin: "0 0 6px", color: "var(--p-text)" },
+  loginSub: { fontSize: 14, color: "var(--p-muted)", margin: "0 0 26px" },
   linkBtn: {
     display: "block", width: "100%", marginTop: 16, background: "none",
-    border: "none", color: "#2BE36B", fontSize: 13, fontWeight: 600,
+    border: "none", color: "var(--p-accent)", fontSize: 13, fontWeight: 600,
     cursor: "pointer", textAlign: "center", padding: 4,
   },
 
@@ -935,13 +935,13 @@ const S = {
   heroInner: { maxWidth: "none", margin: 0, padding: 0 },
   heroEyebrow: {
     fontSize: 12, letterSpacing: 3, textTransform: "uppercase",
-    color: "#2BE36B", fontWeight: 700, marginBottom: 10,
+    color: "var(--p-accent)", fontWeight: 700, marginBottom: 10,
   },
   heroTitle: {
-    fontSize: 28, lineHeight: 1.15, fontWeight: 800, color: "#fff",
+    fontSize: 28, lineHeight: 1.15, fontWeight: 700, color: "var(--p-text)",
     margin: "0 0 16px", letterSpacing: -0.5,
   },
-  heroSub: { fontSize: 15, lineHeight: 1.6, color: "#97A69E", maxWidth: 760, margin: 0 },
+  heroSub: { fontSize: 15, lineHeight: 1.6, color: "var(--p-muted)", maxWidth: 760, margin: 0 },
 
   filtroBar: {
     maxWidth: 880, margin: "-28px auto 0", padding: "0 24px 8px",
@@ -953,7 +953,7 @@ const S = {
     cursor: "pointer", transition: "all .15s",
   },
   filtroBtnAtivo: {
-    background: "#1A1F2B", color: "#fff", borderColor: "#1A1F2B",
+    background: "#1A1F2B", color: "var(--p-text)", borderColor: "#1A1F2B",
   },
 
   lista: { maxWidth: 980, margin: "12px 0 0", padding: "0 0 24px" },
@@ -963,7 +963,7 @@ const S = {
     marginBottom: 12, transition: "box-shadow .15s, transform .15s",
   },
   cardIndex: {
-    fontSize: 15, fontWeight: 700, color: "#C0C6BB",
+    fontSize: 15, fontWeight: 700, color: "var(--p-muted)",
     minWidth: 28, fontVariantNumeric: "tabular-nums",
   },
   cardBody: { flex: 1, minWidth: 0 },
@@ -973,11 +973,11 @@ const S = {
   },
   cardTitulo: { fontSize: 17, fontWeight: 700, margin: "0 0 4px", color: "#1A1F2B" },
   cardData: { fontSize: 14, color: "#5A6472", display: "flex", alignItems: "center", flexWrap: "wrap" },
-  cardDivisor: { margin: "0 8px", color: "#C0C6BB" },
+  cardDivisor: { margin: "0 8px", color: "var(--p-muted)" },
   cardDia: { color: "#8A94A2" },
   cardAcao: { flexShrink: 0 },
   ctaBtn: {
-    background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)", color: "#03140A", border: "none", borderRadius: 10,
+    background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", border: "none", borderRadius: 10,
     padding: "11px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer",
     transition: "background .15s",
   },
@@ -985,7 +985,7 @@ const S = {
   confirmadoCheck: {
     width: 34, height: 34, borderRadius: "50%", background: "#E8F0D8",
     color: "#6B8E23", display: "flex", alignItems: "center",
-    justifyContent: "center", fontWeight: 800, fontSize: 16, flexShrink: 0,
+    justifyContent: "center", fontWeight: 700, fontSize: 16, flexShrink: 0,
   },
   confirmadoLabel: { fontSize: 11, color: "#6B8E23", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 },
   confirmadoNome: { fontSize: 14, color: "#1A1F2B", fontWeight: 600 },
@@ -1001,9 +1001,9 @@ const S = {
     padding: 20, zIndex: 50, backdropFilter: "blur(3px)",
   },
   modal: {
-    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)", border: "1px solid #24392F", color: "#E9F0EC", borderRadius: 18, padding: "32px 28px",
+    background: "linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)", border: "1px solid var(--p-line2)", color: "var(--p-text)", borderRadius: 18, padding: "32px 28px",
     maxWidth: 420, width: "100%", position: "relative",
-    boxShadow: "0 24px 60px rgba(0,0,0,.28)",
+    boxShadow: "var(--p-shadow-hover)",
   },
   modalFechar: {
     position: "absolute", top: 14, right: 16, border: "none",
@@ -1012,15 +1012,15 @@ const S = {
   },
   modalEyebrow: {
     fontSize: 11, letterSpacing: 2, textTransform: "uppercase",
-    color: "#2BE36B", fontWeight: 700, marginBottom: 8,
+    color: "var(--p-accent)", fontWeight: 700, marginBottom: 8,
   },
-  modalTitulo: { fontSize: 22, fontWeight: 800, margin: "0 0 6px", color: "#fff" },
-  modalData: { fontSize: 14, color: "#97A69E", marginBottom: 24 },
-  modalLabel: { fontSize: 13, fontWeight: 600, color: "#C9D3CD", display: "block", marginBottom: 8 },
+  modalTitulo: { fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: "var(--p-text)" },
+  modalData: { fontSize: 14, color: "var(--p-muted)", marginBottom: 24 },
+  modalLabel: { fontSize: 13, fontWeight: 600, color: "var(--p-text2)", display: "block", marginBottom: 8 },
   modalInput: {
     width: "100%", padding: "13px 15px", borderRadius: 10,
-    border: "1.5px solid #24392F", fontSize: 15, boxSizing: "border-box",
-    outline: "none", fontFamily: "inherit", background: "#0A100E", color: "#E9F0EC",
+    border: "1.5px solid var(--p-line2)", fontSize: 15, boxSizing: "border-box",
+    outline: "none", fontFamily: "inherit", background: "var(--p-field)", color: "var(--p-text)",
   },
   modalErro: { color: "#C0392B", fontSize: 13, marginTop: 10, fontWeight: 500 },
   modalBtn: { width: "100%", marginTop: 18, padding: "14px", fontSize: 15 },
@@ -1034,7 +1034,7 @@ const CSS = `
   .cta-btn:hover { filter: brightness(1.06); }
   .sair-btn:hover { border-color: #8BAD3F; color: #C9D9A0; }
   .evento-card:hover { box-shadow: 0 8px 24px rgba(26,31,43,.08); transform: translateY(-1px); }
-  input:focus, textarea:focus, select:focus { border-color: #2BE36B !important; }
+  input:focus, textarea:focus, select:focus { border-color: var(--p-accent) !important; }
   @media (max-width: 640px) {
     .evento-card { flex-direction: column; align-items: flex-start !important; }
   }

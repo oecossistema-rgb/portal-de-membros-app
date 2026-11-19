@@ -160,7 +160,9 @@ export default function Membros({ busca: buscaTopo = "", admin = false }: { busc
                     style={styles.foto}
                     loading="lazy"
                     onError={(e) => {
-                      e.currentTarget.style.display = "none";
+                      const el = e.currentTarget; el.style.display = "none";
+                      const ini = document.createElement("div"); Object.assign(ini.style, { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "44px", fontWeight: "600", color: "var(--p-accent-text)", background: "var(--p-accent-bg)" });
+                      ini.textContent = (membro.nome || "?").charAt(0).toUpperCase(); el.parentElement?.appendChild(ini);
                     }}
                   />
                 ) : (
@@ -262,9 +264,9 @@ export default function Membros({ busca: buscaTopo = "", admin = false }: { busc
                 <h2
                   style={{
                     ...styles.modalNome,
-                    color: "#E9F0EC",
+                    color: "var(--p-text)",
                     fontSize: 26,
-                    fontWeight: 800,
+                    fontWeight: 700,
                     lineHeight: 1.15,
                     margin: "0 0 6px",
                   }}
@@ -285,9 +287,9 @@ export default function Membros({ busca: buscaTopo = "", admin = false }: { busc
             {admin && (
               <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
                 {([["resumo", "Resumo"], ["oportunidades", "Oportunidades"]] as const).map(([id, r]) => (
-                  <button key={id} onClick={() => setAba(id)} style={{ background: aba === id ? "rgba(43,227,107,.12)" : "#0B1210", color: "#E9F0EC", border: `1px solid ${aba === id ? "#2BE36B" : "#24392F"}`, borderRadius: 100, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
+                  <button key={id} onClick={() => setAba(id)} style={{ background: aba === id ? "color-mix(in srgb, var(--p-accent) 12%, transparent)" : "var(--p-card)", color: "var(--p-text)", border: `1px solid ${aba === id ? "var(--p-accent)" : "var(--p-line2)"}`, borderRadius: 100, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
                 ))}
-                <span style={{ alignSelf: "center", fontSize: 12, color: "#97A69E" }}>Só administradores veem esta aba.</span>
+                <span style={{ alignSelf: "center", fontSize: 12, color: "var(--p-muted)" }}>Só administradores veem esta aba.</span>
               </div>
             )}
 
@@ -402,31 +404,30 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   eyebrow: {
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: 2,
-    fontWeight: 700,
-    color: "#2BE36B",
+    fontSize: 14,
+    letterSpacing: 0,
+    fontWeight: 600,
+    color: "var(--p-accent-text)",
   },
 
   titulo: {
-    fontSize: 28,
-    fontWeight: 800,
+    fontSize: 34,
+    fontWeight: 700,
     letterSpacing: -0.5,
     margin: "8px 0 6px",
-    color: "#FFFFFF",
+    color: "var(--p-text)",
   },
 
   subtitulo: {
     margin: 0,
-    color: "#97A69E",
+    color: "var(--p-muted)",
   },
 
   contador: {
     fontSize: 13,
     fontWeight: 700,
-    background: "rgba(43,227,107,.1)",
-    color: "#2BE36B",
+    background: "color-mix(in srgb, var(--p-accent) 10%, transparent)",
+    color: "var(--p-accent)",
     padding: "8px 14px",
     borderRadius: 20,
   },
@@ -436,12 +437,12 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     padding: "15px 18px",
     borderRadius: 12,
-    border: "1px solid #1B2A23",
+    border: "1px solid var(--p-line)",
     fontSize: 15,
     outline: "none",
     marginBottom: 22,
-    background: "#0C1311",
-    color: "#E9F0EC",
+    background: "var(--p-field)",
+    color: "var(--p-text)",
   },
 
   grid: {
@@ -452,10 +453,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   card: {
-    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",
+    background: "linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)",
     borderRadius: 16,
     overflow: "hidden",
-    border: "1px solid #1B2A23",
+    border: "1px solid var(--p-line)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.03)",
     display: "flex",
     flexDirection: "column",
@@ -464,8 +465,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   fotoArea: {
     height: 130,
-    background: "radial-gradient(120% 120% at 50% 0%, rgba(43,227,107,.18) 0%, rgba(43,227,107,0) 60%), #0A120E",
-    borderBottom: "1px solid #1B2A23",
+    background: "radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--p-accent) 18%, transparent) 0%, color-mix(in srgb, var(--p-accent) 0%, transparent) 60%), var(--p-card2)",
+    borderBottom: "1px solid var(--p-line)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -482,10 +483,10 @@ const styles: Record<string, React.CSSProperties> = {
     width: 72,
     height: 72,
     borderRadius: 18,
-    background: "linear-gradient(145deg,#173A26,#0C1F15)",
-    border: "1px solid #24392F",
-    boxShadow: "0 0 22px -8px #2BE36B",
-    color: "#2BE36B",
+    background: "linear-gradient(145deg,var(--p-line),var(--p-accent-bg))",
+    border: "1px solid var(--p-line2)",
+    boxShadow: "0 0 22px -8px var(--p-accent)",
+    color: "var(--p-accent)",
     fontSize: 28,
     fontWeight: 700,
     display: "flex",
@@ -502,28 +503,28 @@ const styles: Record<string, React.CSSProperties> = {
 
   nome: {
     fontSize: 16,
-    fontWeight: 800,
+    fontWeight: 700,
     margin: "0 0 5px",
-    color: "#E9F0EC",
+    color: "var(--p-text)",
   },
 
   empresa: {
     fontWeight: 600,
     fontSize: 14,
-    color: "#2BE36B",
+    color: "var(--p-accent)",
     marginBottom: 5,
   },
 
   segmento: {
     fontSize: 13,
-    color: "#97A69E",
+    color: "var(--p-muted)",
     minHeight: 36,
   },
 
   local: {
     marginTop: 10,
     fontSize: 12,
-    color: "#97A69E",
+    color: "var(--p-muted)",
   },
 
   acoes: {
@@ -535,9 +536,9 @@ const styles: Record<string, React.CSSProperties> = {
 
   perfilBtn: {
     flex: 1,
-    border: "1px solid #24392F",
-    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",
-    color: "#E9F0EC",
+    border: "1px solid var(--p-line2)",
+    background: "linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)",
+    color: "var(--p-text)",
     padding: "9px 10px",
     borderRadius: 8,
     cursor: "pointer",
@@ -547,8 +548,8 @@ const styles: Record<string, React.CSSProperties> = {
   whatsappBtn: {
     flex: 1,
     border: 0,
-    background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)",
-    color: "#03140A",
+    background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)",
+    color: "var(--p-on-accent)",
     padding: "10px 12px",
     borderRadius: 10,
     cursor: "pointer",
@@ -558,13 +559,13 @@ const styles: Record<string, React.CSSProperties> = {
   mensagem: {
     textAlign: "center",
     padding: 50,
-    color: "#97A69E",
+    color: "var(--p-muted)",
   },
 
   erro: {
     textAlign: "center",
     padding: 30,
-    color: "#FF9A9A",
+    color: "var(--p-danger)",
   },
 
   tentar: {
@@ -586,7 +587,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   modal: {
     position: "relative",
-    background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)",
+    background: "linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)",
     width: "100%",
     maxWidth: 720,
     maxHeight: "calc(100vh - 40px)",
@@ -605,8 +606,8 @@ const styles: Record<string, React.CSSProperties> = {
     height: 38,
     border: 0,
     borderRadius: "50%",
-    background: "#0F1915",
-    color: "#E9F0EC",
+    background: "var(--p-hover)",
+    color: "var(--p-text)",
     fontSize: 25,
     lineHeight: 1,
     cursor: "pointer",
@@ -620,7 +621,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 8,
     paddingRight: 46,
     paddingBottom: 24,
-    borderBottom: "1px solid #1B2A23",
+    borderBottom: "1px solid var(--p-line)",
   },
 
   modalFoto: {
@@ -634,8 +635,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: 100,
     height: 100,
     borderRadius: 14,
-    background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)",
-    color: "#FFFFFF",
+    background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)",
+    color: "var(--p-text)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -651,17 +652,17 @@ const styles: Record<string, React.CSSProperties> = {
   modalEmpresa: {
     marginTop: 5,
     fontWeight: 700,
-    color: "#2BE36B",
+    color: "var(--p-accent)",
   },
 
   modalSegmento: {
     marginTop: 4,
-    color: "#97A69E",
+    color: "var(--p-muted)",
   },
 
   bloco: {
     padding: "16px 0",
-    borderTop: "1px solid #1B2A23",
+    borderTop: "1px solid var(--p-line)",
   },
 
   blocoTitulo: {
@@ -669,14 +670,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: 1,
-    color: "#2BE36B",
+    color: "var(--p-accent)",
     marginBottom: 6,
   },
 
   blocoTexto: {
     fontSize: 14,
     lineHeight: 1.6,
-    color: "#C9D3CD",
+    color: "var(--p-text2)",
     whiteSpace: "pre-wrap",
   },
 };

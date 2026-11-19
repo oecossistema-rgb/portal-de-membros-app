@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { CartaoResumo, type Resumo } from "./ResumoPerfil";
-import { Ic, V, type IconeV } from "./Visao";
+import { Ic, V, type IconeV, Avatar } from "./Visao";
 
 // Oportunidades: painel privado de cada membro (só ele e a administração veem).
 // Mesmo padrão visual da Visão geral: cartões escuros, ícones verdes com brilho, botão "Conectar".
@@ -73,20 +73,20 @@ const CSS = `
   .op-cont{ min-width:0; flex:1 1 130px }
 }
 .op-card{ transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease }
-.op-card:hover{ transform:translateY(-3px); border-color:#1F4A31; box-shadow:0 14px 34px -18px ${V.verde}88 }
+.op-card:hover{ transform:translateY(-3px); border-color:var(--p-line); box-shadow:var(--p-shadow-hover) }
 .op-mark{ border:0; background:transparent; color:${V.suave}; font:inherit; font-size:12px; font-weight:700; border-radius:8px; padding:5px 9px; cursor:pointer; display:inline-flex; gap:5px; align-items:center }
-.op-mark:hover{ color:${V.texto}; background:#0F1915 }
-.op-mark.on{ color:${V.verde}; background:rgba(43,227,107,.12) }
+.op-mark:hover{ color:${V.texto}; background:var(--p-hover) }
+.op-mark.on{ color:${V.verde}; background:color-mix(in srgb, var(--p-accent) 12%, transparent) }
 `;
 
 function KpiOp({ icone, valor, rotulo, ativo, onClick }: { icone: IconeV; valor: number; rotulo: string; ativo: boolean; onClick: () => void }) {
   return (
     <button className={`pv-card pv-glow op-kpi${ativo ? " on" : ""}`} onClick={onClick}
       style={{ padding: "16px", display: "flex", alignItems: "center", gap: 14, minHeight: 76 }}>
-      <span style={{ width: 46, height: 46, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%,#1C4A30,#0C1F15)", border: "1px solid #1F4A31", color: V.verde, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 18px -6px ${V.verde}` }}><Ic n={icone} t={22} /></span>
+      <span style={{ width: 46, height: 46, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%,var(--p-line),var(--p-accent-bg))", border: "1px solid var(--p-line)", color: V.verde, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 18px -6px ${V.verde}` }}><Ic n={icone} t={22} /></span>
       <span>
-        <span style={{ display: "block", fontSize: 28, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5 }}>{valor}</span>
-        <span style={{ display: "block", fontSize: 12, color: "#C9D3CD", marginTop: 6 }}>{rotulo}</span>
+        <span style={{ display: "block", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: -0.5 }}>{valor}</span>
+        <span style={{ display: "block", fontSize: 12, color: "var(--p-text2)", marginTop: 6 }}>{rotulo}</span>
       </span>
     </button>
   );
@@ -111,19 +111,19 @@ export function Painel({ nome, oportunidades, salvar, leitura }: { nome: string;
       <style>{CSS}</style>
       {/* Cabeçalho */}
       <section className="pv-card" style={{ position: "relative", overflow: "hidden", padding: "22px 26px", border: 0,
-        background: "radial-gradient(120% 140% at 100% 0%, rgba(43,227,107,.22) 0%, rgba(43,227,107,0) 45%), linear-gradient(100deg,#06090A 0%,#0A1410 55%,#0D1F16 100%)" }}>
+        background: "radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--p-accent) 22%, transparent) 0%, color-mix(in srgb, var(--p-accent) 0%, transparent) 45%), linear-gradient(100deg,var(--p-bg) 0%,var(--p-card) 55%,var(--p-accent-bg) 100%)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 12, letterSpacing: 2.5, textTransform: "uppercase", fontWeight: 800, color: V.verde, display: "flex", gap: 8, alignItems: "center" }}><Ic n="raio" t={15} />Oportunidades</div>
-            <h1 style={{ margin: "8px 0 6px", fontSize: 28, fontWeight: 800, letterSpacing: -0.6, color: "#fff" }}>{leitura ? `${primeiro}: ` : primeiro ? `${primeiro}, ` : ""}{ativas.length} conexões com potencial</h1>
-            <div style={{ fontSize: 14.5, color: "#C9D3CD" }}>{leitura ? `Visão da administração: é exatamente o que ${primeiro} vê no painel dele. Só leitura.` : "Cruzamos o seu perfil com os outros membros do Ecossistema. Só você vê esta página."}</div>
+            <div style={{ fontSize: 14, letterSpacing: 0, fontWeight: 600, color: V.verde, display: "flex", gap: 8, alignItems: "center" }}><Ic n="raio" t={15} />Oportunidades</div>
+            <h1 style={{ margin: "8px 0 6px", fontSize: 28, fontWeight: 700, letterSpacing: -0.6, color: "var(--p-text)" }}>{leitura ? `${primeiro}: ` : primeiro ? `${primeiro}, ` : ""}{ativas.length} conexões com potencial</h1>
+            <div style={{ fontSize: 14.5, color: "var(--p-text2)" }}>{leitura ? `Visão da administração: é exatamente o que ${primeiro} vê no painel dele. Só leitura.` : "Cruzamos o seu perfil com os outros membros do Ecossistema. Só você vê esta página."}</div>
             <div style={{ width: 66, height: 3, borderRadius: 3, background: V.verde, marginTop: 14, boxShadow: `0 0 12px ${V.verde}` }} />
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
             {[["aperto", conversas, "conversas iniciadas"], ["check", fechados, "negócios fechados"]].map(([ic, v, r]) => (
               <div key={r as string} className="pv-card pv-glow op-cont" style={{ padding: "12px 16px", display: "flex", gap: 12, alignItems: "center" }}>
                 <span style={{ color: V.verde, filter: `drop-shadow(0 0 6px ${V.verde})` }}><Ic n={ic as IconeV} t={22} /></span>
-                <div><div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{v as number}</div><div style={{ fontSize: 11.5, color: V.suave, marginTop: 3 }}>{r as string}</div></div>
+                <div><div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{v as number}</div><div style={{ fontSize: 11.5, color: V.suave, marginTop: 3 }}>{r as string}</div></div>
               </div>
             ))}
           </div>
@@ -141,7 +141,7 @@ export function Painel({ nome, oportunidades, salvar, leitura }: { nome: string;
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           <span style={{ color: V.verde, marginTop: 1 }}><Ic n="estrela" t={20} /></span>
-          <div><div style={{ fontSize: 15.5, fontWeight: 800 }}>Oportunidades Recomendadas</div><div style={{ fontSize: 12, color: V.suave, marginTop: 2 }}>As mais fortes primeiro.</div></div>
+          <div><div style={{ fontSize: 15.5, fontWeight: 700 }}>Oportunidades Recomendadas</div><div style={{ fontSize: 12, color: V.suave, marginTop: 2 }}>As mais fortes primeiro.</div></div>
         </div>
         <div className="pv-seg">
           {(["todas", ...Object.keys(TIPOS)] as (TipoOp | "todas")[]).map((t) => (
@@ -159,18 +159,17 @@ export function Painel({ nome, oportunidades, salvar, leitura }: { nome: string;
           return (
             <article key={o.id} className="pv-card op-card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                {o.foto ? <img src={o.foto} alt="" style={{ width: 54, height: 54, borderRadius: 12, objectFit: "cover", background: "#0B1210", flex: "0 0 auto" }} />
-                  : <span style={{ width: 54, height: 54, borderRadius: 12, background: "linear-gradient(145deg,#173A26,#0C1F15)", border: `1px solid ${V.borda2}`, boxShadow: `0 0 18px -8px ${V.verde}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: V.verde, flex: "0 0 auto" }}>{(o.empresa || o.nome || "?").charAt(0)}</span>}
+                <Avatar src={o.foto} nome={o.empresa || o.nome || "?"} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 2 }}><span className="pv-chip"><Ic n="escudo" t={11} />Match {pct(o.forca)}%</span></div>
-                  <div style={{ fontWeight: 800, fontSize: 14.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.empresa || o.nome}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.empresa || o.nome}</div>
                   <div style={{ fontSize: 11.5, color: V.suave, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.nome}{o.segmento ? ` · ${o.segmento}` : ""}</div>
-                  {o.cidade && <div style={{ fontSize: 11.5, color: "#C9D3CD", display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}><Ic n="pino" t={12} />{o.cidade}</div>}
+                  {o.cidade && <div style={{ fontSize: 11.5, color: "var(--p-text2)", display: "flex", gap: 4, alignItems: "center", marginTop: 2 }}><Ic n="pino" t={12} />{o.cidade}</div>}
                 </div>
               </div>
-              <div style={{ fontSize: 12.5, lineHeight: 1.45, color: "#DDE6E1", minHeight: 36, flex: 1 }}>{o.motivo}</div>
-              <div style={{ display: "flex", gap: 12, fontSize: 11.5, color: "#C9D3CD", flexWrap: "wrap" }}>
-                <span style={{ display: "flex", gap: 5, alignItems: "center" }}><Ic n="grafico" t={13} />Força: <span style={{ color: V.verde, letterSpacing: 1 }}>{"●".repeat(o.forca)}</span><span style={{ color: "#2A3A32", letterSpacing: 1 }}>{"●".repeat(3 - o.forca)}</span></span>
+              <div style={{ fontSize: 12.5, lineHeight: 1.45, color: "var(--p-text)", minHeight: 36, flex: 1 }}>{o.motivo}</div>
+              <div style={{ display: "flex", gap: 12, fontSize: 11.5, color: "var(--p-text2)", flexWrap: "wrap" }}>
+                <span style={{ display: "flex", gap: 5, alignItems: "center" }}><Ic n="grafico" t={13} />Força: <span style={{ color: V.verde, letterSpacing: 1 }}>{"●".repeat(o.forca)}</span><span style={{ color: "var(--p-line2)", letterSpacing: 1 }}>{"●".repeat(3 - o.forca)}</span></span>
                 <span style={{ display: "flex", gap: 5, alignItems: "center" }}><Ic n="tag" t={12} />{TIPOS[o.tipo].tag}</span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -197,8 +196,8 @@ export function Painel({ nome, oportunidades, salvar, leitura }: { nome: string;
       {perfil && (
         <div onClick={() => setPerfil(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 10000 }}>
           <div className="pv-card" onClick={(e) => e.stopPropagation()} style={{ padding: 26, width: "100%", maxWidth: 720, maxHeight: "calc(100vh - 40px)", overflowY: "auto", position: "relative", borderColor: V.borda2 }}>
-            <button onClick={() => setPerfil(null)} aria-label="Fechar" style={{ position: "absolute", top: 14, right: 14, width: 36, height: 36, border: `1px solid ${V.borda2}`, borderRadius: "50%", background: "#0B1210", color: V.texto, fontSize: 20, cursor: "pointer" }}>×</button>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{perfil.empresa || perfil.nome}</div>
+            <button onClick={() => setPerfil(null)} aria-label="Fechar" style={{ position: "absolute", top: 14, right: 14, width: 36, height: 36, border: `1px solid ${V.borda2}`, borderRadius: "50%", background: "var(--p-card)", color: V.texto, fontSize: 20, cursor: "pointer" }}>×</button>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--p-text)" }}>{perfil.empresa || perfil.nome}</div>
             <div style={{ fontWeight: 700, color: V.verde, margin: "4px 0 18px" }}>{perfil.nome}</div>
             {perfil.resumo ? <CartaoResumo resumo={perfil.resumo} /> : <div style={{ color: V.suave }}>Perfil ainda sem resumo.</div>}
             {perfil.whatsapp && <button className="pv-btn" style={{ width: "100%", marginTop: 18, height: 44 }} onClick={() => abrirWhatsapp(perfil.whatsapp)}><Ic n="aperto" t={16} />Conectar pelo WhatsApp</button>}

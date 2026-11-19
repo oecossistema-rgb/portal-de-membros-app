@@ -25,13 +25,13 @@ const ehV2 = (r: Resumo | null | undefined): r is ResumoV2 => !!r && (r as Resum
 const normalizar = (r: Partial<ResumoV2>): ResumoV2 => ({ ...RESUMO_VAZIO, ...r, fatos: { ...RESUMO_VAZIO.fatos, ...(r.fatos || {}) } });
 
 // ---------- cores e peças do desenho ----------
-const C = { tinta: "#E9F0EC", texto: "#C9D3CD", suave: "#97A69E", claro: "#6B7A72", oliva: "#2BE36B", olivaEsc: "#2BE36B", olivaClaro: "rgba(43,227,107,.1)", borda: "#1B2A23", fundo: "#0A100E", tinta2: "#0F1915" };
+const C = { tinta: "var(--p-text)", texto: "var(--p-text2)", suave: "var(--p-muted)", claro: "var(--p-faint)", oliva: "var(--p-accent)", olivaEsc: "var(--p-accent)", olivaClaro: "color-mix(in srgb, var(--p-accent) 10%, transparent)", borda: "var(--p-line)", fundo: "var(--p-field)", tinta2: "var(--p-hover)" };
 
 const CSS = `
 .rp-wrap{display:flex;flex-direction:column;gap:14px;text-align:left}
 .rp-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
 .rp-fatos{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
-.rp-card{background:linear-gradient(180deg,#0E1714 0%,#0B1210 100%);border:1px solid ${C.borda};border-radius:16px;padding:18px}
+.rp-card{background:linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%);border:1px solid ${C.borda};border-radius:16px;padding:18px}
 .rp-oferta{transition:transform .15s ease, box-shadow .15s ease}
 .rp-oferta:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(26,31,43,.08)}
 `;
@@ -54,8 +54,8 @@ function Icone({ nome }: { nome: "cal" | "pin" | "alvo" | "tag" | "caixa" | "pes
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{p[nome]}</svg>;
 }
 
-const rotulo: CSSProperties = { display: "flex", alignItems: "center", gap: 8, fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 800, color: C.olivaEsc, margin: "0 0 12px" };
-const chip: CSSProperties = { display: "inline-block", background: C.olivaClaro, color: C.olivaEsc, border: `1px solid #1B2A23`, borderRadius: 100, padding: "6px 12px", fontSize: 13.5, fontWeight: 600, margin: "0 6px 6px 0", lineHeight: 1.3 };
+const rotulo: CSSProperties = { display: "flex", alignItems: "center", gap: 8, fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: C.olivaEsc, margin: "0 0 12px" };
+const chip: CSSProperties = { display: "inline-block", background: C.olivaClaro, color: C.olivaEsc, border: `1px solid var(--p-line)`, borderRadius: 100, padding: "6px 12px", fontSize: 13.5, fontWeight: 600, margin: "0 6px 6px 0", lineHeight: 1.3 };
 
 function Secao({ icone, titulo, children }: { icone: Parameters<typeof Icone>[0]["nome"]; titulo: string; children: ReactNode }) {
   return (
@@ -94,9 +94,9 @@ export function CartaoResumo({ resumo }: { resumo: Resumo }) {
       <style>{CSS}</style>
 
       {/* Destaque: o que é a empresa */}
-      <section style={{ background: "radial-gradient(120% 140% at 100% 0%, rgba(43,227,107,.22) 0%, rgba(43,227,107,0) 50%), linear-gradient(135deg,#0B1A12 0%,#0E2418 100%)", border: "1px solid #1F4A31", borderRadius: 18, padding: "26px 24px", color: "#fff", position: "relative", overflow: "hidden" }}>
+      <section style={{ background: "radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--p-accent) 22%, transparent) 0%, color-mix(in srgb, var(--p-accent) 0%, transparent) 50%), linear-gradient(135deg,var(--p-card) 0%,var(--p-accent-bg) 100%)", border: "1px solid var(--p-line)", borderRadius: 22, boxShadow: "var(--p-shadow)", padding: "28px 26px", color: "var(--p-text)", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", right: -40, top: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(139,173,63,.18)" }} />
-        <div style={{ fontSize: 11.5, letterSpacing: 2.5, textTransform: "uppercase", color: C.oliva, fontWeight: 800, marginBottom: 10, position: "relative" }}>Resumo da empresa</div>
+        <div style={{ fontSize: 11.5, letterSpacing: 2.5, textTransform: "uppercase", color: C.oliva, fontWeight: 700, marginBottom: 10, position: "relative" }}>Resumo da empresa</div>
         <p style={{ fontSize: 21, lineHeight: 1.35, fontWeight: 700, margin: 0, position: "relative", letterSpacing: -0.2 }}>{r.frase}</p>
         {r.sobre && <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "#C9D0BC", margin: "12px 0 0", position: "relative" }}>{r.sobre}</p>}
       </section>
@@ -105,7 +105,7 @@ export function CartaoResumo({ resumo }: { resumo: Resumo }) {
         <div className="rp-fatos">
           {fatos.map(([ic, k, v]) => (
             <div key={k} style={{ background: C.olivaClaro, borderRadius: 14, padding: "12px 14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.olivaEsc, fontSize: 11.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}><Icone nome={ic} />{k}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.olivaEsc, fontSize: 11.5, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}><Icone nome={ic} />{k}</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.tinta, marginTop: 4, lineHeight: 1.3 }}>{v}</div>
             </div>
           ))}
@@ -116,8 +116,8 @@ export function CartaoResumo({ resumo }: { resumo: Resumo }) {
         <Secao icone="caixa" titulo="O que oferece">
           <div className="rp-grid2">
             {r.oferece.map((o, i) => (
-              <div key={i} className="rp-oferta" style={{ border: `1px solid ${C.borda}`, borderRadius: 12, padding: "12px 14px", background: "#0F1915" }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: C.tinta }}>{o.titulo}</div>
+              <div key={i} className="rp-oferta" style={{ border: `1px solid ${C.borda}`, borderRadius: 12, padding: "12px 14px", background: "var(--p-hover)" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.tinta }}>{o.titulo}</div>
                 {o.descricao && <div style={{ fontSize: 13.5, color: C.suave, marginTop: 3, lineHeight: 1.45 }}>{o.descricao}</div>}
               </div>
             ))}
@@ -137,8 +137,8 @@ export function CartaoResumo({ resumo }: { resumo: Resumo }) {
       )}
 
       {r.oportunidades.length > 0 && (
-        <section style={{ background: C.oliva, borderRadius: 16, padding: "18px 20px", color: "#03140A" }}>
-          <h3 style={{ ...rotulo, color: "#03140A" }}><Icone nome="estrela" />Oportunidades de negócio</h3>
+        <section style={{ background: C.oliva, borderRadius: 16, padding: "18px 20px", color: "var(--p-on-accent)" }}>
+          <h3 style={{ ...rotulo, color: "var(--p-on-accent)" }}><Icone nome="estrela" />Oportunidades de negócio</h3>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 9 }}>
             {r.oportunidades.map((x, i) => (
               <li key={i} style={{ display: "flex", gap: 9, fontSize: 15, fontWeight: 600, lineHeight: 1.4 }}>
@@ -157,16 +157,16 @@ export function CartaoResumo({ resumo }: { resumo: Resumo }) {
       )}
 
       {r.proposito && (
-        <section style={{ borderLeft: `4px solid ${C.oliva}`, background: "#0F1915", borderRadius: "0 14px 14px 0", padding: "14px 18px" }}>
-          <div style={{ fontSize: 11.5, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 800, color: C.olivaEsc, marginBottom: 6 }}>Propósito</div>
+        <section style={{ borderLeft: `4px solid ${C.oliva}`, background: "var(--p-hover)", borderRadius: "0 14px 14px 0", padding: "14px 18px" }}>
+          <div style={{ fontSize: 11.5, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: C.olivaEsc, marginBottom: 6 }}>Propósito</div>
           <p style={{ margin: 0, fontSize: 16, fontStyle: "italic", color: C.tinta, lineHeight: 1.5 }}>“{r.proposito}”</p>
         </section>
       )}
 
       {r.fora_do_trabalho.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: C.suave, marginRight: 4 }}><Icone nome="sol" />Fora do trabalho</span>
-          {r.fora_do_trabalho.map((x) => <span key={x} style={{ ...chip, background: "#0F1915", color: C.texto, borderColor: "#1B2A23", margin: 0 }}>{x}</span>)}
+          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: C.suave, marginRight: 4 }}><Icone nome="sol" />Fora do trabalho</span>
+          {r.fora_do_trabalho.map((x) => <span key={x} style={{ ...chip, background: "var(--p-hover)", color: C.texto, borderColor: "var(--p-line)", margin: 0 }}>{x}</span>)}
         </div>
       )}
     </div>
@@ -174,7 +174,7 @@ export function CartaoResumo({ resumo }: { resumo: Resumo }) {
 }
 
 function CartaoAntigo({ resumo }: { resumo: ResumoV1 }) {
-  const t: CSSProperties = { fontSize: 12, letterSpacing: 1.5, textTransform: "uppercase", color: "#2BE36B", fontWeight: 800, margin: "14px 0 4px" };
+  const t: CSSProperties = { fontSize: 12, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--p-accent)", fontWeight: 700, margin: "14px 0 4px" };
   const c: CSSProperties = { fontSize: 15, color: C.tinta, lineHeight: 1.55, margin: 0 };
   return (
     <div style={{ textAlign: "left" }}>
@@ -271,7 +271,7 @@ export function RevisaoResumo({ membroId, nome = "", onAlterado, onPublicado }: 
 
   return (
     <div style={{ textAlign: "left" }}>
-      <p style={{ fontSize: 13, color: "#97A69E", margin: "0 0 12px" }}>
+      <p style={{ fontSize: 13, color: "var(--p-muted)", margin: "0 0 12px" }}>
         Resumo da empresa escrito pela IA, sem faturamento, metas, equipe ou pontos fracos. Só aparece para os outros membros depois que você aprovar.
       </p>
       {st && <div style={{ display: "inline-block", fontSize: 13, fontWeight: 700, color: st.cor, background: st.fundo, borderRadius: 100, padding: "5px 12px", marginBottom: 12 }}>{st.texto}</div>}
@@ -302,8 +302,8 @@ export function RevisaoResumo({ membroId, nome = "", onAlterado, onPublicado }: 
             {lista("fora_do_trabalho", "Fora do trabalho")}
           </div>
         ) : (
-          <div style={{ border: "1px dashed #1B2A23", borderRadius: 18, padding: 12, marginBottom: 14, background: "#0F1915" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#97A69E", margin: "2px 4px 10px" }}>Prévia: é assim que os outros membros vão ver</div>
+          <div style={{ border: "1px dashed var(--p-line)", borderRadius: 18, padding: 12, marginBottom: 14, background: "var(--p-hover)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--p-muted)", margin: "2px 4px 10px" }}>Prévia: é assim que os outros membros vão ver</div>
             <CartaoResumo resumo={texto} />
           </div>
         )

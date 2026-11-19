@@ -77,7 +77,7 @@ export default function Admin() {
       </section>
       <div style={{ margin: "14px 0 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
         {([["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"]] as [Aba, string][]).map(([id, r]) => (
-          <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)", color: "#03140A", borderColor: "transparent" } : {}) }}>{r}</button>
+          <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}</button>
         ))}
       </div>
       {aba === "membros" && <AdminMembros />}
@@ -247,13 +247,13 @@ function AdminMembros() {
         <button style={ui.botaoSecundario} onClick={gerarOportunidades} disabled={!!gerandoLote}>{gerandoLote ? "Aguarde..." : "Gerar oportunidades (IA)"}</button>
         <button style={ui.botaoSecundario} onClick={baixarPlanilha} disabled={baixando}>{baixando ? "Gerando planilha..." : "Baixar planilha (Excel)"}</button>
       </div>
-      {aAprovar > 0 && <div style={{ ...ui.aviso, textAlign: "left", padding: "12px 16px", marginBottom: 12, borderColor: "#1B2A23", background: "rgba(242,193,78,.08)" }}>
+      {aAprovar > 0 && <div style={{ ...ui.aviso, textAlign: "left", padding: "12px 16px", marginBottom: 12, borderColor: "var(--p-line)", background: "rgba(242,193,78,.08)" }}>
         <strong>{aAprovar}</strong> resumo(s) aguardando sua aprovação. Abra o membro em "Onboarding" para revisar.
       </div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         {chips.map(([id, r, n]) => (
-          <button key={id} onClick={() => setFiltro(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "6px 14px", ...(filtro === id ? { background: "rgba(43,227,107,.12)", borderColor: "#8BAD3F" } : {}) }}>
-            {r} <span style={{ color: "#2BE36B" }}>({n})</span>
+          <button key={id} onClick={() => setFiltro(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "6px 14px", ...(filtro === id ? { background: "color-mix(in srgb, var(--p-accent) 12%, transparent)", borderColor: "var(--p-accent)" } : {}) }}>
+            {r} <span style={{ color: "var(--p-accent)" }}>({n})</span>
           </button>
         ))}
       </div>
@@ -263,23 +263,23 @@ function AdminMembros() {
         visiveis.map((m) => (
           <div key={m.id} style={{ ...ui.cartao, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: "#E9F0EC" }}>
+              <div style={{ fontWeight: 700, color: "var(--p-text)" }}>
                 {m.nome || "Sem nome"}
-                {m.equipe ? <span style={{ ...chip, background: "#3E6FB0", color: "#fff" }}>Equipe</span>
-                  : m.is_admin && <span style={{ ...chip, background: "linear-gradient(180deg,#43F07F 0%,#22D262 100%)", color: "#fff" }}>Membro + admin</span>}
-                {!m.ativo && <span style={{ ...chip, background: "#0F1915", color: "#97A69E" }}>Inativo</span>}
+                {m.equipe ? <span style={{ ...chip, background: "#3E6FB0", color: "var(--p-text)" }}>Equipe</span>
+                  : m.is_admin && <span style={{ ...chip, background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-text)" }}>Membro + admin</span>}
+                {!m.ativo && <span style={{ ...chip, background: "var(--p-hover)", color: "var(--p-muted)" }}>Inativo</span>}
               </div>
-              <div style={{ fontSize: 13, color: "#97A69E", marginTop: 2 }}>
+              <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 2 }}>
                 {[m.empresa, m.email || "sem e-mail"].filter(Boolean).join(" · ")}
               </div>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: m.auth_user_id ? "#4A6118" : "#9AA3B2" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: m.auth_user_id ? "var(--p-accent-text)" : "var(--p-faint)" }}>
               {m.auth_user_id ? "✓ Já acessa o portal" : "Ainda sem senha"}
-              <div style={{ fontWeight: 600, marginTop: 2, color: onboarding[m.id] ? "#4A6118" : m.id in onboarding ? "#8A6D1A" : "#9AA3B2" }}>
+              <div style={{ fontWeight: 600, marginTop: 2, color: onboarding[m.id] ? "var(--p-accent-text)" : m.id in onboarding ? "var(--p-warn)" : "var(--p-faint)" }}>
                 {m.equipe || (m.is_admin && !onboarding[m.id]) ? "" : onboarding[m.id] ? "✓ Onboarding concluído" : m.id in onboarding ? "Onboarding em andamento" : "Onboarding não iniciado"}
               </div>
               {resumos[m.id] && !m.equipe && (
-                <div style={{ fontWeight: 600, marginTop: 2, color: resumos[m.id] === "aprovado" ? "#4A6118" : resumos[m.id] === "erro" ? "#9A3B3B" : "#8A6D1A" }}>
+                <div style={{ fontWeight: 600, marginTop: 2, color: resumos[m.id] === "aprovado" ? "var(--p-accent-text)" : resumos[m.id] === "erro" ? "var(--p-danger)" : "var(--p-warn)" }}>
                   {resumos[m.id] === "aprovado" ? "✓ Resumo publicado" : resumos[m.id] === "pendente" ? "Resumo aguardando aprovação" : resumos[m.id] === "erro" ? "Resumo com erro" : "Gerando resumo"}
                 </div>
               )}
@@ -313,7 +313,7 @@ function AdminMembros() {
               <option value="membro-admin">Membro + administrador</option>
               <option value="equipe">Equipe (administra o portal, não é membro)</option>
             </select>
-            <div style={{ fontSize: 12.5, color: "#97A69E", marginTop: 6 }}>
+            <div style={{ fontSize: 12.5, color: "var(--p-muted)", marginTop: 6 }}>
               {editando.equipe ? "Acessa a Administração e as telas do portal, mas não aparece na lista de membros, não faz onboarding e não tem resumo nem painel de oportunidades."
                 : editando.is_admin ? "É membro normal e também acessa a Administração." : "Acesso de membro ao portal."}
             </div>
@@ -327,7 +327,7 @@ function AdminMembros() {
         <Modal titulo={`Onboarding · ${vendoOnboarding.nome || "Sem nome"}`} onFechar={() => setVendoOnboarding(null)} largura={abaOnb === "oportunidades" ? 1120 : 720}>
           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
             {([["resumo", "Resumo do perfil (IA)"], ["oportunidades", "Oportunidades"], ["respostas", "Respostas completas"]] as const).map(([id, r]) => (
-              <button key={id} onClick={() => setAbaOnb(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, ...(abaOnb === id ? { background: "rgba(43,227,107,.12)", borderColor: "#8BAD3F" } : {}) }}>{r}</button>
+              <button key={id} onClick={() => setAbaOnb(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, ...(abaOnb === id ? { background: "color-mix(in srgb, var(--p-accent) 12%, transparent)", borderColor: "var(--p-accent)" } : {}) }}>{r}</button>
             ))}
           </div>
           {abaOnb === "resumo" ? <RevisaoResumo key={vendoOnboarding.id} membroId={vendoOnboarding.id} nome={vendoOnboarding.nome || ""} onAlterado={carregar} onPublicado={() => { const nome = vendoOnboarding.nome || "membro"; setVendoOnboarding(null); setMsg({ tipo: "ok", texto: `Resumo de ${nome} publicado. Já aparece no perfil em "Membros", no bloco "Sobre a empresa".` }); window.scrollTo({ top: 0, behavior: "smooth" }); }} /> : abaOnb === "oportunidades" ? <div className="pv" style={{ display: "flex", flexDirection: "column", gap: 16 }}><OportunidadesDoMembro membroId={vendoOnboarding.id} nome={vendoOnboarding.nome || ""} /></div> : <RespostasOnboarding membroId={vendoOnboarding.id} />}
@@ -405,13 +405,13 @@ function AdminEventos() {
           <div style={{ flex: "1 1 260px" }}>
             <div style={{ fontWeight: 700 }}>
               {e.titulo}
-              <span style={{ ...chip, background: "rgba(43,227,107,.12)", color: "#2BE36B" }}>{TRILHAS[e.trilha] || e.trilha}</span>
-              {!e.ativo && <span style={{ ...chip, background: "#0F1915", color: "#97A69E" }}>Oculto</span>}
-              {e.ativo && !e.inscricoes_abertas && <span style={{ ...chip, background: "rgba(255,90,90,.1)", color: "#FF9A9A" }}>Inscrições fechadas</span>}
+              <span style={{ ...chip, background: "color-mix(in srgb, var(--p-accent) 12%, transparent)", color: "var(--p-accent)" }}>{TRILHAS[e.trilha] || e.trilha}</span>
+              {!e.ativo && <span style={{ ...chip, background: "var(--p-hover)", color: "var(--p-muted)" }}>Oculto</span>}
+              {e.ativo && !e.inscricoes_abertas && <span style={{ ...chip, background: "color-mix(in srgb, var(--p-danger) 10%, transparent)", color: "var(--p-danger)" }}>Inscrições fechadas</span>}
             </div>
-            <div style={{ fontSize: 13, color: "#97A69E", marginTop: 2 }}>{e.quando}{e.dia_semana ? ` · ${e.dia_semana}` : ""}</div>
+            <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 2 }}>{e.quando}{e.dia_semana ? ` · ${e.dia_semana}` : ""}</div>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#2BE36B" }}>{totais[e.id] || 0} confirmados</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--p-accent)" }}>{totais[e.id] || 0} confirmados</div>
           <button style={ui.botaoSecundario} onClick={() => { setMsg(null); setEditando({ ...e }); }}>Editar</button>
         </div>
       ))}
@@ -502,13 +502,13 @@ function AdminPresencas() {
         <button style={ui.botaoSecundario} onClick={exportar} disabled={!visiveis.length}>Baixar lista (Excel)</button>
       </div>
       {erro && <div style={ui.erro}>{erro}</div>}
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#2BE36B", marginBottom: 10 }}>{visiveis.length} presença(s) confirmada(s)</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--p-accent)", marginBottom: 10 }}>{visiveis.length} presença(s) confirmada(s)</div>
       {carregando ? <div style={ui.aviso}>Carregando...</div> : visiveis.length === 0 ? <div style={ui.aviso}>Ninguém confirmou presença neste evento ainda.</div> : visiveis.map((p) => (
         <div key={p.id} style={{ ...ui.cartao, padding: "12px 18px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 240px" }}>
             <div style={{ fontWeight: 700 }}>{p.membro}</div>
-            <div style={{ fontSize: 13, color: "#97A69E" }}>{p.membro_login} · confirmado em {dataCurta(p.confirmado_em)}</div>
-            {eventoId === "todos" && <div style={{ fontSize: 12, color: "#2BE36B", fontWeight: 700, marginTop: 2 }}>{nomeEvento(p.evento_id)}</div>}
+            <div style={{ fontSize: 13, color: "var(--p-muted)" }}>{p.membro_login} · confirmado em {dataCurta(p.confirmado_em)}</div>
+            {eventoId === "todos" && <div style={{ fontSize: 12, color: "var(--p-accent)", fontWeight: 700, marginTop: 2 }}>{nomeEvento(p.evento_id)}</div>}
           </div>
           <button style={ui.botaoPerigo} onClick={() => remover(p)}>Remover</button>
         </div>
@@ -524,9 +524,9 @@ const chip: CSSProperties = { fontSize: 11, fontWeight: 700, padding: "2px 8px",
 function Modal({ titulo, onFechar, children, largura = 460 }: { titulo: string; onFechar: () => void; children: React.ReactNode; largura?: number }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(20,24,34,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
-      <div style={{ background: "linear-gradient(180deg,#0E1714 0%,#0B1210 100%)", borderRadius: 18, padding: "28px 24px", maxWidth: largura, width: "100%", maxHeight: "90vh", overflowY: "auto", position: "relative" }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <button onClick={onFechar} aria-label="Fechar" style={{ position: "absolute", top: 12, right: 14, border: "none", background: "none", fontSize: 26, color: "#97A69E", cursor: "pointer" }}>×</button>
-        <h2 style={{ fontSize: 21, fontWeight: 800, margin: "0 0 18px", color: "#E9F0EC" }}>{titulo}</h2>
+      <div style={{ background: "linear-gradient(180deg,var(--p-card) 0%,var(--p-card) 100%)", borderRadius: 18, padding: "28px 24px", maxWidth: largura, width: "100%", maxHeight: "90vh", overflowY: "auto", position: "relative" }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button onClick={onFechar} aria-label="Fechar" style={{ position: "absolute", top: 12, right: 14, border: "none", background: "none", fontSize: 26, color: "var(--p-muted)", cursor: "pointer" }}>×</button>
+        <h2 style={{ fontSize: 21, fontWeight: 700, margin: "0 0 18px", color: "var(--p-text)" }}>{titulo}</h2>
         {children}
       </div>
     </div>
@@ -535,8 +535,8 @@ function Modal({ titulo, onFechar, children, largura = 460 }: { titulo: string; 
 
 function Caixa({ marcado, onChange, texto }: { marcado: boolean; onChange: (v: boolean) => void; texto: string }) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "#E9F0EC", margin: "6px 0 12px", cursor: "pointer" }}>
-      <input type="checkbox" checked={marcado} onChange={(e) => onChange(e.target.checked)} style={{ width: 18, height: 18, accentColor: "#8BAD3F" }} />
+    <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "var(--p-text)", margin: "6px 0 12px", cursor: "pointer" }}>
+      <input type="checkbox" checked={marcado} onChange={(e) => onChange(e.target.checked)} style={{ width: 18, height: 18, accentColor: "var(--p-accent)" }} />
       {texto}
     </label>
   );

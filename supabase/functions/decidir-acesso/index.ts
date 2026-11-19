@@ -3,6 +3,8 @@
 //             avisando que o perfil foi aprovado, com o link do portal.
 // Recusar  -> só marca a solicitação como recusada (nenhuma mensagem é enviada).
 // Entrada: { id, acao: "aprovar" | "recusar" } ou { id, acao: "reenviar" } (tenta o WhatsApp de novo).
+// Checagem interna (cabeçalho x-portal-interno): { acao: "testar" } consulta a Z-API (status da instância),
+// sem enviar mensagem nenhuma, para confirmar que as credenciais funcionam.
 // Segredos (cadastrados no painel do Supabase, nunca no código):
 //   ZAPI_INSTANCE_ID, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -53,6 +55,17 @@ async function enviarWhatsApp(telefone: string, texto: string): Promise<{ ok: bo
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return resp(405, { erro: "método não permitido" });
+
+  const interno = req.headers.get("x-portal-interno");
+  if (interno) {
+    const { data: valido } = await db.rpc("token_interno_valido", { p_token: interno });
+    if (valido !== true) return resp(401, { erro: "código interno inválido" });
+    const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
+    if (!inst || !tok || !cli) return resp(200, { credenciais: "faltando", tem: { inst: !!inst, tok: !!tok, cli: !!cli } });
+    const r = await fetch(`https://api.z-api.io/instances/${inst}/token/${tok}/status`, { headers: { "Client-Token": cli } });
+    const j = await r.json().catch(() => ({}));
+    return resp(200, { credenciais: "presentes", http: r.status, conectado: j.connected ?? null, celular_conectado: j.smartphoneConnected ?? null, erro: j.error ?? null });
+  }
 
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   const { data: u } = await db.auth.getUser(jwt);

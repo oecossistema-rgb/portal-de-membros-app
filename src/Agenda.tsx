@@ -44,7 +44,7 @@ const CSS = `
 .gal-topo{ padding:18px 22px 12px; border-bottom:1px solid var(--p-line); display:flex; flex-direction:column; gap:12px }
 .gal-x{ border:0; background:var(--p-hover); color:var(--p-text); width:34px; height:34px; border-radius:50%; font-size:18px; cursor:pointer; flex:0 0 auto }
 .gal-chips{ display:flex; gap:6px; flex-wrap:wrap }
-.gal-chip{ border:1px solid var(--p-line2); background:transparent; color:var(--p-text2); border-radius:980px; padding:6px 14px; font:inherit; font-size:13px; font-weight:500; cursor:pointer }
+.gal-chip{ display:inline-flex; align-items:center; gap:6px; border:1px solid var(--p-line2); background:transparent; color:var(--p-text2); border-radius:980px; padding:6px 14px; font:inherit; font-size:13px; font-weight:500; cursor:pointer }
 .gal-chip.on{ background:var(--p-accent); border-color:var(--p-accent); color:var(--p-on-accent); font-weight:600 }
 .gal-corpo{ flex:1; min-height:0; background:#fff }
 .gal-corpo iframe{ width:100%; height:100%; border:0; display:block }
@@ -231,7 +231,7 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
           </div>
           {d && d.pastas.length > 1 && (
             <div className="gal-chips">
-              {d.pastas.map((x, i) => <button key={x.id} className={`gal-chip${p?.id === x.id ? " on" : ""}`} onClick={() => setPasta(i)}>{x.nome}</button>)}
+              {d.pastas.map((x, i) => <button key={x.id} className={`gal-chip${p?.id === x.id ? " on" : ""}`} onClick={() => setPasta(i)}><IconeVideo />{x.nome}</button>)}
             </div>
           )}
         </div>
@@ -241,5 +241,13 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
         </div>
       </div>
     </div>
+  );
+}
+
+function IconeVideo() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="6" width="14" height="12" rx="2.5" /><path d="M16 10.5 22 7v10l-6-3.5" />
+    </svg>
   );
 }

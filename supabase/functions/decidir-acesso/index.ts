@@ -99,13 +99,13 @@ Deno.serve(async (req) => {
         ativo: true, auth_user_id: s.auth_user_id, email: s.email,
         nome: existente.nome || s.nome, empresa: existente.empresa || s.empresa, telefone_whatsapp: existente.telefone_whatsapp || s.whatsapp,
       }).eq("id", existente.id);
-      if (error) return resp(500, { erro: error.message });
+      if (error) { console.error("reativar membro", error.message); return resp(500, { erro: `não foi possível reativar o cadastro (${error.message})` }); }
       membroId = existente.id;
     } else {
       const { data: novo, error } = await db.from("membros").insert({
         nome: s.nome, email: s.email, empresa: s.empresa, telefone_whatsapp: s.whatsapp, ativo: true, auth_user_id: s.auth_user_id, is_admin: false, equipe: false,
       }).select("id").single();
-      if (error) return resp(500, { erro: error.message });
+      if (error) { console.error("criar membro", error.message); return resp(500, { erro: `não foi possível criar o cadastro (${error.message})` }); }
       membroId = novo.id;
     }
     await db.from("solicitacoes_acesso").update({ status: "aprovada", decidido_em: agora, decidido_por: eu.id, membro_id: membroId }).eq("id", s.id);

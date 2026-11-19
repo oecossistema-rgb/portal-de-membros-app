@@ -42,7 +42,10 @@ export default function Solicitacoes({ onMudou }: { onMudou?: () => void }) {
     const { data, error } = await supabase.functions.invoke("decidir-acesso", { body: { id: s.id, acao } });
     setOcupado(null);
     if (error || !data?.ok) {
-      setMsg({ tipo: "erro", texto: `Não foi possível concluir: ${data?.erro || error?.message || "erro desconhecido"}` });
+      // Mostra o motivo que a função devolveu (em português), em vez da mensagem técnica genérica.
+      let motivo = data?.erro as string | undefined;
+      try { const ctx = (error as { context?: Response } | null)?.context; if (!motivo && ctx) motivo = (await ctx.json())?.erro; } catch { /* sem corpo */ }
+      setMsg({ tipo: "erro", texto: `Não foi possível concluir${motivo ? `: ${motivo}` : ". Tente de novo em instantes; se continuar, avise o suporte."}` });
     } else if (acao === "recusar") {
       setMsg({ tipo: "ok", texto: `Solicitação de ${primeiro} recusada.` });
     } else if (data.whatsapp === "enviado") {

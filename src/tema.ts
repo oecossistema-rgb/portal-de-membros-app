@@ -1,4 +1,4 @@
-// Tema claro/escuro do portal. Sem escolha salva, segue o aparelho (configuração do sistema).
+// Tema claro/escuro do portal. O padrão é o claro; quem quiser troca para o escuro no botão do topo (fica salvo).
 export type Tema = "claro" | "escuro";
 
 export function temaSalvo(): Tema | null {
@@ -6,8 +6,7 @@ export function temaSalvo(): Tema | null {
 }
 export function temaAtual(): Tema {
   const t = document.documentElement.dataset.tema as Tema | undefined;
-  if (t === "claro" || t === "escuro") return t;
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "escuro" : "claro";
+  return t === "escuro" ? "escuro" : "claro";
 }
 export function aplicarTema(t: Tema | null) {
   if (t) document.documentElement.dataset.tema = t; else delete document.documentElement.dataset.tema;

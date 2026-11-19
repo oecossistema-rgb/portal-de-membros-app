@@ -50,6 +50,9 @@ export const CSS_V = `
 .pv-logo-led{ display:block; border-radius:50%; box-shadow:0 0 0 1.5px #3BA7FF, 0 0 10px 2px rgba(59,167,255,.75), 0 0 26px 6px rgba(59,167,255,.32); animation:pv-led 3.2s ease-in-out infinite }
 @keyframes pv-led{ 0%,100%{ box-shadow:0 0 0 1.5px #3BA7FF, 0 0 10px 2px rgba(59,167,255,.75), 0 0 26px 6px rgba(59,167,255,.32) } 50%{ box-shadow:0 0 0 1.5px #6CC0FF, 0 0 14px 3px rgba(59,167,255,.95), 0 0 34px 10px rgba(59,167,255,.45) } }
 @media (prefers-reduced-motion: reduce){ .pv-logo-led{ animation:none } }
+.pv-marca{ display:inline-block; text-transform:uppercase; color:var(--p-text) }
+.pv-marca1{ font-size:12.5px; font-weight:600; letter-spacing:.42em; margin-right:-.42em; line-height:1.3 }
+.pv-marca2{ font-size:17px; font-weight:700; letter-spacing:.04em; line-height:1.15 }
 .pv-tema{ width:36px; height:36px; border-radius:50%; border:1px solid var(--p-line2); background:var(--p-card); color:var(--p-text); display:inline-flex; align-items:center; justify-content:center; cursor:pointer }
 .pv-tema:hover{ background:var(--p-hover) }
 @media (max-width:1180px){ .pv-meio{ grid-template-columns:1fr } .pv-ops{ grid-template-columns:repeat(2,1fr) } }
@@ -132,7 +135,7 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
       <aside className="pv-side">
         <div className="pv-logo" style={{ textAlign: "center", padding: "6px 4px 18px" }}>
           <img src="/logo-ecossistema-redondo.png" alt="Ecossistema Master Business" className="pv-logo-led" style={{ width: 60, height: 60, margin: "4px auto 12px" }} />
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--p-text)", letterSpacing: "-0.01em", lineHeight: 1.2 }}>Ecossistema<br />Master Business</div>
+          <div className="pv-marca"><div className="pv-marca1">Ecossistema</div><div className="pv-marca2">Master Business</div></div>
           <div style={{ fontSize: 9, color: V.suave, marginTop: 5 }}>Conectando Negócios • Multiplicando Resultados</div>
         </div>
         {itens.map((grupo, gi) => (

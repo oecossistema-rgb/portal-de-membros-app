@@ -357,7 +357,7 @@ function AuthShell({ children }) {
       <style>{CSS}</style>
       <div style={S.loginCard}>
         <img src="/logo-ecossistema-redondo.png" alt="" style={{ width: 68, height: 68, borderRadius: "50%", display: "block", margin: "4px auto 6px", boxShadow: "0 0 0 1.5px #3BA7FF, 0 0 10px 2px rgba(59,167,255,.75), 0 0 26px 6px rgba(59,167,255,.32)" }} />
-        <div style={S.loginEyebrow}>Ecossistema Master Business</div>
+        <div style={S.loginEyebrow}><div style={{ display: "inline-block", textTransform: "uppercase" }}><div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: ".42em", marginRight: "-.42em", lineHeight: 1.3 }}>Ecossistema</div><div style={{ fontSize: 17, fontWeight: 700, letterSpacing: ".04em", lineHeight: 1.15 }}>Master Business</div></div></div>
         {children}
       </div>
     </div>

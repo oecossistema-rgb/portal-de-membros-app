@@ -1,6 +1,6 @@
 // Função "decidir-acesso": o administrador aprova ou recusa uma solicitação de acesso ao portal.
 // Aprovar  -> cria (ou reativa) o cadastro de membro ligado ao login da pessoa e envia pelo WhatsApp
-//             o cartão 3D de boas-vindas com o nome dela + legenda com o link do portal
+//             o cartão de membro com o nome dela + legenda curta com o portal (aprovado em 19/11)
 //             (se a imagem falhar, envia a mensagem só de texto).
 // Recusar  -> só marca a solicitação como recusada (nenhuma mensagem é enviada).
 // Entrada: { id, acao: "aprovar" | "recusar" } ou { id, acao: "reenviar" } (tenta o WhatsApp de novo).
@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
   }
 
   if (!s.whatsapp) return resp(200, { ok: true, status: "aprovada", membro_id: membroId, whatsapp: "sem_numero" });
-  const w = await enviarAprovacao(telefoneZapi(s.whatsapp), s.nome, s.email);
+  const w = await enviarCartaoMembro(telefoneZapi(s.whatsapp), s.nome, s.email);
   await db.from("solicitacoes_acesso").update(w.ok ? { whatsapp_enviado_em: new Date().toISOString(), whatsapp_erro: null } : { whatsapp_erro: w.erro }).eq("id", s.id);
   return resp(200, { ok: true, status: "aprovada", membro_id: membroId, whatsapp: w.ok ? "enviado" : "falhou", formato: w.tipo, whatsapp_erro: w.erro });
 });

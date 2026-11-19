@@ -15,10 +15,31 @@ export function nomeCartao(nome: string): string {
   return [partes[0], seg].filter(Boolean).join(" ");
 }
 
-export function svgCartao(nome: string, logoPngBase64: string): string {
+// Fundo fixo (tudo menos o nome). Gerado uma vez e publicado em public/cartao-fundo.png.
+export function svgFundo(logoPngBase64: string): string {
+  return svgCartao("", logoPngBase64, false);
+}
+
+// Cartão final, leve: a imagem de fundo pronta + só o nome escrito por cima.
+export function svgCartaoFinal(nome: string, fundoPngBase64: string): string {
   const n = nomeCartao(nome) || "membro";
-  // Tamanho da letra do nome: o maior que cabe em ~700px de largura (Inter Bold ≈ 0,62 da altura por letra).
-  const tam = Math.round(Math.max(52, Math.min(96, 700 / (0.62 * Math.max(n.length, 1)))));
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <image x="0" y="0" width="1080" height="1080" xlink:href="data:image/png;base64,${fundoPngBase64}" href="data:image/png;base64,${fundoPngBase64}"/>
+  ${textoNome(n)}
+</svg>`;
+}
+
+// Tamanho da letra do nome: o maior que cabe em ~700px de largura (Inter ExtraBold ≈ 0,62 da altura por letra).
+const tamNome = (n: string) => Math.round(Math.max(52, Math.min(96, 700 / (0.62 * Math.max(n.length, 1)))));
+// As frases de baixo ficam numa posição fixa (calculada para o nome no tamanho máximo).
+const textoNome = (n: string) => {
+  const tam = tamNome(n);
+  return `<text x="540" y="${648 + 96 - Math.round((96 - tam) / 2)}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="${tam}" fill="#FFFFFF">${esc(n)}!</text>`;
+};
+
+export function svgCartao(nome: string, logoPngBase64: string, comNome = true): string {
+  const n = nomeCartao(nome) || "membro";
+  const tam = 96; // frases de baixo em posição fixa (o nome se ajusta dentro desse espaço)
   // Piso em perspectiva (linhas convergindo para o centro): dá a sensação de profundidade.
   const piso: string[] = [];
   for (let i = -10; i <= 10; i++) piso.push(`<line x1="${540 + i * 22}" y1="760" x2="${540 + i * 150}" y2="1080" />`);
@@ -88,7 +109,7 @@ export function svgCartao(nome: string, logoPngBase64: string): string {
 
   <text x="540" y="580" text-anchor="middle" font-family="Inter" font-weight="700" font-size="26" letter-spacing="9" fill="#4AF08A">ACESSO APROVADO</text>
   <text x="540" y="636" text-anchor="middle" font-family="Inter" font-weight="600" font-size="38" fill="#E9F0EC">Bem-vindo(a),</text>
-  <text x="540" y="${648 + tam}" text-anchor="middle" font-family="Inter" font-weight="800" font-size="${tam}" fill="#FFFFFF">${esc(n)}!</text>
+  ${comNome ? textoNome(n) : ""}
   <text x="540" y="${712 + tam + 18}" text-anchor="middle" font-family="Inter" font-weight="400" font-size="30" fill="#C9D3CD">Seu perfil no Portal de Membros está liberado.</text>
   <text x="540" y="${712 + tam + 62}" text-anchor="middle" font-family="Inter" font-weight="400" font-size="30" fill="#C9D3CD">Agora é conexão, negócio e crescimento.</text>
 

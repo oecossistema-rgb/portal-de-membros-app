@@ -76,6 +76,8 @@ async function gerarPara(membroId: string, interno: string | null): Promise<Resu
   ]);
   if (!m || !o?.onboarding_concluido_em) return { membro_id: membroId, ok: false, erro: "onboarding não concluído" };
   if (m.equipe) return { membro_id: membroId, ok: false, erro: "cadastro da equipe não tem resumo" };
+  // Membros antigos dispensados do onboarding (sem respostas): não há base para um resumo.
+  if (String(o.onboarding_versao || "").startsWith("dispensado")) return { membro_id: membroId, ok: false, erro: "dispensado do onboarding (sem respostas)" };
   const { data: atual } = await db.from("membros_resumo").select("status,atualizado_em").eq("membro_id", membroId).maybeSingle();
   // Nunca sobrescreve um resumo já aprovado; para refazer, o admin retira o resumo antes.
   if (atual?.status === "aprovado") return { membro_id: membroId, ok: false, erro: "já aprovado" };
@@ -121,7 +123,7 @@ async function gerarPara(membroId: string, interno: string | null): Promise<Resu
 
 // Quem concluiu o onboarding e está sem resumo (ou cujo último deu erro).
 async function fila(automatico: boolean): Promise<string[]> {
-  const { data: concl } = await db.from("membros_onboarding").select("membro_id").not("onboarding_concluido_em", "is", null);
+  const { data: concl } = await db.from("membros_onboarding").select("membro_id,onboarding_versao").not("onboarding_concluido_em", "is", null);
   const { data: feitos } = await db.from("membros_resumo").select("membro_id,status,atualizado_em");
   const seisHoras = Date.now() - 6 * 3600_000, quinzeMin = Date.now() - 15 * 60_000;
   const pular = new Set((feitos || []).filter((f) => {
@@ -132,6 +134,7 @@ async function fila(automatico: boolean): Promise<string[]> {
   }).map((f) => f.membro_id));
   const { data: eq } = await db.from("membros").select("id").or("equipe.eq.true,ativo.eq.false");
   for (const x of eq || []) pular.add(x.id);
+  for (const c of concl || []) if (String(c.onboarding_versao || "").startsWith("dispensado")) pular.add(c.membro_id);
   return (concl || []).map((c) => c.membro_id).filter((id) => !pular.has(id));
 }
 

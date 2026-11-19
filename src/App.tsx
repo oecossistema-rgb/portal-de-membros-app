@@ -356,7 +356,7 @@ function AuthShell({ children }) {
     <div style={S.loginPage}>
       <style>{CSS}</style>
       <div style={S.loginCard}>
-        <img src="/logo-ecossistema.png" alt="" style={{ width: 64, height: 64, borderRadius: 16, display: "block", margin: "0 auto", boxShadow: "0 0 26px -6px color-mix(in srgb, var(--p-accent) 60%, transparent)" }} />
+        <img src="/logo-ecossistema-redondo.png" alt="" style={{ width: 68, height: 68, borderRadius: "50%", display: "block", margin: "4px auto 6px", boxShadow: "0 0 0 1.5px #3BA7FF, 0 0 10px 2px rgba(59,167,255,.75), 0 0 26px 6px rgba(59,167,255,.32)" }} />
         <div style={S.loginEyebrow}>Ecossistema Master Business</div>
         {children}
       </div>
@@ -920,8 +920,8 @@ const S = {
     maxWidth: 400, width: "100%", boxShadow: "var(--p-shadow-hover)",
   },
   loginEyebrow: {
-    fontSize: 11, letterSpacing: 2, textTransform: "uppercase",
-    color: "var(--p-accent)", fontWeight: 700, marginTop: 20, marginBottom: 6,
+    fontSize: 15, letterSpacing: "-0.01em",
+    color: "var(--p-text)", fontWeight: 700, marginTop: 18, marginBottom: 6,
   },
   loginTitulo: { fontSize: 26, fontWeight: 700, margin: "0 0 6px", color: "var(--p-text)" },
   loginSub: { fontSize: 14, color: "var(--p-muted)", margin: "0 0 26px" },

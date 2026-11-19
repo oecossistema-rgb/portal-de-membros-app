@@ -47,6 +47,9 @@ export const CSS_V = `
 .pv-seg button{ border:0; background:transparent; color:var(--p-text2); font:inherit; font-size:12.5px; font-weight:500; padding:6px 14px; border-radius:8px; cursor:pointer; white-space:nowrap }
 .pv-seg button.on{ background:var(--p-card); color:var(--p-text); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04) }
 .pv-chip{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--p-accent-text); background:var(--p-accent-bg); border:0; border-radius:980px; padding:3px 9px }
+.pv-logo-led{ display:block; border-radius:50%; box-shadow:0 0 0 1.5px #3BA7FF, 0 0 10px 2px rgba(59,167,255,.75), 0 0 26px 6px rgba(59,167,255,.32); animation:pv-led 3.2s ease-in-out infinite }
+@keyframes pv-led{ 0%,100%{ box-shadow:0 0 0 1.5px #3BA7FF, 0 0 10px 2px rgba(59,167,255,.75), 0 0 26px 6px rgba(59,167,255,.32) } 50%{ box-shadow:0 0 0 1.5px #6CC0FF, 0 0 14px 3px rgba(59,167,255,.95), 0 0 34px 10px rgba(59,167,255,.45) } }
+@media (prefers-reduced-motion: reduce){ .pv-logo-led{ animation:none } }
 .pv-tema{ width:36px; height:36px; border-radius:50%; border:1px solid var(--p-line2); background:var(--p-card); color:var(--p-text); display:inline-flex; align-items:center; justify-content:center; cursor:pointer }
 .pv-tema:hover{ background:var(--p-hover) }
 @media (max-width:1180px){ .pv-meio{ grid-template-columns:1fr } .pv-ops{ grid-template-columns:repeat(2,1fr) } }
@@ -128,10 +131,9 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
       <style>{CSS_V}</style>
       <aside className="pv-side">
         <div className="pv-logo" style={{ textAlign: "center", padding: "6px 4px 18px" }}>
-          <img src="/logo-ecossistema.png" alt="Ecossistema Master Business" style={{ width: 58, height: 58, borderRadius: 14, display: "block", margin: "0 auto 6px", boxShadow: "var(--p-shadow)" }} />
-          <div style={{ fontSize: 13, color: "var(--p-text)", marginTop: 2 }}>Ecossistema</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--p-text)", letterSpacing: -0.2 }}>Master Business</div>
-          <div style={{ fontSize: 8.5, color: V.suave, marginTop: 4 }}>Conectando Negócios • Multiplicando Resultados</div>
+          <img src="/logo-ecossistema-redondo.png" alt="Ecossistema Master Business" className="pv-logo-led" style={{ width: 60, height: 60, margin: "4px auto 12px" }} />
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--p-text)", letterSpacing: "-0.01em", lineHeight: 1.2 }}>Ecossistema<br />Master Business</div>
+          <div style={{ fontSize: 9, color: V.suave, marginTop: 5 }}>Conectando Negócios • Multiplicando Resultados</div>
         </div>
         {itens.map((grupo, gi) => (
           <div key={gi} style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: gi ? 14 : 0 }}>

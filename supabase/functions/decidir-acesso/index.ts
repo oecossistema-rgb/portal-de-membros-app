@@ -63,7 +63,7 @@ async function gerarCartaoMembro(nome: string): Promise<string> {
 
 // Envio novo: cartão de membro + legenda curta com o link. (O envio com botão existe só para teste: em 19/11 a Z-API
 // aceitou, mas a mensagem com botão não chegou ao celular.) Se a imagem falhar, vai o texto.
-export const LEGENDA_CURTA = `Entre com o e-mail e a senha que você cadastrou:\n${PORTAL}`;
+export const LEGENDA_CURTA = "*Seu acesso está liberado.*\nEntre com seu e-mail e senha em portal.oecossistemabusiness.com";
 async function enviarCartaoMembro(telefone: string, nome: string, email: string, comBotao = false): Promise<{ ok: boolean; erro?: string; tipo?: string }> {
   try {
     const imagem = await gerarCartaoMembro(nome);

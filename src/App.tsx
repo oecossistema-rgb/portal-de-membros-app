@@ -349,6 +349,14 @@ function TelaNovaSenha({ onConcluir }) {
   );
 }
 
+// (71) 98223-5632 a partir de "71982235632".
+function formatarFone(d: string | null): string {
+  const n = (d || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return d || "";
+}
+
 // Quem tem login mas não está liberado: pede acesso (vira uma solicitação na Administração).
 type Solicitacao = { status: "pendente" | "aprovada" | "recusada"; nome: string; whatsapp: string | null; empresa: string | null };
 function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: string; nomeInicial: string; onSair: () => void; onLiberado: () => Promise<void> }) {
@@ -358,7 +366,6 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
   const [empresa, setEmpresa] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [conferindo, setConferindo] = useState(false);
 
   async function carregar() {
     const { data } = await supabase.from("solicitacoes_acesso").select("status,nome,whatsapp,empresa").maybeSingle();
@@ -381,12 +388,15 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
     carregar();
   }
 
-  async function conferir() {
-    setConferindo(true);
-    await onLiberado();
-    await carregar();
-    setConferindo(false);
-  }
+  // Enquanto o pedido espera aprovação, a tela confere sozinha a cada 20 segundos.
+  // Quando for aprovado, o portal abre automaticamente (sem botão, sem recarregar).
+  const aguardando = sol?.status === "pendente" && !!sol?.whatsapp;
+  useEffect(() => {
+    if (!aguardando) return;
+    const t = setInterval(() => { onLiberado(); }, 20000);
+    return () => clearInterval(t);
+  }, [aguardando]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   if (sol === undefined) return <AuthShell><p style={S.loginSub}>Carregando...</p></AuthShell>;
 
@@ -398,12 +408,14 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
         <h1 style={S.loginTitulo}>Solicitação enviada</h1>
         <p style={S.loginSub}>
           Recebemos o seu pedido de acesso. Assim que a administração aprovar, você recebe uma mensagem no
-          WhatsApp <strong>{sol.whatsapp}</strong> e já pode entrar com o e-mail <strong>{email}</strong>.
+          WhatsApp <strong>{formatarFone(sol.whatsapp)}</strong> e já pode entrar com o e-mail <strong>{email}</strong>.
         </p>
-        <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={conferir} disabled={conferindo}>
-          {conferindo ? "Verificando..." : "Já fui aprovado? Verificar"}
-        </button>
-        <button style={S.linkBtn} onClick={onSair}>Sair</button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13, color: "var(--p-muted)", background: "var(--p-hover)", borderRadius: 12, padding: "10px 14px" }}>
+          <span className="pulso-espera" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--p-accent)" }} />
+          Esta tela se atualiza sozinha. Quando for aprovado, você entra automaticamente.
+        </div>
+        <style>{`@keyframes pulsoEspera{0%,100%{opacity:.35}50%{opacity:1}} .pulso-espera{animation:pulsoEspera 1.6s ease-in-out infinite}`}</style>
+        <button style={{ ...S.linkBtn, marginTop: 14 }} onClick={onSair}>Sair</button>
       </AuthShell>
     );
   }

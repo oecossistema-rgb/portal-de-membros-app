@@ -330,7 +330,7 @@ function TelaNovaSenha({ onConcluir }) {
   );
 }
 
-// (71) 98223-5632 a partir de "71982235632".
+// (71) 99999-0000 a partir de "71999990000".
 function formatarFone(d: string | null): string {
   const n = (d || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
   if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;

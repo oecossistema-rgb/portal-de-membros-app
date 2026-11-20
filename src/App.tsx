@@ -1,7 +1,7 @@
 import { PainelMembro } from "./Painel";
 import { Agenda, type Galeria } from "./Agenda";
 import { PortalShell, VisaoGeral } from "./Visao";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode, type ChangeEvent } from "react";
 import { supabase } from "./supabase";
 import Membros from "./Membros";
 import MeuPerfil from "./MeuPerfil";
@@ -259,16 +259,10 @@ function TelaEsqueciSenha({ onVoltar }) {
     <AuthShell>
       <h1 style={S.loginTitulo}>Esqueci minha senha</h1>
       <p style={S.loginSub}>Informe seu e-mail e enviaremos um link para criar uma nova senha.</p>
-      <label style={S.modalLabel} htmlFor="r-email">E-mail</label>
-      <input
-        id="r-email"
-        style={S.modalInput}
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="seu e-mail de membro"
-        autoFocus
-        onKeyDown={(e) => { if (e.key === "Enter") enviar(); }}
-      />
+      <CampoEntrada id="r-email" rotulo="Seu e-mail" icone="email" primeiro>
+        <input id="r-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.com.br" autoFocus
+          onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} />
+      </CampoEntrada>
       {erro && <div style={S.modalErro}>{erro}</div>}
       <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={enviar} disabled={enviando}>
         {enviando ? "Enviando..." : "Enviar link"}
@@ -321,17 +315,13 @@ function TelaNovaSenha({ onConcluir }) {
     <AuthShell>
       <h1 style={S.loginTitulo}>Criar nova senha</h1>
       <p style={S.loginSub}>Escolha uma senha com pelo menos 8 caracteres.</p>
-      <label style={S.modalLabel} htmlFor="n-senha">Nova senha</label>
-      <input id="n-senha" type="password" style={S.modalInput} value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="n-conf">Confirme a nova senha</label>
-      <input
-        id="n-conf"
-        type="password"
-        style={S.modalInput}
-        value={confirmacao}
-        onChange={(e) => setConfirmacao(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") salvar(); }}
-      />
+      <CampoEntrada id="n-senha" rotulo="Nova senha" icone="cadeado" primeiro>
+        <input id="n-senha" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus />
+      </CampoEntrada>
+      <CampoEntrada id="n-conf" rotulo="Confirme a nova senha" icone="cadeado">
+        <input id="n-conf" type="password" autoComplete="new-password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") salvar(); }} />
+      </CampoEntrada>
       {erro && <div style={S.modalErro}>{erro}</div>}
       <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={salvar} disabled={salvando}>
         {salvando ? "Salvando..." : "Salvar nova senha"}
@@ -353,7 +343,7 @@ type Solicitacao = { status: "pendente" | "aprovada" | "recusada"; nome: string;
 function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: string; nomeInicial: string; onSair: () => void; onLiberado: () => Promise<void> }) {
   const [sol, setSol] = useState<Solicitacao | null | undefined>(undefined);
   const [nome, setNome] = useState(nomeInicial || "");
-  const [whats, setWhats] = useState("");
+  const fone = useCampoFone();
   const [empresa, setEmpresa] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -361,18 +351,18 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
   async function carregar() {
     const { data } = await supabase.from("solicitacoes_acesso").select("status,nome,whatsapp,empresa").maybeSingle();
     setSol((data as Solicitacao) || null);
-    if (data) { setNome(data.nome || ""); setWhats(data.whatsapp || ""); setEmpresa(data.empresa || ""); }
+    if (data) { setNome(data.nome || ""); fone.setValor(mascaraFone(data.whatsapp || "").valor); setEmpresa(data.empresa || ""); }
   }
   useEffect(() => { carregar(); }, []);
 
   async function enviar() {
-    const d = whats.replace(/\D/g, "");
-    if (nome.trim().length < 2 || d.length < 10 || empresa.trim().length < 2) {
+    const foneOk = fone.validar();
+    if (nome.trim().length < 2 || !foneOk || empresa.trim().length < 2) {
       setErro("Preencha seu nome, o WhatsApp com DDD e o nome da empresa.");
       return;
     }
     setEnviando(true); setErro("");
-    const { data, error } = await supabase.rpc("solicitar_acesso", { p_nome: nome, p_whatsapp: whats, p_empresa: empresa });
+    const { data, error } = await supabase.rpc("solicitar_acesso", { p_nome: nome, p_whatsapp: fone.digitos, p_empresa: empresa });
     setEnviando(false);
     if (error) { setErro("Não foi possível enviar agora. Tente de novo em instantes."); return; }
     if (data === "ja_liberado") { onLiberado(); return; }
@@ -419,13 +409,17 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
           ? "Sua solicitação anterior não foi aprovada. Se achar que foi um engano, confira seus dados e envie de novo."
           : <>O e-mail <strong>{email}</strong> ainda não está liberado no portal. Preencha abaixo e a administração analisa o seu acesso.</>}
       </p>
-      <label style={S.modalLabel} htmlFor="sol-nome">Nome completo</label>
-      <input id="sol-nome" style={S.modalInput} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="seu nome" />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="sol-whats">WhatsApp com DDD</label>
-      <input id="sol-whats" style={S.modalInput} value={whats} onChange={(e) => setWhats(e.target.value)} placeholder="(71) 99999-9999" inputMode="tel" />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="sol-empresa">Nome da empresa</label>
-      <input id="sol-empresa" style={S.modalInput} value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="sua empresa"
-        onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} />
+      <CampoEntrada id="sol-nome" rotulo="Seu nome completo" icone="pessoa" primeiro>
+        <input id="sol-nome" name="name" autoComplete="name" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Maria Souza" />
+      </CampoEntrada>
+      <CampoEntrada id="sol-whats" rotulo="Seu WhatsApp" icone="whats" dica="Só números, com DDD." erro={fone.erro}>
+        <input id="sol-whats" name="whatsapp" type="tel" inputMode="numeric" autoComplete="tel-national" value={fone.valor} onChange={fone.onChange} onBlur={fone.onBlur}
+          placeholder="(71) 99999-9999" maxLength={16} aria-invalid={!!fone.erro} />
+      </CampoEntrada>
+      <CampoEntrada id="sol-empresa" rotulo="Nome da sua empresa" icone="empresa">
+        <input id="sol-empresa" name="organization" autoComplete="organization" value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Ex.: Souza Consultoria"
+          onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} />
+      </CampoEntrada>
       {erro && <div style={S.modalErro}>{erro}</div>}
       <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={enviar} disabled={enviando}>
         {enviando ? "Enviando..." : "Solicitar acesso"}
@@ -435,10 +429,68 @@ function TelaSemAcesso({ email, nomeInicial, onSair, onLiberado }: { email: stri
   );
 }
 
+
+// ── Campos das telas de entrada: rótulo em destaque com ícone verde em relevo, campo grande com brilho no foco ──
+const ICONES: Record<string, ReactNode> = {
+  email: <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5zm1.6.2 7.4 5.6 7.4-5.6" />,
+  pessoa: <><circle cx="12" cy="8" r="4" /><path d="M4 20c1.4-3.6 4.4-5.5 8-5.5s6.6 1.9 8 5.5" /></>,
+  whats: <path d="M20 11.6a8 8 0 0 1-11.8 7L4 20l1.4-4.1A8 8 0 1 1 20 11.6zM9 8.4c.3-.6.6-.6.9-.6h.5c.2 0 .4 0 .6.5l.8 1.8c.1.2.1.4 0 .6l-.6.8c-.1.2-.1.3 0 .5.6 1 1.5 1.9 2.6 2.4.2.1.4.1.5-.1l.7-.8c.2-.2.4-.2.6-.1l1.7.8c.3.1.4.3.3.6-.2.9-1 1.7-2 1.7-2.9 0-6.7-3.5-6.7-6.5 0-.7.1-1.1.1-1.2z" />,
+  cadeado: <><rect x="5" y="10.5" width="14" height="10" rx="2.5" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>,
+  empresa: <><rect x="4" y="7" width="16" height="13" rx="2" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M4 12.5h16" /></>,
+  codigo: <><rect x="3" y="7" width="18" height="10" rx="3" /><path d="M7.5 12h.01M12 12h.01M16.5 12h.01" strokeWidth="3" /></>,
+};
+function CampoEntrada({ id, rotulo, icone, dica, erro, children, primeiro }: { id: string; rotulo: string; icone: keyof typeof ICONES; dica?: string; erro?: string; children: ReactNode; primeiro?: boolean }) {
+  return (
+    <div className={`campo-entrada${erro ? " com-erro" : ""}`} style={{ textAlign: "left", marginTop: primeiro ? 0 : 18 }}>
+      <label htmlFor={id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9, cursor: "pointer" }}>
+        <span className="campo-icone" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{ICONES[icone]}</svg>
+        </span>
+        <span style={{ fontSize: 15.5, fontWeight: 650, color: "var(--p-text)", letterSpacing: "-0.01em" }}>{rotulo}</span>
+      </label>
+      {children}
+      {(erro || dica) && <div style={{ fontSize: 12.5, marginTop: 7, color: erro ? "var(--p-danger)" : "var(--p-muted)", fontWeight: erro ? 600 : 400 }}>{erro || dica}</div>}
+    </div>
+  );
+}
+const CSS_ENTRADA = `
+  .campo-icone { width: 30px; height: 30px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex: none;
+    background: linear-gradient(180deg, #3FD47A 0%, #1F9D55 55%, #157A40 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.18) inset, 0 4px 10px rgba(31,157,85,.35); }
+  .campo-entrada input { width: 100%; height: 52px; padding: 0 16px; border-radius: 14px; font-size: 16px; box-sizing: border-box; outline: none; font-family: inherit;
+    background: var(--p-field); color: var(--p-text); border: 1.5px solid var(--p-line2); box-shadow: 0 1px 2px rgba(0,0,0,.04) inset; transition: border-color .15s, box-shadow .15s; }
+  .campo-entrada input::placeholder { color: var(--p-faint); }
+  .campo-entrada input:focus { border-color: var(--p-accent) !important; box-shadow: 0 0 0 4px var(--p-accent-bg); }
+  .campo-entrada.com-erro input, .campo-entrada.com-erro input:focus { border-color: var(--p-danger) !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--p-danger) 14%, transparent); }
+  .campo-entrada.com-erro .campo-icone { background: linear-gradient(180deg, #FF6B6B 0%, #D70015 60%, #A3000F 100%); box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 -2px 0 rgba(0,0,0,.18) inset, 0 4px 10px rgba(215,0,21,.3); }
+`;
+
+// WhatsApp: só números, formatado enquanto digita. Devolve o texto formatado e se a pessoa tentou digitar letras.
+export function mascaraFone(bruto: string): { valor: string; letras: boolean } {
+  const letras = /[^\d\s()+\-.]/.test(bruto);
+  const d = bruto.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "").slice(0, 11);
+  let v = d;
+  if (d.length > 2) v = `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length > 6) v = d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return { valor: v, letras };
+}
+function useCampoFone() {
+  const [valor, setValor] = useState("");
+  const [erro, setErro] = useState("");
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { valor: v, letras } = mascaraFone(e.target.value);
+    setValor(v);
+    setErro(letras ? "Digite só números: DDD + número." : "");
+  };
+  const onBlur = () => { const n = valor.replace(/\D/g, "").length; if (n > 0 && n < 10) setErro("Número incompleto: DDD + número."); };
+  const validar = () => { const ok = valor.replace(/\D/g, "").length >= 10; if (!ok) setErro("Informe o WhatsApp com DDD, só números."); return ok; };
+  return { valor, setValor, erro, setErro, onChange, onBlur, validar, digitos: valor.replace(/\D/g, "") };
+}
+
 function AuthShell({ children }) {
   return (
     <div style={S.loginPage}>
-      <style>{CSS}</style>
+      <style>{CSS + CSS_ENTRADA}</style>
       <div style={S.loginCard}>
         <img src="/logo-ecossistema-redondo.png" alt="" style={{ width: 68, height: 68, borderRadius: "50%", display: "block", margin: "4px auto 6px", boxShadow: "0 0 0 1.5px #3BA7FF, 0 0 10px 2px rgba(59,167,255,.75), 0 0 26px 6px rgba(59,167,255,.32)" }} />
         <div style={S.loginEyebrow}><div style={{ display: "inline-block", textTransform: "uppercase" }}><div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: ".42em", marginRight: "-.42em", lineHeight: 1.3 }}>Ecossistema</div><div style={{ fontSize: 17, fontWeight: 700, letterSpacing: ".04em", lineHeight: 1.15 }}>Master Business</div></div></div>
@@ -468,15 +520,21 @@ function TelaEntrada({ onEsqueci }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [nome, setNome] = useState("");
-  const [whats, setWhats] = useState("");
+  const fone = useCampoFone();
+  const whats = fone.valor;
   const [codigo, setCodigo] = useState("");
-  const [fone, setFone] = useState("");
+  const [foneCadastro, setFoneCadastro] = useState("");
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [carregando, setCarregando] = useState(false);
   const emailN = email.trim().toLowerCase();
 
-  function ir(e: EtapaEntrada) { setErro(""); setAviso(""); setEtapa(e); }
+  function ir(e: EtapaEntrada) {
+    setErro(""); setAviso("");
+    // Ao chegar em "Crie sua senha", os campos começam vazios (nada herdado nem preenchido pelo navegador).
+    if (e === "criar") { setNome(""); setSenha(""); fone.setValor(""); fone.setErro(""); }
+    setEtapa(e);
+  }
 
   async function continuarEmail() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailN)) { setErro("Digite um e-mail válido."); return; }
@@ -500,7 +558,7 @@ function TelaEntrada({ onEsqueci }) {
     setCarregando(true); setErro("");
     const { data, error } = await supabase.auth.signUp({
       email: emailN, password: senha,
-      options: { data: { nome: nome.trim(), whatsapp: whats.replace(/\D/g, "") } },
+      options: { data: { nome: nome.trim(), whatsapp: fone.digitos } },
     });
     if (error || !data.user) {
       const m = (error?.message || "").toLowerCase();
@@ -510,9 +568,10 @@ function TelaEntrada({ onEsqueci }) {
   }
 
   async function continuarCriar() {
-    const d = whats.replace(/\D/g, "");
-    if (nome.trim().length < 2 || d.length < 10 || senha.length < 6) {
-      setErro("Preencha seu nome, o WhatsApp com DDD e uma senha de pelo menos 6 caracteres.");
+    const d = fone.digitos;
+    const foneOk = fone.validar();
+    if (nome.trim().length < 2 || !foneOk || senha.length < 6) {
+      setErro(nome.trim().length < 2 ? "Preencha seu nome completo." : !foneOk ? "Confira o WhatsApp: só números, com DDD." : "A senha precisa ter pelo menos 6 caracteres.");
       return;
     }
     setCarregando(true); setErro("");
@@ -520,13 +579,13 @@ function TelaEntrada({ onEsqueci }) {
     setCarregando(false);
     if (r.erro) { setErro(r.erro); return; }
     if (r.modo === "senha") { ir("senha"); setAviso("Esse e-mail já tem senha. Entre com ela."); return; }
-    if (r.modo === "codigo") { setFone(r.fone || ""); setCodigo(""); ir("codigo"); return; }
+    if (r.modo === "codigo") { setFoneCadastro(r.fone || ""); setCodigo(""); ir("codigo"); return; }
     await criarComoPedido();
   }
 
   async function reenviarCodigo() {
     setCarregando(true); setErro(""); setAviso("");
-    const r = await chamarEntrada({ acao: "iniciar", email: emailN, nome: nome.trim(), whatsapp: whats.replace(/\D/g, "") });
+    const r = await chamarEntrada({ acao: "iniciar", email: emailN, nome: nome.trim(), whatsapp: fone.digitos });
     setCarregando(false);
     if (r.erro) setErro(r.erro); else if (r.modo === "codigo") setAviso("Enviamos um novo código.");
   }
@@ -535,7 +594,7 @@ function TelaEntrada({ onEsqueci }) {
     const c = codigo.replace(/\D/g, "");
     if (c.length !== 6) { setErro("Digite os 6 números do código."); return; }
     setCarregando(true); setErro("");
-    const r = await chamarEntrada({ acao: "confirmar", email: emailN, nome: nome.trim(), whatsapp: whats.replace(/\D/g, ""), senha, codigo: c });
+    const r = await chamarEntrada({ acao: "confirmar", email: emailN, nome: nome.trim(), whatsapp: fone.digitos, senha, codigo: c });
     if (!r.ok) { setErro(r.erro || "Não foi possível confirmar agora."); setCarregando(false); return; }
     const { error } = await supabase.auth.signInWithPassword({ email: emailN, password: senha });
     if (error) { setErro("Seu acesso foi criado. Volte e entre com seu e-mail e a senha que você criou."); setCarregando(false); }
@@ -560,9 +619,10 @@ function TelaEntrada({ onEsqueci }) {
         <h1 style={S.loginTitulo}>Bem-vindo de volta</h1>
         <p style={S.loginSub}>Digite sua senha para entrar.</p>
         {emailFixo}
-        <label style={S.modalLabel} htmlFor="senha">Senha</label>
-        <input id="senha" type="password" style={S.modalInput} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="sua senha" autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter") entrar(); }} />
+        <CampoEntrada id="senha" rotulo="Sua senha" icone="cadeado" primeiro>
+          <input id="senha" name="password" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="digite sua senha" autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") entrar(); }} />
+        </CampoEntrada>
         {erroAviso}
         {btn("Entrar", "Entrando...", entrar)}
         <button style={S.linkBtn} onClick={onEsqueci}>Esqueci minha senha</button>
@@ -576,13 +636,17 @@ function TelaEntrada({ onEsqueci }) {
         <h1 style={S.loginTitulo}>Crie sua senha</h1>
         <p style={S.loginSub}>É o seu primeiro acesso. Preencha abaixo para criar a sua senha.</p>
         {emailFixo}
-        <label style={S.modalLabel} htmlFor="c-nome">Nome completo</label>
-        <input id="c-nome" style={S.modalInput} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="seu nome" autoFocus />
-        <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-whats">WhatsApp com DDD</label>
-        <input id="c-whats" style={S.modalInput} value={whats} onChange={(e) => setWhats(e.target.value)} placeholder="(71) 99999-9999" inputMode="tel" />
-        <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-senha">Crie uma senha</label>
-        <input id="c-senha" type="password" style={S.modalInput} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="mínimo 6 caracteres"
-          onKeyDown={(e) => { if (e.key === "Enter") continuarCriar(); }} />
+        <CampoEntrada id="c-nome" rotulo="Seu nome completo" icone="pessoa" primeiro>
+          <input id="c-nome" name="name" autoComplete="name" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Maria Souza" autoFocus />
+        </CampoEntrada>
+        <CampoEntrada id="c-whats" rotulo="Seu WhatsApp" icone="whats" dica="Só números, com DDD." erro={fone.erro}>
+          <input id="c-whats" name="whatsapp" type="tel" inputMode="numeric" autoComplete="tel-national" value={fone.valor} onChange={fone.onChange} onBlur={fone.onBlur}
+            placeholder="(71) 99999-9999" maxLength={16} aria-invalid={!!fone.erro} />
+        </CampoEntrada>
+        <CampoEntrada id="c-senha" rotulo="Crie uma senha" icone="cadeado" dica="Mínimo de 6 caracteres.">
+          <input id="c-senha" name="new-password" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="crie sua senha"
+            onKeyDown={(e) => { if (e.key === "Enter") continuarCriar(); }} />
+        </CampoEntrada>
         {erroAviso}
         {btn("Continuar", "Aguarde...", continuarCriar)}
       </AuthShell>
@@ -594,12 +658,13 @@ function TelaEntrada({ onEsqueci }) {
       <AuthShell>
         <h1 style={S.loginTitulo}>Confirme pelo WhatsApp</h1>
         <p style={S.loginSub}>
-          Encontramos o seu cadastro de membro. Enviamos um código de 6 números para o WhatsApp do cadastro{fone ? <> <strong style={{ whiteSpace: "nowrap" }}>{fone}</strong></> : ""}.
+          Encontramos o seu cadastro de membro. Enviamos um código de 6 números para o WhatsApp do cadastro{foneCadastro ? <> <strong style={{ whiteSpace: "nowrap" }}>{foneCadastro}</strong></> : ""}.
         </p>
-        <label style={S.modalLabel} htmlFor="c-codigo">Código</label>
-        <input id="c-codigo" style={{ ...S.modalInput, letterSpacing: ".35em", fontSize: 20, textAlign: "center" }} value={codigo}
-          onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" autoComplete="one-time-code" autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter") confirmarCodigo(); }} />
+        <CampoEntrada id="c-codigo" rotulo="Código recebido no WhatsApp" icone="codigo" primeiro>
+          <input id="c-codigo" style={{ letterSpacing: ".4em", fontSize: 22, textAlign: "center", fontWeight: 600 }} value={codigo}
+            onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" autoComplete="one-time-code" autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") confirmarCodigo(); }} />
+        </CampoEntrada>
         {erroAviso}
         {btn("Confirmar e entrar", "Confirmando...", confirmarCodigo)}
         <button style={S.linkBtn} onClick={reenviarCodigo} disabled={carregando}>Reenviar código</button>
@@ -612,9 +677,10 @@ function TelaEntrada({ onEsqueci }) {
     <AuthShell>
       <h1 style={S.loginTitulo}>Portal de Membros</h1>
       <p style={S.loginSub}>Acesso exclusivo para membros. Digite seu e-mail para continuar.</p>
-      <label style={S.modalLabel} htmlFor="email">E-mail</label>
-      <input id="email" type="email" style={S.modalInput} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu e-mail" autoFocus autoComplete="email"
-        onKeyDown={(e) => { if (e.key === "Enter") continuarEmail(); }} />
+      <CampoEntrada id="email" rotulo="Seu e-mail" icone="email" primeiro>
+        <input id="email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.com.br" autoFocus autoComplete="email"
+          onKeyDown={(e) => { if (e.key === "Enter") continuarEmail(); }} />
+      </CampoEntrada>
       {erroAviso}
       {btn("Continuar", "Aguarde...", continuarEmail)}
     </AuthShell>

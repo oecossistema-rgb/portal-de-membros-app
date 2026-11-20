@@ -75,6 +75,16 @@ export const CSS_V = `
   .pv{ grid-template-columns:1fr } .pv-side{ position:static; height:auto; flex-direction:row; overflow-x:auto; padding:10px }
   .pv-side > div:not(.pv-logo):not(.pv-promo){ display:contents !important } .pv-side .pv-logo, .pv-side .pv-promo, .pv-kbd{ display:none !important } .pv-side{ flex-wrap:nowrap; gap:4px } .pv-grafico{ grid-template-columns:1fr !important }
   .pv-side .pv-logo, .pv-side .pv-promo{ display:none } .pv-item{ width:auto; white-space:nowrap }
+  /* Menu do celular: no topo, em destaque (botões visíveis, aba atual em verde cheio). */
+  .pv-side{ gap:8px !important; padding:12px 14px !important; border-right:0; border-bottom:1px solid var(--p-line); background:var(--p-card); box-shadow:0 6px 18px -14px rgba(0,0,0,.35); scrollbar-width:none;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent 100%); mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent 100%) }
+  .pv-side::-webkit-scrollbar{ display:none }
+  .pv-side::after{ content:""; flex:0 0 24px }
+  .pv-side .pv-item{ flex:0 0 auto; padding:10px 16px; border-radius:980px; border:1px solid var(--p-line2); background:var(--p-bg); color:var(--p-text); font-size:14.5px; font-weight:600 }
+  .pv-side .pv-item svg{ color:var(--p-accent-text) }
+  .pv-side .pv-item.on{ background:var(--p-accent); border-color:var(--p-accent); color:var(--p-on-accent); box-shadow:0 6px 16px -8px var(--p-accent) }
+  .pv-side .pv-item.on svg{ color:var(--p-on-accent) }
+  .pv-side .pv-item.off{ display:none }
   .pv-kpis{ grid-template-columns:repeat(2,1fr) } .pv-ops{ grid-template-columns:1fr } .pv-top{ padding:0 14px } .pv-conteudo{ padding:18px 14px 28px }
   .pv-quem-txt{ display:none !important }
   .pv-busca{ min-width:0; flex:1 1 auto } .pv-busca input{ min-width:0; width:100% } .pv-kbd{ display:none !important } .pv-top{ gap:10px } .pv-seg{ max-width:100%; overflow-x:auto } .pv-meio > *, .pv > * { min-width:0 }
@@ -145,6 +155,11 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
 }) {
   const [menuUser, setMenuUser] = useState(false);
   const [tema, setTema] = useState<Tema>(() => temaAtual());
+  // No celular o menu corre para o lado: mantém a aba atual sempre à vista.
+  useEffect(() => {
+    if (window.innerWidth > 900) return;
+    document.querySelector(".pv-side .pv-item.on")?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [ativo]);
   return (
     <div className="pv">
       <style>{CSS_V}</style>

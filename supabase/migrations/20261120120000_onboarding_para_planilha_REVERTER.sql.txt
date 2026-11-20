@@ -1,0 +1,19 @@
+-- Desfaz o envio do onboarding do portal para a planilha.
+create or replace function private.onboarding_concluido()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.onboarding_concluido_em is not null
+     and (tg_op = 'INSERT' or old.onboarding_concluido_em is null) then
+    perform private.chamar_funcao('gerar-resumo', jsonb_build_object('membro_id', new.membro_id));
+  end if;
+  return new;
+end;
+$$;
+select cron.unschedule('portal-varredura');
+select cron.schedule('portal-varredura', '*/10 * * * *', $c$
+  select private.chamar_funcao('gerar-resumo', '{"varredura": true}'::jsonb);
+  select private.chamar_funcao('gerar-oportunidades', '{"varredura": true}'::jsonb);
+$c$);
+alter table public.membros_onboarding drop column if exists planilha_erro;
+alter table public.membros_onboarding drop column if exists planilha_enviada_em;
+-- Depois: remover a função "planilha-onboarding".

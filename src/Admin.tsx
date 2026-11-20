@@ -40,6 +40,8 @@ type Evento = {
   vagas_abrem_em: string | null;
   video_url?: string | null;
   video_previa_url?: string | null;
+  hora_inicio?: string | null;
+  hora_fim?: string | null;
   galeria?: { dias?: unknown[]; itens?: unknown[]; indexado_em?: string; conflitos?: Record<string, number> } | null;
 };
 
@@ -415,6 +417,8 @@ function AdminEventos() {
       ativo: !!editando.ativo,
       vagas: editando.vagas && editando.vagas > 0 ? Math.round(editando.vagas) : null,
       vagas_abrem_em: editando.vagas_abrem_em || null,
+      hora_inicio: editando.hora_inicio || null,
+      hora_fim: editando.hora_fim || null,
       video_url: editando.video_url?.trim() || null,
       video_previa_url: editando.video_previa_url?.trim() || null,
     };
@@ -476,7 +480,7 @@ function AdminEventos() {
               {!e.ativo && <span style={{ ...chip, background: "var(--p-hover)", color: "var(--p-muted)" }}>Oculto</span>}
               {e.ativo && !e.inscricoes_abertas && <span style={{ ...chip, background: "color-mix(in srgb, var(--p-danger) 10%, transparent)", color: "var(--p-danger)" }}>Inscrições fechadas</span>}
             </div>
-            <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 2 }}>{e.quando}{e.dia_semana ? ` · ${e.dia_semana}` : ""}</div>
+            <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 2 }}>{e.quando}{e.dia_semana ? ` · ${e.dia_semana}` : ""}{e.hora_inicio ? ` · ${e.hora_inicio.slice(0, 5)}${e.hora_fim ? `–${e.hora_fim.slice(0, 5)}` : ""}` : ""}</div>
           </div>
           {(() => { const st = situacaoVagas(e, totais[e.id] || 0, filas[e.id] || 0); return st
             ? <div style={{ fontSize: 13, fontWeight: 700, color: st.cor }}>{st.texto}</div>
@@ -503,6 +507,16 @@ function AdminEventos() {
           <input style={{ ...ui.input, marginBottom: 12 }} value={editando.titulo || ""} onChange={(ev) => setEditando({ ...editando, titulo: ev.target.value })} />
           <label style={ui.label}>Data (primeiro dia)</label>
           <input type="date" style={{ ...ui.input, marginBottom: 12 }} value={editando.data_inicio || ""} onChange={(ev) => mudarData(ev.target.value)} />
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={ui.label}>Começa às</label>
+              <input type="time" style={{ ...ui.input, marginBottom: 12 }} value={(editando.hora_inicio || "").slice(0, 5)} onChange={(ev) => setEditando({ ...editando, hora_inicio: ev.target.value || null })} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={ui.label}>Termina às</label>
+              <input type="time" style={{ ...ui.input, marginBottom: 12 }} value={(editando.hora_fim || "").slice(0, 5)} onChange={(ev) => setEditando({ ...editando, hora_fim: ev.target.value || null })} />
+            </div>
+          </div>
           <label style={ui.label}>Como a data aparece para os membros</label>
           <input style={{ ...ui.input, marginBottom: 12 }} placeholder="Ex.: 13 e 14 de Novembro de 2026" value={editando.quando || ""} onChange={(ev) => setEditando({ ...editando, quando: ev.target.value })} />
           <label style={ui.label}>Dia da semana</label>

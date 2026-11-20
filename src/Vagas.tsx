@@ -10,8 +10,15 @@ export type VagaInfo = {
 };
 export type EventoComVaga = {
   id: string; trilha: string; titulo: string; quando: string; diaSemana?: string; dataOrdenacao: string;
-  inscrivel?: boolean; local?: string | null; vaga?: VagaInfo;
+  inscrivel?: boolean; local?: string | null; vaga?: VagaInfo; horaInicio?: string | null; horaFim?: string | null;
 };
+
+// "19:00" -> "19h", "19:30" -> "19h30"; com fim: "19h às 22h"
+const hh = (t: string) => { const [h, m] = t.slice(0, 5).split(":"); return `${Number(h)}h${m && m !== "00" ? m : ""}`; };
+export function horario(e: { horaInicio?: string | null; horaFim?: string | null }): string {
+  if (!e.horaInicio) return "";
+  return e.horaFim ? `${hh(e.horaInicio)} às ${hh(e.horaFim)}` : `${hh(e.horaInicio)}`;
+}
 export type Estado = "passado" | "confirmado" | "fechado" | "em_breve" | "aberto" | "lotado" | "livre";
 export type AcoesVaga = {
   onConfirmar?: (e: EventoComVaga) => void;
@@ -51,19 +58,31 @@ export function quandoAbre(iso: string): string {
 export function adicionarAgenda(e: EventoComVaga) {
   const d = dataEv(e); if (!d) return;
   const f = (x: Date) => `${x.getFullYear()}${String(x.getMonth() + 1).padStart(2, "0")}${String(x.getDate()).padStart(2, "0")}`;
-  const fim = new Date(d); fim.setDate(fim.getDate() + 1);
+  const utc = (x: Date) => x.toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  // Com horário: evento marcado na hora certa (horário da Bahia). Sem horário: dia inteiro.
+  let ini = "", fimTxt = "", diaInteiro = true;
+  if (e.horaInicio) {
+    const i = new Date(`${e.dataOrdenacao.slice(0, 10)}T${e.horaInicio.slice(0, 5)}:00-03:00`);
+    const fimD = e.horaFim ? new Date(`${e.dataOrdenacao.slice(0, 10)}T${e.horaFim.slice(0, 5)}:00-03:00`) : new Date(i.getTime() + 2 * 3600000);
+    if (fimD <= i) fimD.setDate(fimD.getDate() + 1);
+    ini = utc(i); fimTxt = utc(fimD); diaInteiro = false;
+  } else {
+    const fim = new Date(d); fim.setDate(fim.getDate() + 1);
+    ini = f(d); fimTxt = f(fim);
+  }
   const titulo = `${e.titulo} · Ecossistema Master Business`;
   const detalhes = `Presença confirmada no portal: https://portal.oecossistemabusiness.com`;
   if (/iPhone|iPad|Macintosh/.test(navigator.userAgent) && !/Chrome|Android/.test(navigator.userAgent)) {
     const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Ecossistema//Portal//PT", "BEGIN:VEVENT", `UID:${e.id}@portal.oecossistemabusiness.com`,
-      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`, `DTSTART;VALUE=DATE:${f(d)}`, `DTEND;VALUE=DATE:${f(fim)}`,
-      `SUMMARY:${titulo}`, `DESCRIPTION:${detalhes}`, ...(e.local ? [`LOCATION:${e.local}`] : []), "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+      `DTSTAMP:${utc(new Date())}`, diaInteiro ? `DTSTART;VALUE=DATE:${ini}` : `DTSTART:${ini}`, diaInteiro ? `DTEND;VALUE=DATE:${fimTxt}` : `DTEND:${fimTxt}`,
+      `SUMMARY:${titulo}`, `DESCRIPTION:${detalhes}`, ...(e.local ? [`LOCATION:${e.local}`] : []),
+      ...(diaInteiro ? [] : ["BEGIN:VALARM", "TRIGGER:-PT1H", "ACTION:DISPLAY", `DESCRIPTION:${titulo}`, "END:VALARM"]), "END:VEVENT", "END:VCALENDAR"].join("\r\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
     a.download = `${e.id}.ics`; a.click();
     return;
   }
-  const q = new URLSearchParams({ action: "TEMPLATE", text: titulo, dates: `${f(d)}/${f(fim)}`, details: detalhes, ...(e.local ? { location: e.local } : {}) });
+  const q = new URLSearchParams({ action: "TEMPLATE", text: titulo, dates: `${ini}/${fimTxt}`, details: detalhes, ...(e.local ? { location: e.local } : {}) });
   window.open(`https://calendar.google.com/calendar/render?${q}`, "_blank", "noopener");
 }
 

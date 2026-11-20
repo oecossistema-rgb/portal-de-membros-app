@@ -798,7 +798,7 @@ function PortalConteudo({ membro, onSair }) {
   useEffect(() => {
     supabase
       .from("eventos")
-      .select("id, trilha, titulo, quando, dia_semana, data_inicio, inscricoes_abertas, local, galeria, video_url, video_previa_url")
+      .select("id, trilha, titulo, quando, dia_semana, data_inicio, inscricoes_abertas, local, galeria, video_url, video_previa_url, hora_inicio, hora_fim")
       .eq("ativo", true)
       .order("data_inicio")
       .then(({ data }) => {
@@ -815,6 +815,8 @@ function PortalConteudo({ membro, onSair }) {
             galeria: e.galeria,
             videoUrl: e.video_url,
             videoPrevia: e.video_previa_url,
+            horaInicio: e.hora_inicio,
+            horaFim: e.hora_fim,
           }))
         );
         setCarregandoEventos(false);

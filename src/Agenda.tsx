@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, type AcoesVaga, type VagaInfo } from "./Vagas";
+import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, horario, type AcoesVaga, type VagaInfo } from "./Vagas";
 
 // Agenda de Eventos: visual minimalista, agrupado por mês, com bloco de data e destaque do próximo encontro.
 // Galeria de fotos e vídeos do evento: pastas do Google Drive compartilhadas por link (nada fica nos nossos servidores).
 export type ItemGaleria = { id: string; nome: string; tipo: "foto" | "video"; dia: string; credito: string; t?: string; c?: string };
 export type Galeria = { pasta?: string; dias: { titulo: string; pastas: { nome: string; id: string }[] }[]; itens?: ItemGaleria[] };
-export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean; local?: string | null; galeria?: Galeria | null; vaga?: VagaInfo; videoUrl?: string | null; videoPrevia?: string | null };
+export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean; local?: string | null; galeria?: Galeria | null; vaga?: VagaInfo; videoUrl?: string | null; videoPrevia?: string | null; horaInicio?: string | null; horaFim?: string | null };
 
 const TIPOS: Record<string, { rotulo: string; plural: string; cor: string }> = {
   imersao: { rotulo: "Imersão", plural: "Imersões", cor: "#8BAD3F" },
@@ -188,7 +188,7 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
           </div>
           {passado && (e.videoUrl || e.videoPrevia) ? <VideoEvento e={e} onAbrir={() => setVideoDe(e)} /> : (<>
           <h3 style={{ margin: "4px 0 2px", fontSize: 17, fontWeight: 700, color: passado ? "var(--p-warn)" : "var(--p-accent-text)", letterSpacing: -0.2 }}>{e.titulo}{e.local ? ` · ${e.local}` : ""}</h3>
-          <div style={{ fontSize: 14, color: C.suave }}>{e.quando}{e.diaSemana ? ` · ${e.diaSemana}` : ""}</div></>)}
+          <div style={{ fontSize: 14, color: C.suave }}>{e.quando}{e.diaSemana ? ` · ${e.diaSemana}` : ""}{horario(e) ? ` · ${horario(e)}` : ""}</div></>)}
           {!passado && <div style={{ marginTop: 8 }}><FotosConfirmados v={e.vaga} /></div>}
         </div>
         <div className="ag-acao">{acao(e)}</div>
@@ -219,7 +219,7 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
               <div className="ag-prox">
                 <div style={{ fontSize: 13, letterSpacing: 0, fontWeight: 600, color: C.oliva }}>Próximo encontro · {quandoTexto(diasAte(proximo))}</div>
                 <div style={{ fontSize: 17, fontWeight: 700, margin: "8px 0 4px" }}>{proximo.titulo}</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--p-muted)", fontSize: 13.5 }}><Ponto cor={t.cor === C.tinta ? "#fff" : t.cor} />{t.rotulo} · {proximo.quando}</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--p-muted)", fontSize: 13.5 }}><Ponto cor={t.cor === C.tinta ? "#fff" : t.cor} />{t.rotulo} · {proximo.quando}{horario(proximo) ? ` · ${horario(proximo)}` : ""}</div>
               </div>
             );
           })()}

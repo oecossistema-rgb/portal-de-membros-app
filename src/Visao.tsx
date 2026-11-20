@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { supabase } from "./supabase";
 import { temaAtual, trocarTema, type Tema } from "./tema";
-import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, type AcoesVaga, type VagaInfo } from "./Vagas";
+import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, horario, type AcoesVaga, type VagaInfo } from "./Vagas";
 
 // Novo visual do portal (tema escuro, verde neon), reproduzindo a referência aprovada.
 // PortalShell = menu lateral + barra do topo. VisaoGeral = painel inicial do membro.
@@ -223,7 +223,7 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
 type TipoOp = "cliente" | "ajuda" | "parceria" | "afinidade";
 export type Op = { id: string; tipo: TipoOp; motivo: string; forca: number; status: string; gerado_em: string; atualizado_em: string;
   alvo: { nome: string | null; empresa: string | null; segmento: string | null; cidade: string | null; estado: string | null; foto_url: string | null; logo_url: string | null; telefone_whatsapp: string | null } | null };
-export type EventoV = { id: string; titulo: string; quando: string; dataOrdenacao: string; trilha: string; diaSemana?: string; local?: string | null; inscrivel?: boolean; vaga?: VagaInfo };
+export type EventoV = { id: string; titulo: string; quando: string; dataOrdenacao: string; trilha: string; diaSemana?: string; local?: string | null; inscrivel?: boolean; vaga?: VagaInfo; horaInicio?: string | null; horaFim?: string | null };
 
 const ROT: Record<TipoOp, string> = { cliente: "Cliente potencial", ajuda: "Solução para você", parceria: "Parceria", afinidade: "Afinidade" };
 const pct = (f: number) => (f >= 3 ? 95 : f === 2 ? 82 : 64);
@@ -277,7 +277,7 @@ function EventoDestaque({ evento, confirmado, acoes, onIr }: { evento?: EventoV;
           </div>
           <h2 style={{ margin: "10px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 750, letterSpacing: -0.6, color: "var(--p-text)" }}>{evento.titulo}</h2>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12, fontSize: 14.5, color: "var(--p-text2)" }}>
-            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Ic n="cal" t={16} />{[evento.diaSemana, evento.quando].filter(Boolean).join(" · ")}</span>
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Ic n="cal" t={16} />{[evento.diaSemana, evento.quando, horario(evento)].filter(Boolean).join(" · ")}</span>
             {evento.local && <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Ic n="pino" t={16} />{evento.local}</span>}
           </div>
           <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>

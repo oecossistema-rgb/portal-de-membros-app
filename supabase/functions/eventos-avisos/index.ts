@@ -9,7 +9,7 @@ const resp = (s: number, c: unknown) => new Response(JSON.stringify(c), { status
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const PORTAL = "portal.oecossistemabusiness.com";
 
-type Evento = { id: string; titulo: string; quando: string; dia_semana: string | null; local: string | null; vagas: number | null; data_inicio: string };
+type Evento = { id: string; titulo: string; quando: string; dia_semana: string | null; local: string | null; vagas: number | null; data_inicio: string; hora_inicio?: string | null; hora_fim?: string | null };
 
 export function telefoneZapi(bruto: string): string {
   const d = (bruto || "").replace(/\D/g, "");
@@ -18,7 +18,9 @@ export function telefoneZapi(bruto: string): string {
 }
 
 const primeiro = (nome: string | null) => (nome || "").trim().split(/\s+/)[0] || "";
-const quando = (e: Evento) => [e.quando, e.dia_semana].filter(Boolean).join(" · ");
+const hh = (t: string) => { const [h, m] = t.slice(0, 5).split(":"); return `${Number(h)}h${m && m !== "00" ? m : ""}`; };
+const horario = (e: Evento) => (e.hora_inicio ? (e.hora_fim ? `${hh(e.hora_inicio)} às ${hh(e.hora_fim)}` : hh(e.hora_inicio)) : "");
+const quando = (e: Evento) => [e.quando, e.dia_semana, horario(e)].filter(Boolean).join(" · ");
 
 export function mensagem(tipo: string, e: Evento, nome: string | null): string {
   const oi = primeiro(nome) ? `${primeiro(nome)}, ` : "";
@@ -60,7 +62,7 @@ async function avisar(tipo: string, e: Evento, userId: string) {
   return { user_id: userId, ...r };
 }
 
-const CAMPOS = "id, titulo, quando, dia_semana, local, vagas, data_inicio";
+const CAMPOS = "id, titulo, quando, dia_semana, local, vagas, data_inicio, hora_inicio, hora_fim";
 const hojeBahia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bahia" }).format(new Date());
 const horaBahia = () => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bahia", hour: "2-digit", hour12: false }).format(new Date()));
 const amanha = (iso: string) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
@@ -105,7 +107,7 @@ Deno.serve(async (req) => {
   try { c = await req.json(); } catch { /* vazio */ }
   if (c.previa) {
     // Só mostra os textos (não envia nada): para conferir as mensagens.
-    const e: Evento = { id: "x", titulo: "Growth Session", quando: "16 de Dezembro de 2026", dia_semana: "Quarta-feira", local: null, vagas: 5, data_inicio: "2026-12-16" };
+    const e: Evento = { id: "x", titulo: "Growth Session", quando: "16 de Dezembro de 2026", dia_semana: "Quarta-feira", local: null, vagas: 5, data_inicio: "2026-12-16", hora_inicio: "19:00", hora_fim: "22:00" };
     return resp(200, Object.fromEntries(["confirmado", "promovido", "abertura", "lembrete"].map((t) => [t, mensagem(t, e, "Rodrigo Aureliano")])));
   }
   if (c.varredura) return resp(200, { feitos: await varredura() });

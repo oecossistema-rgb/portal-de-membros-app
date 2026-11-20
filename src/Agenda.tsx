@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, type AcoesVaga, type VagaInfo } from "./Vagas";
 
 // Agenda de Eventos: visual minimalista, agrupado por mês, com bloco de data e destaque do próximo encontro.
 // Galeria de fotos e vídeos do evento: pastas do Google Drive compartilhadas por link (nada fica nos nossos servidores).
 export type Galeria = { pasta?: string; dias: { titulo: string; pastas: { nome: string; id: string }[] }[] };
-export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean; local?: string | null; galeria?: Galeria | null };
+export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean; local?: string | null; galeria?: Galeria | null; vaga?: VagaInfo };
 
 const TIPOS: Record<string, { rotulo: string; plural: string; cor: string }> = {
   imersao: { rotulo: "Imersão", plural: "Imersões", cor: "#8BAD3F" },
@@ -72,9 +73,10 @@ function Ponto({ cor }: { cor: string }) {
   return <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor, display: "inline-block", flex: "0 0 auto" }} />;
 }
 
-export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, onConfirmar, onCancelar }: {
+export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, onConfirmar, onCancelar, onLista }: {
   eventos: EventoAgenda[]; carregando: boolean; filtro: string; setFiltro: (f: string) => void;
-  confirmacoes: Record<string, string>; onConfirmar: (e: EventoAgenda) => void; onCancelar: (e: EventoAgenda) => void;
+  confirmacoes: Record<string, string>; onConfirmar?: (e: EventoAgenda) => void; onCancelar?: (e: EventoAgenda) => void;
+  onLista?: AcoesVaga["onLista"];
 }) {
   const hoje = hoje0();
   const ordenados = useMemo(() => [...eventos].sort((a, b) => (a.dataOrdenacao || "").localeCompare(b.dataOrdenacao || "")), [eventos]);
@@ -99,21 +101,13 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
   const diasAte = (e: EventoAgenda) => { const d = dataDe(e); return d ? Math.round((d.getTime() - hoje.getTime()) / 86400000) : null; };
   const quandoTexto = (n: number | null) => n === null ? "" : n === 0 ? "é hoje" : n === 1 ? "é amanhã" : `em ${n} dias`;
 
+  const acoes: AcoesVaga = { onConfirmar: onConfirmar as AcoesVaga["onConfirmar"], onCancelar: onCancelar as AcoesVaga["onCancelar"], onLista };
   const acao = (e: EventoAgenda): ReactNode => {
-    const conf = confirmacoes[e.id];
-    const d = dataDe(e);
-    if (d && d < hoje) return e.galeria?.dias?.length
+    const estado = estadoEvento(e, !!confirmacoes[e.id]);
+    if (estado === "passado") return e.galeria?.dias?.length
       ? <button className="ag-btn" onClick={() => setGaleriaDe(e)}>📷 Fotos e vídeos</button>
-      : <span style={{ fontSize: 13, fontWeight: 600, color: C.claro }}>Realizado</span>;
-    if (conf) return (
-      <button className="ag-ok" onClick={() => onCancelar(e)} title="Clique para cancelar sua presença">
-        <span style={{ width: 22, height: 22, borderRadius: "50%", background: C.oliva, color: "var(--p-text)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>✓</span>
-        <span><span style={{ display: "block", fontSize: 13.5, fontWeight: 700 }}>Presença confirmada</span>
-          <span className="ag-ok-sub" style={{ display: "block", fontSize: 12, color: C.suave }}>Cancelar</span></span>
-      </button>
-    );
-    if (e.inscrivel === false) return <span style={{ fontSize: 13, fontWeight: 700, color: C.claro }}>Inscrições encerradas</span>;
-    return <button className="ag-btn" onClick={() => onConfirmar(e)}>Confirmar presença</button>;
+      : <span style={{ fontSize: 13, fontWeight: 600, color: "var(--p-warn)" }}>Realizado</span>;
+    return <AcaoVaga e={e} estado={estado} acoes={acoes} botao="ag-btn" />;
   };
 
   const cartao = (e: EventoAgenda) => {
@@ -132,10 +126,11 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
           <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: C.suave }}>
             <Ponto cor={t.cor} />{t.rotulo}
             {ehProx && <span style={{ marginLeft: 4, background: C.olivaClaro, color: C.olivaEsc, borderRadius: 100, padding: "2px 8px", letterSpacing: 0.5 }}>Próximo</span>}
-            {passado && <span style={{ marginLeft: 4, background: "var(--p-hover)", color: C.suave, borderRadius: 100, padding: "2px 8px", letterSpacing: 0.5 }}>Realizado</span>}
+            {passado && <span style={{ marginLeft: 4, background: "color-mix(in srgb, var(--p-warn) 12%, transparent)", color: "var(--p-warn)", borderRadius: 100, padding: "2px 8px", letterSpacing: 0.5 }}>Realizado</span>}
           </div>
-          <h3 style={{ margin: "4px 0 2px", fontSize: 17, fontWeight: 700, color: C.tinta, letterSpacing: -0.2 }}>{e.titulo}{e.local ? ` · ${e.local}` : ""}</h3>
+          <h3 style={{ margin: "4px 0 2px", fontSize: 17, fontWeight: 700, color: passado ? "var(--p-warn)" : "var(--p-accent-text)", letterSpacing: -0.2 }}>{e.titulo}{e.local ? ` · ${e.local}` : ""}</h3>
           <div style={{ fontSize: 14, color: C.suave }}>{e.quando}{e.diaSemana ? ` · ${e.diaSemana}` : ""}</div>
+          {!passado && <div style={{ marginTop: 8 }}><FotosConfirmados v={e.vaga} /></div>}
         </div>
         <div className="ag-acao">{acao(e)}</div>
       </article>
@@ -144,7 +139,7 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
 
   return (
     <div className="ag">
-      <style>{CSS}</style>
+      <style>{CSS + CSS_VAGAS}</style>
       {galeriaDe?.galeria && <GaleriaEvento evento={galeriaDe} galeria={galeriaDe.galeria} onFechar={() => setGaleriaDe(null)} />}
       <section className="ag-hero">
         <div className="ag-hero-in">

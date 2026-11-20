@@ -34,6 +34,8 @@ type Evento = {
   data_inicio: string;
   inscricoes_abertas: boolean;
   ativo: boolean;
+  vagas: number | null;
+  vagas_abrem_em: string | null;
 };
 
 type Presenca = {
@@ -343,23 +345,44 @@ function AdminMembros() {
 /* EVENTOS                                                             */
 /* ------------------------------------------------------------------ */
 
-const EVENTO_VAZIO: Partial<Evento> = { trilha: "growth", titulo: "", data_inicio: "", quando: "", dia_semana: "", inscricoes_abertas: true, ativo: true };
+const EVENTO_VAZIO: Partial<Evento> = { trilha: "growth", titulo: "", data_inicio: "", quando: "", dia_semana: "", inscricoes_abertas: true, ativo: true, vagas: 5, vagas_abrem_em: null };
+// Vagas padrão por tipo de encontro (dá para mudar em cada evento).
+const VAGAS_PADRAO: Record<string, number | null> = { growth: 5, conselho: 10 };
+// Data e hora no fuso do navegador <-> campo "datetime-local".
+const paraCampo = (iso: string | null | undefined) => { if (!iso) return ""; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+const doCampo = (v: string) => (v ? new Date(v).toISOString() : null);
+const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+function situacaoVagas(e: Evento, confirmados: number, fila: number): { texto: string; cor: string } | null {
+  if (!e.ativo || !e.vagas) return null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  if (new Date(`${e.data_inicio}T00:00:00`) < hoje) return { texto: `Realizado · ${confirmados}/${e.vagas}`, cor: "var(--p-warn)" };
+  if (!e.inscricoes_abertas) return { texto: `Vagas fechadas · ${confirmados}/${e.vagas}`, cor: "var(--p-danger)" };
+  if (e.vagas_abrem_em && new Date(e.vagas_abrem_em) > new Date()) return { texto: `Abre ${dataHora(e.vagas_abrem_em)}`, cor: "var(--p-muted)" };
+  if (confirmados >= e.vagas) return { texto: `Esgotado${fila ? ` · ${fila} na fila` : ""}`, cor: "var(--p-warn)" };
+  return { texto: `Aberto · ${confirmados}/${e.vagas}`, cor: "var(--p-accent)" };
+}
 
 function AdminEventos() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [totais, setTotais] = useState<Record<string, number>>({});
+  const [filas, setFilas] = useState<Record<string, number>>({});
   const [editando, setEditando] = useState<Partial<Evento> | null>(null);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
 
   async function carregar() {
-    const [{ data: ev }, { data: pr }] = await Promise.all([
+    const [{ data: ev }, { data: pr }, { data: fl }] = await Promise.all([
       supabase.from("eventos").select("*").order("data_inicio"),
       supabase.from("presencas").select("evento_id"),
+      supabase.from("eventos_lista").select("evento_id").eq("tipo", "fila"),
     ]);
     setEventos((ev as Evento[]) || []);
     const t: Record<string, number> = {};
     (pr || []).forEach((p: { evento_id: string }) => { t[p.evento_id] = (t[p.evento_id] || 0) + 1; });
     setTotais(t);
+    const f: Record<string, number> = {};
+    (fl || []).forEach((p: { evento_id: string }) => { f[p.evento_id] = (f[p.evento_id] || 0) + 1; });
+    setFilas(f);
   }
   useEffect(() => { carregar(); }, []);
 
@@ -383,6 +406,8 @@ function AdminEventos() {
       dia_semana: editando.dia_semana?.trim() || null,
       inscricoes_abertas: !!editando.inscricoes_abertas,
       ativo: !!editando.ativo,
+      vagas: editando.vagas && editando.vagas > 0 ? Math.round(editando.vagas) : null,
+      vagas_abrem_em: editando.vagas_abrem_em || null,
     };
     const { error } = editando.id
       ? await supabase.from("eventos").update(dados).eq("id", editando.id)
@@ -393,6 +418,12 @@ function AdminEventos() {
     }
     setEditando(null);
     setMsg({ tipo: "ok", texto: "Evento salvo." });
+    carregar();
+  }
+
+  async function abrirAgora(e: Evento) {
+    const { error } = await supabase.from("eventos").update({ vagas_abrem_em: new Date().toISOString(), inscricoes_abertas: true }).eq("id", e.id);
+    setMsg(error ? { tipo: "erro", texto: "Não foi possível abrir as vagas." } : { tipo: "ok", texto: `Vagas de "${e.titulo}" abertas.` });
     carregar();
   }
 
@@ -413,7 +444,12 @@ function AdminEventos() {
             </div>
             <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 2 }}>{e.quando}{e.dia_semana ? ` · ${e.dia_semana}` : ""}</div>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--p-accent)" }}>{totais[e.id] || 0} confirmados</div>
+          {(() => { const st = situacaoVagas(e, totais[e.id] || 0, filas[e.id] || 0); return st
+            ? <div style={{ fontSize: 13, fontWeight: 700, color: st.cor }}>{st.texto}</div>
+            : <div style={{ fontSize: 13, fontWeight: 700, color: "var(--p-accent)" }}>{totais[e.id] || 0} confirmados</div>; })()}
+          {e.ativo && e.vagas && e.vagas_abrem_em && new Date(e.vagas_abrem_em) > new Date() && (
+            <button style={ui.botaoSecundario} onClick={() => abrirAgora(e)}>Abrir agora</button>
+          )}
           <button style={ui.botaoSecundario} onClick={() => { setMsg(null); setEditando({ ...e }); }}>Editar</button>
         </div>
       ))}
@@ -421,7 +457,7 @@ function AdminEventos() {
       {editando && (
         <Modal titulo={editando.id ? "Editar evento" : "Novo evento"} onFechar={() => setEditando(null)}>
           <label style={ui.label}>Tipo</label>
-          <select style={{ ...ui.input, marginBottom: 12 }} value={editando.trilha} disabled={!!editando.id} onChange={(ev) => setEditando({ ...editando, trilha: ev.target.value })}>
+          <select style={{ ...ui.input, marginBottom: 12 }} value={editando.trilha} disabled={!!editando.id} onChange={(ev) => setEditando({ ...editando, trilha: ev.target.value, vagas: VAGAS_PADRAO[ev.target.value] ?? null })}>
             {Object.entries(TRILHAS).map(([k, r]) => <option key={k} value={k}>{r}</option>)}
           </select>
           <label style={ui.label}>Título</label>
@@ -432,6 +468,22 @@ function AdminEventos() {
           <input style={{ ...ui.input, marginBottom: 12 }} placeholder="Ex.: 13 e 14 de Novembro de 2026" value={editando.quando || ""} onChange={(ev) => setEditando({ ...editando, quando: ev.target.value })} />
           <label style={ui.label}>Dia da semana</label>
           <input style={{ ...ui.input, marginBottom: 12 }} placeholder="Ex.: Sexta e Sábado" value={editando.dia_semana || ""} onChange={(ev) => setEditando({ ...editando, dia_semana: ev.target.value })} />
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 120px" }}>
+              <label style={ui.label}>Vagas</label>
+              <input type="number" min={1} style={{ ...ui.input, marginBottom: 4 }} placeholder="Sem limite" value={editando.vagas ?? ""}
+                onChange={(ev) => setEditando({ ...editando, vagas: ev.target.value ? Number(ev.target.value) : null })} />
+            </div>
+            <div style={{ flex: "2 1 220px" }}>
+              <label style={ui.label}>Abertura das vagas</label>
+              <input type="datetime-local" style={{ ...ui.input, marginBottom: 4 }} value={paraCampo(editando.vagas_abrem_em)}
+                onChange={(ev) => setEditando({ ...editando, vagas_abrem_em: doCampo(ev.target.value) })} />
+            </div>
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--p-muted)", margin: "0 0 12px", lineHeight: 1.45 }}>
+            Vagas em branco = sem limite. Abertura em branco = vagas já abertas. Quando lotar, as vagas fecham sozinhas e os próximos entram na fila de espera;
+            se alguém cancelar, o 1º da fila entra automaticamente e recebe aviso no WhatsApp. Quem pediu "me avise" recebe mensagem na hora da abertura.
+          </div>
           <Caixa marcado={!!editando.inscricoes_abertas} onChange={(v) => setEditando({ ...editando, inscricoes_abertas: v })} texto="Inscrições abertas (membros podem confirmar presença)" />
           <Caixa marcado={!!editando.ativo} onChange={(v) => setEditando({ ...editando, ativo: v })} texto="Visível na agenda" />
           {msg?.tipo === "erro" && <div style={ui.erro}>{msg.texto}</div>}
@@ -449,6 +501,7 @@ function AdminEventos() {
 function AdminPresencas() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [todas, setTodas] = useState<Presenca[]>([]);
+  const [fila, setFila] = useState<{ id: number; evento_id: string; tipo: string; criado_em: string; nome: string }[]>([]);
   const [eventoId, setEventoId] = useState("todos");
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
@@ -462,6 +515,13 @@ function AdminPresencas() {
     setEventos((ev as Evento[]) || []);
     setTodas((pr as Presenca[]) || []);
     setErro(error ? "Não foi possível carregar as presenças." : "");
+    const [{ data: fl }, { data: ms }] = await Promise.all([
+      supabase.from("eventos_lista").select("id,evento_id,tipo,criado_em,user_id").order("criado_em"),
+      supabase.from("membros").select("nome,auth_user_id").not("auth_user_id", "is", null),
+    ]);
+    const nomes: Record<string, string> = {};
+    (ms || []).forEach((m: { nome: string; auth_user_id: string }) => { nomes[m.auth_user_id] = m.nome; });
+    setFila((fl || []).map((l: { id: number; evento_id: string; tipo: string; criado_em: string; user_id: string }) => ({ ...l, nome: nomes[l.user_id] || "Membro" })));
     setCarregando(false);
   }
   useEffect(() => { carregar(); }, []);
@@ -515,6 +575,24 @@ function AdminPresencas() {
           <button style={ui.botaoPerigo} onClick={() => remover(p)}>Remover</button>
         </div>
       ))}
+      {eventoId !== "todos" && ["fila", "aviso"].map((tipo) => {
+        const lista = fila.filter((l) => l.evento_id === eventoId && l.tipo === tipo);
+        if (!lista.length) return null;
+        return (
+          <div key={tipo} style={{ marginTop: 22 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: tipo === "fila" ? "var(--p-warn)" : "var(--p-muted)", marginBottom: 10 }}>
+              {tipo === "fila" ? `Fila de espera (${lista.length}) · entram nesta ordem quando abrir vaga` : `Pediram aviso da abertura (${lista.length})`}
+            </div>
+            {lista.map((l, i) => (
+              <div key={l.id} style={{ ...ui.cartao, padding: "10px 18px", display: "flex", gap: 12, alignItems: "center" }}>
+                {tipo === "fila" && <strong style={{ color: "var(--p-warn)" }}>{i + 1}º</strong>}
+                <span style={{ fontWeight: 600 }}>{l.nome}</span>
+                <span style={{ fontSize: 13, color: "var(--p-muted)", marginLeft: "auto" }}>{dataCurta(l.criado_em)}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </main>
   );
 }

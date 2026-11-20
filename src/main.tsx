@@ -4,9 +4,11 @@ import './index.css'
 import { aplicarTema, temaSalvo } from './tema'
 aplicarTema(temaSalvo() || "claro")
 import App from './App.tsx'
+import { NovaVersao } from './NovaVersao'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <NovaVersao />
   </StrictMode>,
 )

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { supabase } from "./supabase";
 import { temaAtual, trocarTema, type Tema } from "./tema";
+import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, type AcoesVaga, type VagaInfo } from "./Vagas";
 
 // Novo visual do portal (tema escuro, verde neon), reproduzindo a referência aprovada.
 // PortalShell = menu lateral + barra do topo. VisaoGeral = painel inicial do membro.
@@ -222,7 +223,7 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
 type TipoOp = "cliente" | "ajuda" | "parceria" | "afinidade";
 export type Op = { id: string; tipo: TipoOp; motivo: string; forca: number; status: string; gerado_em: string; atualizado_em: string;
   alvo: { nome: string | null; empresa: string | null; segmento: string | null; cidade: string | null; estado: string | null; foto_url: string | null; logo_url: string | null; telefone_whatsapp: string | null } | null };
-export type EventoV = { id: string; titulo: string; quando: string; dataOrdenacao: string; trilha: string; diaSemana?: string; local?: string | null };
+export type EventoV = { id: string; titulo: string; quando: string; dataOrdenacao: string; trilha: string; diaSemana?: string; local?: string | null; inscrivel?: boolean; vaga?: VagaInfo };
 
 const ROT: Record<TipoOp, string> = { cliente: "Cliente potencial", ajuda: "Solução para você", parceria: "Parceria", afinidade: "Afinidade" };
 const pct = (f: number) => (f >= 3 ? 95 : f === 2 ? 82 : 64);
@@ -248,7 +249,7 @@ function Kpi({ icone, valor, rotulo, serie }: { icone: IconeV; valor: number; ro
 
 // Próximo encontro em destaque na tela inicial (no lugar do gráfico de crescimento), com cara de campanha.
 const TRILHA_ROT: Record<string, string> = { imersao: "Imersão", growth: "Growth Session", conselho: "Reunião de Conselho", "business-day": "Business Day", network: "Network Experience", "network-experience": "Network Experience" };
-function EventoDestaque({ evento, confirmado, onConfirmar, onIr }: { evento?: EventoV; confirmado: boolean; onConfirmar?: (e: EventoV) => void; onIr: (id: string) => void }) {
+function EventoDestaque({ evento, confirmado, acoes, onIr }: { evento?: EventoV; confirmado: boolean; acoes: AcoesVaga; onIr: (id: string) => void }) {
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   if (!evento) return (
     <section className="pv-card pv-destaque" style={{ padding: 26 }}>
@@ -264,6 +265,7 @@ function EventoDestaque({ evento, confirmado, onConfirmar, onIr }: { evento?: Ev
   const mes = d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase();
   return (
     <section className="pv-card pv-destaque">
+      <style>{CSS_VAGAS}</style>
       <svg className="pv-destaque-fundo" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
         {Array.from({ length: 16 }, (_, i) => <path key={i} d={`M${200 + i * 28} 260 L${250 + i * 24} ${40 + (i % 5) * 14} L${282 + i * 24} 260`} fill="none" stroke="var(--p-accent)" strokeOpacity={0.05 + (i % 3) * 0.035} />)}
       </svg>
@@ -278,11 +280,10 @@ function EventoDestaque({ evento, confirmado, onConfirmar, onIr }: { evento?: Ev
             <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Ic n="cal" t={16} />{[evento.diaSemana, evento.quando].filter(Boolean).join(" · ")}</span>
             {evento.local && <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Ic n="pino" t={16} />{evento.local}</span>}
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
-            {confirmado
-              ? <span className="pv-destaque-ok"><Ic n="check" t={15} />Presença confirmada</span>
-              : <button className="pv-btn pv-destaque-cta" onClick={() => (onConfirmar ? onConfirmar(evento) : onIr("agenda"))}>Confirmar presença <Ic n="seta" t={14} /></button>}
-            <button className="pv-btn2" onClick={() => onIr("agenda")}>Ver agenda completa</button>
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+            <AcaoVaga e={evento} estado={estadoEvento(evento, confirmado)} acoes={acoes} grande botao="pv-btn pv-destaque-cta" botao2="pv-btn2" />
+            <FotosConfirmados v={evento.vaga} max={6} />
+            <div><button className="pv-btn2" onClick={() => onIr("agenda")}>Ver agenda completa</button></div>
           </div>
         </div>
         <div className="pv-destaque-data">
@@ -300,9 +301,9 @@ function abrirWhatsapp(n?: string | null) {
   if (t) window.open(`https://wa.me/${t.startsWith("55") ? t : `55${t}`}`, "_blank", "noopener");
 }
 
-export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr, onConfirmar, demo }: {
+export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr, acoes, demo }: {
   userId: string; membroId?: string; nome: string; eventos: EventoV[]; confirmacoes: Record<string, string>; onIr: (id: string) => void;
-  onConfirmar?: (e: EventoV) => void; // sem isso (ex.: "ver como membro"), o botão leva à agenda
+  acoes?: AcoesVaga; // sem isso (ex.: "ver como membro"), os botões ficam só para olhar
   demo?: { ops: Op[]; membros: { nome: string; created_at: string }[] }; // só para pré-visualização
 }) {
   const [ops, setOps] = useState<Op[]>([]);
@@ -374,7 +375,7 @@ export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr
       </div>
 
       <div className="pv-meio">
-        <EventoDestaque evento={prox} confirmado={!!(prox && confirmacoes[prox.id])} onConfirmar={onConfirmar} onIr={onIr} />
+        <EventoDestaque evento={prox} confirmado={!!(prox && confirmacoes[prox.id])} acoes={acoes || {}} onIr={onIr} />
 
         <section className="pv-card" style={{ padding: 18 }}>
           {titulo("raio", "Atividade Recente", <button className="pv-link" onClick={() => onIr("painel")}>Ver todas <Ic n="seta" t={13} /></button>)}

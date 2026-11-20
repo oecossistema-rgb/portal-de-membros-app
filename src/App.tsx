@@ -1,6 +1,7 @@
 import { PainelMembro, OportunidadesDoMembro } from "./Painel";
 import { Agenda, type Galeria } from "./Agenda";
 import { PortalShell, VisaoGeral } from "./Visao";
+import { carregarVagas, type AcoesVaga, type VagaInfo } from "./Vagas";
 import { useState, useMemo, useEffect, type ReactNode, type ChangeEvent, type InputHTMLAttributes } from "react";
 import { supabase } from "./supabase";
 import Membros from "./Membros";
@@ -816,6 +817,12 @@ function PortalConteudo({ membro, onSair }) {
         setCarregandoEventos(false);
       });
   }, []);
+  // Vagas dos eventos (limite, abertura programada, fila, quem já confirmou).
+  const [vagas, setVagas] = useState<Record<string, VagaInfo>>({});
+  const recarregarVagas = () => carregarVagas(verComo?.id).then(setVagas).catch(() => {});
+  useEffect(() => { recarregarVagas(); }, [verComo]); // eslint-disable-line react-hooks/exhaustive-deps
+  const eventosComVaga = useMemo(() => eventos.map((e) => ({ ...e, vaga: vagas[e.id] })), [eventos, vagas]);
+  const [avisoEvento, setAvisoEvento] = useState("");
   const [secao, setSecao] = useState<Secao>(secoesValidas.includes(hashInicial) ? hashInicial : (membro.equipe ? "admin" : "visao"));
 
   const mudarSecao = (novaSecao: Secao) => {
@@ -887,29 +894,37 @@ function PortalConteudo({ membro, onSair }) {
         throw new Error("Usuário não autenticado");
       }
       
-      const { error: insertError } = await supabase
-        .from("presencas")
-        .insert({
-          user_id: authData.user.id,
-          membro: nome,
-          membro_login: membro.login,
-          evento_id: modalEvento.id,
-          evento: modalEvento.titulo,
-          data_evento: modalEvento.quando,
-          trilha: TRILHAS[modalEvento.trilha].rotulo,
-          confirmado_em: new Date().toISOString(),
-        });
-      
+      const { data: r, error: insertError } = await supabase.rpc("confirmar_presenca", { p_evento: modalEvento.id, p_nome: nome });
       if (insertError) {
         throw insertError;
       }
+      if (r !== "confirmado") {
+        setEnviando(false);
+        recarregarVagas();
+        if (r === "lotado") { setErro("lotado"); return; }
+        setErro(r === "nao_abriu" ? "As vagas deste encontro ainda não abriram." : "As inscrições deste encontro estão encerradas.");
+        return;
+      }
       setConfirmacoes((prev) => ({ ...prev, [modalEvento.id]: nome }));
       fecharModal();
+      recarregarVagas();
     } catch {
       setErro("Não foi possível confirmar agora. Tente novamente em instantes.");
       setEnviando(false);
     }
   }
+  // Fila de espera e "me avise quando abrir".
+  const onLista: AcoesVaga["onLista"] = async (evento, tipo, entrar) => {
+    if (!entrar) { await supabase.rpc("sair_lista", { p_evento: evento.id, p_tipo: tipo }); recarregarVagas(); return; }
+    const { data: r, error } = await supabase.rpc("entrar_lista", { p_evento: evento.id, p_tipo: tipo });
+    if (error) { setAvisoEvento("Não foi possível agora. Tente novamente em instantes."); return; }
+    if (r === "vaga_livre") { abrirConfirmacao(evento); }
+    if (tipo === "fila" && r === "ok") setAvisoEvento("Você entrou na fila de espera. Se alguém desistir, sua presença é confirmada automaticamente e avisamos você no WhatsApp.");
+    if (tipo === "aviso" && r === "ok") setAvisoEvento("Pronto! Assim que as vagas abrirem, avisamos você no WhatsApp.");
+    recarregarVagas();
+  };
+  const acoesVaga: AcoesVaga = { onConfirmar: abrirConfirmacao, onCancelar: cancelarPresenca, onLista };
+
   async function cancelarPresenca(evento) {
     try {
       const { data: authData, error: authError } =
@@ -919,12 +934,11 @@ function PortalConteudo({ membro, onSair }) {
         throw new Error("Usuário não autenticado");
       }
   
-      const { error: deleteError } = await supabase
-        .from("presencas")
-        .delete()
-        .eq("user_id", authData.user.id)
-        .eq("evento_id", evento.id);
-  
+      const { data: rc, error: deleteError } = await supabase.rpc("cancelar_presenca", { p_evento: evento.id });
+      if (rc === "prazo") {
+        setAvisoEvento("Faltando menos de um dia para o encontro, o cancelamento é feito com a equipe do Ecossistema. Fale com a gente no WhatsApp.");
+        return;
+      }
       if (deleteError) {
         throw deleteError;
       }
@@ -934,8 +948,9 @@ function PortalConteudo({ membro, onSair }) {
         delete novo[evento.id];
         return novo;
       });
+      recarregarVagas();
     } catch {
-      alert("Não foi possível cancelar a presença.");
+      setAvisoEvento("Não foi possível cancelar a presença. Tente novamente em instantes.");
     }
   }
   return (
@@ -981,14 +996,14 @@ function PortalConteudo({ membro, onSair }) {
         </div>
       )}
       {secao === "visao" && (verComo
-        ? <VisaoGeral key={verComo.id} userId="" membroId={verComo.id} nome={verComo.nome} eventos={eventos} confirmacoes={confVisto}
+        ? <VisaoGeral key={verComo.id} userId="" membroId={verComo.id} nome={verComo.nome} eventos={eventosComVaga} confirmacoes={confVisto}
             onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)} />
-        : <VisaoGeral userId={membro.userId} nome={membro.nome} eventos={eventos} confirmacoes={confirmacoes} onConfirmar={abrirConfirmacao}
+        : <VisaoGeral userId={membro.userId} nome={membro.nome} eventos={eventosComVaga} confirmacoes={confirmacoes} acoes={acoesVaga}
             onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)} />
       )}
       {secao === "agenda" && (
-        <Agenda eventos={eventos} carregando={carregandoEventos} filtro={filtro} setFiltro={setFiltro}
-          confirmacoes={verComo ? confVisto : confirmacoes} onConfirmar={verComo ? () => {} : abrirConfirmacao} onCancelar={verComo ? () => {} : cancelarPresenca} />
+        <Agenda eventos={eventosComVaga} carregando={carregandoEventos} filtro={filtro} setFiltro={setFiltro}
+          confirmacoes={verComo ? confVisto : confirmacoes} onConfirmar={verComo ? undefined : abrirConfirmacao} onCancelar={verComo ? undefined : cancelarPresenca} onLista={verComo ? undefined : onLista} />
       )}
       {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin && !verComo} />}
       {secao === "painel" && (verComo ? <OportunidadesDoMembro key={verComo.id} membroId={verComo.id} nome={verComo.nome} /> : <PainelMembro userId={membro.userId} nome={membro.nome} />)}
@@ -1032,17 +1047,39 @@ function PortalConteudo({ membro, onSair }) {
               }}
             />
 
-            {erro && <div style={S.modalErro}>{erro}</div>}
+            {erro && erro !== "lotado" && <div style={S.modalErro}>{erro}</div>}
 
+            {erro === "lotado" ? (
+              <div style={{ marginTop: 6 }}>
+                <div style={{ background: "color-mix(in srgb, var(--p-warn) 12%, transparent)", color: "var(--p-warn)", borderRadius: 12, padding: "12px 14px", fontSize: 14.5, fontWeight: 600, lineHeight: 1.4 }}>
+                  As vagas deste encontro foram 100% preenchidas.
+                </div>
+                <p style={{ fontSize: 14, color: "var(--p-text2)", lineHeight: 1.5, margin: "12px 0 0" }}>Entre na fila de espera: se alguém desistir, sua presença é confirmada automaticamente e avisamos você no WhatsApp.</p>
+                <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={() => { const ev = modalEvento; fecharModal(); onLista(ev, "fila", true); }}>
+                  Entrar na fila de espera
+                </button>
+              </div>
+            ) : (
             <button
               className="cta-btn"
               style={{ ...S.ctaBtn, ...S.modalBtn }}
               onClick={confirmarPresenca}
               disabled={enviando}
             >
-              {enviando ? "Confirmando..." : "Confirmar minha presença"}
+              {enviando ? "Confirmando..." : vagas[modalEvento.id]?.vagas ? "Garantir minha vaga" : "Confirmar minha presença"}
             </button>
+            )}
 
+          </div>
+        </div>
+      )}
+      {avisoEvento && (
+        <div style={S.overlay} onClick={() => setAvisoEvento("")}>
+          <div style={S.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <button style={S.modalFechar} onClick={() => setAvisoEvento("")} aria-label="Fechar">×</button>
+            <div style={S.modalEyebrow}>Eventos</div>
+            <p style={{ fontSize: 15.5, lineHeight: 1.5, color: "var(--p-text)", margin: "8px 0 0" }}>{avisoEvento}</p>
+            <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={() => setAvisoEvento("")}>Entendi</button>
           </div>
         </div>
       )}

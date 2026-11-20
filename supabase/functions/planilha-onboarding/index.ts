@@ -5,8 +5,7 @@
 // Chamada só pelo banco (cabeçalho x-portal-interno):
 //   { membro_id }   -> quando o onboarding é concluído
 //   { varredura }   -> a cada 10 minutos: reenvia o que ainda não chegou na planilha (ex.: Google fora do ar)
-// Segredos (cadastrados no painel do Supabase): PLANILHA_URL (link do App da Web) e PLANILHA_CHAVE (palavra-chave
-// combinada com o script). Respostas importadas do Forms e membros dispensados nunca são enviados (já estão lá).
+// O link do App da Web (script "Portla Membros.gs" na planilha) fica no cofre do banco (vault: planilha_url). Respostas importadas do Forms e membros dispensados nunca são enviados (já estão lá).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const resp = (s: number, c: unknown) => new Response(JSON.stringify(c), { status: s, headers: { "Content-Type": "application/json" } });
@@ -43,11 +42,17 @@ export function montarLinha(m: Reg, o: Reg): string[] {
   ];
 }
 
+let link: string | null = null;
+async function linkPlanilha(): Promise<string | null> {
+  if (!link) { const { data } = await db.rpc("planilha_url"); link = (data as string) || Deno.env.get("PLANILHA_URL") || null; }
+  return link;
+}
+
 const doPortal = (versao: unknown) => { const v = String(versao || ""); return !v.startsWith("importado") && !v.startsWith("dispensado"); };
 
 async function enviar(membroId: string): Promise<{ membro_id: string; ok: boolean; erro?: string }> {
-  const url = Deno.env.get("PLANILHA_URL"), chave = Deno.env.get("PLANILHA_CHAVE");
-  if (!url || !chave) return { membro_id: membroId, ok: false, erro: "PLANILHA_URL/PLANILHA_CHAVE não configuradas" };
+  const url = await linkPlanilha();
+  if (!url) return { membro_id: membroId, ok: false, erro: "link da planilha não configurado" };
   const [{ data: m }, { data: o }] = await Promise.all([
     db.from("membros").select("*").eq("id", membroId).maybeSingle(),
     db.from("membros_onboarding").select("*").eq("membro_id", membroId).maybeSingle(),
@@ -57,7 +62,7 @@ async function enviar(membroId: string): Promise<{ membro_id: string; ok: boolea
   if (m.equipe) return { membro_id: membroId, ok: false, erro: "cadastro da equipe" };
   try {
     // O App da Web do Google responde com um redirecionamento; o fetch segue sozinho.
-    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ chave, linha: montarLinha(m, o) }) });
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ linha: montarLinha(m, o) }) });
     const corpo = await r.text();
     let j: { ok?: boolean; erro?: string } = {};
     try { j = JSON.parse(corpo); } catch { /* resposta não-JSON */ }
@@ -78,11 +83,19 @@ Deno.serve(async (req) => {
   if (!interno) return resp(401, { erro: "somente chamada interna" });
   const { data: valido } = await db.rpc("token_interno_valido", { p_token: interno });
   if (valido !== true) return resp(401, { erro: "código interno inválido" });
-  let c: { membro_id?: string; varredura?: boolean } = {};
+  let c: { membro_id?: string; varredura?: boolean; teste?: boolean } = {};
   try { c = await req.json(); } catch { /* vazio */ }
+  if (c.teste) {
+    // Envia uma linha de teste (identificador portal:teste) para conferir a ligação com a planilha.
+    const url = await linkPlanilha();
+    if (!url) return resp(200, { ok: false, erro: "link não configurado" });
+    const linha = montarLinha({ id: "teste", nome: "Teste do portal (pode apagar)", empresa: "Teste" }, { onboarding_concluido_em: new Date().toISOString() });
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ linha }) });
+    return resp(200, { status: r.status, corpo: (await r.text()).slice(0, 200) });
+  }
   if (c.membro_id) return resp(200, { resultados: [await enviar(c.membro_id)] });
   if (c.varredura) {
-    if (!Deno.env.get("PLANILHA_URL")) return resp(200, { resultados: [], aviso: "planilha ainda não configurada" });
+    if (!(await linkPlanilha())) return resp(200, { resultados: [], aviso: "planilha ainda não configurada" });
     const { data: fila } = await db.from("membros_onboarding").select("membro_id,onboarding_versao")
       .not("onboarding_concluido_em", "is", null).is("planilha_enviada_em", null).limit(50);
     const ids = (fila || []).filter((f) => doPortal(f.onboarding_versao)).map((f) => f.membro_id).slice(0, LOTE);

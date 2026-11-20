@@ -1,4 +1,4 @@
-import { PainelMembro } from "./Painel";
+import { PainelMembro, OportunidadesDoMembro } from "./Painel";
 import { Agenda, type Galeria } from "./Agenda";
 import { PortalShell, VisaoGeral } from "./Visao";
 import { useState, useMemo, useEffect, type ReactNode, type ChangeEvent } from "react";
@@ -706,6 +706,43 @@ function SecaoRegras() {
  return <><section style={S.hero}><div style={S.heroInner}><div style={S.heroEyebrow}>Grupo de WhatsApp</div><h1 style={S.heroTitle}>Regras de convivência.<br/>Um ambiente de alto nível.</h1><p style={S.heroSub}>Diretrizes para mantermos um ambiente produtivo, organizado e rico em conexões, trocas e oportunidades para todos.</p></div></section><main style={S.lista}><div style={S.blocoTexto}>{REGRAS_GRUPO.intro.map((p,i)=><p key={i} style={S.paragrafo}>{p}</p>)}</div>{REGRAS_GRUPO.blocos.map((x:any,i)=>{const t=tons[x.tom];return <article key={i} style={{...S.regraCard,borderLeft:`4px solid ${t.b}`}}><div style={S.regraHead}><span style={S.regraTitulo}>{x.titulo}</span><span style={{...S.regraChip,background:t.bg,color:t.c}}>{t.r}</span></div><p style={S.regraTexto}>{x.texto}</p>{x.itens&&<ul style={S.entregaLista}>{x.itens.map((v:string,j:number)=><li key={j} style={S.entregaItem}>{v}</li>)}</ul>}</article>})}</main></>;
 }
 
+type MembroVisto = { id: string; nome: string; foto: string | null; authUserId: string | null };
+// Lista de membros para o administrador escolher quem "ver como".
+function EscolherMembro({ onFechar, onEscolher }: { onFechar: () => void; onEscolher: (m: MembroVisto) => void }) {
+  const [lista, setLista] = useState<{ id: string; nome: string; empresa: string | null; foto_url: string | null; auth_user_id: string | null }[] | null>(null);
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    supabase.from("membros").select("id,nome,empresa,foto_url,auth_user_id").eq("ativo", true).eq("equipe", false).order("nome")
+      .then(({ data }) => setLista(data || []));
+  }, []);
+  const n = (t: string | null) => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const vis = (lista || []).filter((m) => !q || n(m.nome).includes(n(q)) || n(m.empresa).includes(n(q)));
+  return (
+    <div style={S.overlay} onClick={onFechar}>
+      <div style={{ ...S.modal, maxWidth: 480, padding: "26px 22px" }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <button style={S.modalFechar} onClick={onFechar} aria-label="Fechar">×</button>
+        <div style={S.modalEyebrow}>Ver como membro</div>
+        <h2 style={S.modalTitulo}>Escolha um membro</h2>
+        <p style={{ fontSize: 14, color: "var(--p-muted)", margin: "0 0 14px" }}>Você vê o portal exatamente como ele vê. Só visualização: nada é alterado.</p>
+        <input style={S.modalInput} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou empresa" autoFocus />
+        <div style={{ maxHeight: 360, overflowY: "auto", marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+          {lista === null && <div style={{ color: "var(--p-muted)", fontSize: 14 }}>Carregando...</div>}
+          {vis.map((m) => (
+            <button key={m.id} onClick={() => onEscolher({ id: m.id, nome: m.nome || "Membro", foto: m.foto_url, authUserId: m.auth_user_id })}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 12, border: "1px solid var(--p-line)", background: "var(--p-card)", cursor: "pointer", textAlign: "left", font: "inherit", color: "var(--p-text)" }}>
+              {m.foto_url && !m.foto_url.includes("drive.google")
+                ? <img src={m.foto_url} alt="" style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
+                : <span style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--p-accent-bg)", color: "var(--p-accent-text)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, flex: "none" }}>{(m.nome || "?").charAt(0)}</span>}
+              <span style={{ minWidth: 0 }}><span style={{ display: "block", fontWeight: 600, fontSize: 14.5 }}>{m.nome}</span>
+                {m.empresa && <span style={{ display: "block", fontSize: 12.5, color: "var(--p-muted)" }}>{m.empresa}</span>}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PortalConteudo({ membro, onSair }) {
   const [filtro, setFiltro] = useState("todos");
   const [confirmacoes, setConfirmacoes] = useState({}); // { [eventoId]: nome }
@@ -714,13 +751,24 @@ function PortalConteudo({ membro, onSair }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [buscaGeral, setBuscaGeral] = useState("");
+  // "Ver como membro" (só administradores): mostra o portal exatamente como um membro escolhido vê, só para olhar.
+  const [verComo, setVerComo] = useState<MembroVisto | null>(null);
+  const [escolhendo, setEscolhendo] = useState(false);
+  const [confVisto, setConfVisto] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setConfVisto({});
+    if (!verComo?.authUserId) return;
+    supabase.from("presencas").select("evento_id, membro").eq("user_id", verComo.authUserId)
+      .then(({ data }) => { const m = {}; (data || []).forEach((p) => { m[p.evento_id] = p.membro; }); setConfVisto(m); });
+  }, [verComo]);
   // Administradores veem no menu quantas solicitações de acesso estão em aberto.
   const [solicitacoesAbertas, setSolicitacoesAbertas] = useState(0);
   const atualizarSolicitacoes = () => { if (membro.isAdmin) contarSolicitacoes().then(setSolicitacoesAbertas).catch(() => {}); };
   useEffect(() => { atualizarSolicitacoes(); }, [membro.isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
   type Secao = "visao" | "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
-  const secoesValidas: Secao[] = [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  const secoesMembro: Secao[] = ["visao", "painel", "agenda", "membros", "entregas", "cultura", "regras"];
+  const secoesValidas: Secao[] = verComo ? secoesMembro : [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [carregandoEventos, setCarregandoEventos] = useState(true);
 
@@ -873,7 +921,7 @@ function PortalConteudo({ membro, onSair }) {
     <PortalShell
       itens={[
         [
-          ...(membro.equipe ? [] : [{ id: "visao", titulo: "Visão Geral", icone: "casa" as const }, { id: "painel", titulo: "Oportunidades", icone: "aperto" as const }]),
+          ...(membro.equipe && !verComo ? [] : [{ id: "visao", titulo: "Visão Geral", icone: "casa" as const }, { id: "painel", titulo: "Oportunidades", icone: "aperto" as const }]),
           { id: "membros", titulo: "Meus Membros", icone: "pessoas" as const },
           { id: "conexoes", titulo: "Conexões", icone: "rede" as const, pronto: false },
           { id: "agenda", titulo: "Eventos", icone: "cal" as const },
@@ -885,31 +933,47 @@ function PortalConteudo({ membro, onSair }) {
           { id: "entregas", titulo: "Nossas Entregas", icone: "estrela" as const },
           { id: "cultura", titulo: "Cultura", icone: "escudo" as const },
           { id: "regras", titulo: "Regras do Grupo", icone: "info" as const },
-          ...(membro.isAdmin ? [{ id: "admin", titulo: "Administração", icone: "engrenagem" as const, badge: solicitacoesAbertas }] : []),
+          ...(membro.isAdmin && !verComo ? [{ id: "admin", titulo: "Administração", icone: "engrenagem" as const, badge: solicitacoesAbertas },
+            { id: "vercomo", titulo: "Ver como membro", icone: "olho" as const }] : []),
         ],
-      ]}
+      ].map((g) => verComo ? g.filter((i) => i.id !== "perfil") : g)}
       ativo={secao}
-      onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)}
-      nome={membro.nome}
-      papel={membro.equipe ? "Equipe Ecossistema" : membro.isAdmin ? "Membro Master · Admin" : "Membro Master"}
-      foto={membro.foto}
+      onIr={(id) => { if (id === "vercomo") { setEscolhendo(true); return; } if (secoesValidas.includes(id as Secao)) mudarSecao(id as Secao); }}
+      nome={verComo ? verComo.nome : membro.nome}
+      papel={verComo ? "Membro Master" : membro.equipe ? "Equipe Ecossistema" : membro.isAdmin ? "Membro Master · Admin" : "Membro Master"}
+      foto={verComo ? verComo.foto : membro.foto}
       onSair={onSair}
       busca={buscaGeral}
       onBusca={(t) => { setBuscaGeral(t); if (secao !== "membros") mudarSecao("membros"); }}
     >
       <style>{CSS}</style>
-      {secao === "visao" && (
-        <VisaoGeral userId={membro.userId} nome={membro.nome} eventos={eventos} confirmacoes={confirmacoes}
-          onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)} />
+      {verComo && (
+        <div className="faixa-vercomo" role="status">
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", flex: "none" }} />
+            <span>Você está vendo o portal como <strong>{verComo.nome}</strong> · só visualização, nada é alterado</span>
+          </span>
+          <span style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setEscolhendo(true)}>Trocar membro</button>
+            <button onClick={() => { setVerComo(null); mudarSecao("admin"); }}>Sair da visualização</button>
+          </span>
+        </div>
+      )}
+      {secao === "visao" && (verComo
+        ? <VisaoGeral key={verComo.id} userId="" membroId={verComo.id} nome={verComo.nome} eventos={eventos} confirmacoes={confVisto}
+            onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)} />
+        : <VisaoGeral userId={membro.userId} nome={membro.nome} eventos={eventos} confirmacoes={confirmacoes} onConfirmar={abrirConfirmacao}
+            onIr={(id) => secoesValidas.includes(id as Secao) && mudarSecao(id as Secao)} />
       )}
       {secao === "agenda" && (
         <Agenda eventos={eventos} carregando={carregandoEventos} filtro={filtro} setFiltro={setFiltro}
-          confirmacoes={confirmacoes} onConfirmar={abrirConfirmacao} onCancelar={cancelarPresenca} />
+          confirmacoes={verComo ? confVisto : confirmacoes} onConfirmar={verComo ? () => {} : abrirConfirmacao} onCancelar={verComo ? () => {} : cancelarPresenca} />
       )}
-      {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin} />}
-      {secao === "painel" && <PainelMembro userId={membro.userId} nome={membro.nome} />}
-      {secao === "perfil" && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}
-      {secao === "admin" && membro.isAdmin && <Admin onSolicitacoes={atualizarSolicitacoes} />}
+      {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin && !verComo} />}
+      {secao === "painel" && (verComo ? <OportunidadesDoMembro key={verComo.id} membroId={verComo.id} nome={verComo.nome} /> : <PainelMembro userId={membro.userId} nome={membro.nome} />)}
+      {secao === "perfil" && !verComo && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}
+      {secao === "admin" && membro.isAdmin && !verComo && <Admin onSolicitacoes={atualizarSolicitacoes} />}
+      {escolhendo && <EscolherMembro onFechar={() => setEscolhendo(false)} onEscolher={(m) => { setVerComo(m); setEscolhendo(false); mudarSecao("visao"); }} />}
       {secao === "entregas" && <SecaoEntregas />}
       {secao === "cultura" && <SecaoCultura />}
       {secao === "regras" && <SecaoRegras />}
@@ -1163,6 +1227,10 @@ const CSS = `
   .sair-btn:hover { border-color: #8BAD3F; color: #C9D9A0; }
   .evento-card:hover { box-shadow: 0 8px 24px rgba(26,31,43,.08); transform: translateY(-1px); }
   input:focus, textarea:focus, select:focus { border-color: var(--p-accent) !important; }
+  .faixa-vercomo { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px; padding:10px 14px; border-radius:14px;
+    background: linear-gradient(90deg,#1F9D55,#157A40); color:#fff; font-size:14px; box-shadow:0 8px 20px -10px rgba(31,157,85,.7) }
+  .faixa-vercomo button { border:1px solid rgba(255,255,255,.55); background:rgba(255,255,255,.12); color:#fff; border-radius:10px; padding:6px 12px; font:inherit; font-size:13px; font-weight:600; cursor:pointer }
+  .faixa-vercomo button:hover { background:rgba(255,255,255,.22) }
   @media (max-width: 640px) {
     .evento-card { flex-direction: column; align-items: flex-start !important; }
   }

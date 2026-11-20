@@ -464,7 +464,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   fotoArea: {
-    height: 130,
+    // Foto grande, quadrada, ocupando a largura do cartão (dá para reconhecer a pessoa).
+    aspectRatio: "1 / 1",
+    width: "100%",
     background: "radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--p-accent) 18%, transparent) 0%, color-mix(in srgb, var(--p-accent) 0%, transparent) 60%), var(--p-card2)",
     borderBottom: "1px solid var(--p-line)",
     display: "flex",
@@ -477,12 +479,13 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     height: "100%",
     objectFit: "cover",
+    objectPosition: "center 30%",
   },
 
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 18,
+    width: 120,
+    height: 120,
+    borderRadius: 28,
     background: "linear-gradient(145deg,var(--p-line),var(--p-accent-bg))",
     border: "1px solid var(--p-line2)",
     boxShadow: "0 0 22px -8px var(--p-accent)",
@@ -616,6 +619,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   modalTopo: {
     display: "flex",
+    flexWrap: "wrap",
     gap: 22,
     alignItems: "center",
     marginBottom: 8,
@@ -625,16 +629,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   modalFoto: {
-    width: 100,
-    height: 100,
-    borderRadius: 14,
+    width: 168,
+    height: 168,
+    borderRadius: 24,
     objectFit: "cover",
+    objectPosition: "center 30%",
+    boxShadow: "var(--p-shadow-hover)",
+    flex: "0 0 auto",
   },
 
   modalAvatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 14,
+    width: 168,
+    height: 168,
+    borderRadius: 24,
+    flex: "0 0 auto",
     background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)",
     color: "var(--p-text)",
     display: "flex",

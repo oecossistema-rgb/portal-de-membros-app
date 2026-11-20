@@ -37,6 +37,21 @@ export const CSS_V = `
 .pv-ops > .pv-card:hover, .op-grid > .pv-card:hover{ box-shadow:var(--p-shadow-hover); transform:translateY(-2px) }
 .pv-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px }
 .pv-meio{ display:grid; grid-template-columns:1fr 330px; gap:20px }
+.pv-destaque{ position:relative; overflow:hidden; padding:28px 30px; display:flex; flex-direction:column; justify-content:center; border:1px solid color-mix(in srgb, var(--p-accent) 35%, var(--p-line)) !important;
+  background: radial-gradient(90% 140% at 100% 0%, color-mix(in srgb, var(--p-accent) 26%, transparent) 0%, transparent 55%), linear-gradient(135deg, var(--p-card) 0%, var(--p-card) 55%, var(--p-accent-bg) 100%) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 18px 40px -18px color-mix(in srgb, var(--p-accent) 45%, transparent) }
+.pv-destaque-fundo{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none }
+.pv-destaque-corpo{ position:relative; display:flex; gap:24px; align-items:center; flex-wrap:wrap }
+.pv-destaque-olho{ font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--p-accent-text) }
+.pv-destaque-cta{ height:44px; padding:0 20px; font-size:15px; box-shadow:0 8px 20px -8px var(--p-accent) }
+.pv-destaque-ok{ display:inline-flex; align-items:center; gap:8px; height:44px; padding:0 18px; border-radius:12px; background:var(--p-accent-bg); color:var(--p-accent-text); font-weight:650; font-size:14.5px }
+.pv-destaque-data{ flex:0 0 auto; width:150px; text-align:center; padding:18px 10px 16px; border-radius:22px; background:var(--p-card);
+  border:1px solid var(--p-line); box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 12px 28px -14px rgba(0,0,0,.35) }
+.pv-destaque-dia{ font-size:54px; font-weight:800; line-height:1; letter-spacing:-2px; color:var(--p-text) }
+.pv-destaque-mes{ font-size:14px; font-weight:700; letter-spacing:.2em; color:var(--p-accent-text); margin-top:4px }
+.pv-destaque-falta{ margin-top:12px; font-size:13px; color:var(--p-text2); padding-top:10px; border-top:1px solid var(--p-line) }
+.pv-destaque-falta strong{ color:var(--p-text); font-size:15px }
+@media (max-width:640px){ .pv-destaque{ padding:22px 20px } .pv-destaque-data{ width:100%; display:flex; align-items:baseline; justify-content:center; gap:10px; padding:12px } .pv-destaque-dia{ font-size:36px } .pv-destaque-falta{ margin:0; padding:0; border:0 } }
 .pv-ops{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
 .pv-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; padding:0 18px; border-radius:980px; border:0; background:var(--p-accent); color:var(--p-on-accent); font:inherit; font-weight:600; font-size:14px; cursor:pointer; transition:filter .15s, transform .1s }
 .pv-btn:hover{ filter:brightness(1.08) } .pv-btn:active{ transform:scale(.98) }
@@ -65,7 +80,7 @@ export const CSS_V = `
   .pv-busca{ min-width:0; flex:1 1 auto } .pv-busca input{ min-width:0; width:100% } .pv-kbd{ display:none !important } .pv-top{ gap:10px } .pv-seg{ max-width:100%; overflow-x:auto } .pv-meio > *, .pv > * { min-width:0 }
 }`;
 
-export type IconeV = "casa" | "aperto" | "pessoas" | "rede" | "cal" | "dados" | "ferramenta" | "eu" | "engrenagem" | "ajuda" | "sino" | "busca" | "grafico" | "raio" | "estrela" | "pino" | "maleta" | "info" | "foguete" | "seta" | "check" | "escudo" | "play" | "seta-baixo" | "tag" | "sair" | "sol" | "lua";
+export type IconeV = "casa" | "aperto" | "pessoas" | "rede" | "cal" | "dados" | "ferramenta" | "eu" | "engrenagem" | "ajuda" | "sino" | "busca" | "grafico" | "raio" | "estrela" | "pino" | "maleta" | "info" | "foguete" | "seta" | "check" | "escudo" | "play" | "seta-baixo" | "tag" | "sair" | "sol" | "lua" | "olho";
 export function Ic({ n, t = 18 }: { n: IconeV; t?: number }) {
   const p: Record<IconeV, ReactNode> = {
     casa: <><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></>,
@@ -76,6 +91,7 @@ export function Ic({ n, t = 18 }: { n: IconeV; t?: number }) {
     dados: <><rect x="3" y="4" width="8" height="7" rx="1.5" /><rect x="13" y="4" width="8" height="4" rx="1.5" /><rect x="13" y="10" width="8" height="10" rx="1.5" /><rect x="3" y="13" width="8" height="7" rx="1.5" /></>,
     ferramenta: <><circle cx="8" cy="8" r="3" /><circle cx="16" cy="16" r="3" /><path d="M10.5 10.5l3 3M14 5h5v5M5 14v5h5" /></>,
     eu: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></>,
+    olho: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
     engrenagem: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>,
     ajuda: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 0 1 5 .3c0 1.7-2.5 2.2-2.5 4M12 17.5v.01" /></>,
     sino: <><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 20a2 2 0 0 0 4 0" /></>,
@@ -191,7 +207,7 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
 type TipoOp = "cliente" | "ajuda" | "parceria" | "afinidade";
 export type Op = { id: string; tipo: TipoOp; motivo: string; forca: number; status: string; gerado_em: string; atualizado_em: string;
   alvo: { nome: string | null; empresa: string | null; segmento: string | null; cidade: string | null; estado: string | null; foto_url: string | null; logo_url: string | null; telefone_whatsapp: string | null } | null };
-export type EventoV = { id: string; titulo: string; quando: string; dataOrdenacao: string; trilha: string };
+export type EventoV = { id: string; titulo: string; quando: string; dataOrdenacao: string; trilha: string; diaSemana?: string; local?: string | null };
 
 const ROT: Record<TipoOp, string> = { cliente: "Cliente potencial", ajuda: "Solução para você", parceria: "Parceria", afinidade: "Afinidade" };
 const pct = (f: number) => (f >= 3 ? 95 : f === 2 ? 82 : 64);
@@ -215,28 +231,74 @@ function Kpi({ icone, valor, rotulo, serie }: { icone: IconeV; valor: number; ro
   );
 }
 
+// Próximo encontro em destaque na tela inicial (no lugar do gráfico de crescimento), com cara de campanha.
+const TRILHA_ROT: Record<string, string> = { imersao: "Imersão", growth: "Growth Session", conselho: "Reunião de Conselho", "business-day": "Business Day", network: "Network Experience", "network-experience": "Network Experience" };
+function EventoDestaque({ evento, confirmado, onConfirmar, onIr }: { evento?: EventoV; confirmado: boolean; onConfirmar?: (e: EventoV) => void; onIr: (id: string) => void }) {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  if (!evento) return (
+    <section className="pv-card pv-destaque" style={{ padding: 26 }}>
+      <div className="pv-destaque-olho">Próximo encontro</div>
+      <div style={{ fontSize: 22, fontWeight: 700, marginTop: 8 }}>Novos encontros em breve</div>
+      <div style={{ fontSize: 14, color: "var(--p-text2)", marginTop: 6 }}>Assim que a agenda for publicada, ele aparece aqui.</div>
+    </section>
+  );
+  const d = new Date(`${evento.dataOrdenacao}T00:00:00`);
+  const dias = Math.round((d.getTime() - hoje.getTime()) / 86400000);
+  const quando = dias <= 0 ? "É hoje!" : dias === 1 ? "É amanhã!" : null;
+  const dia = d.toLocaleDateString("pt-BR", { day: "2-digit" });
+  const mes = d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase();
+  return (
+    <section className="pv-card pv-destaque">
+      <svg className="pv-destaque-fundo" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
+        {Array.from({ length: 16 }, (_, i) => <path key={i} d={`M${200 + i * 28} 260 L${250 + i * 24} ${40 + (i % 5) * 14} L${282 + i * 24} 260`} fill="none" stroke="var(--p-accent)" strokeOpacity={0.05 + (i % 3) * 0.035} />)}
+      </svg>
+      <div className="pv-destaque-corpo">
+        <div style={{ minWidth: 0, flex: "1 1 300px" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span className="pv-destaque-olho">Próximo encontro</span>
+            {TRILHA_ROT[evento.trilha] && <span className="pv-chip">{TRILHA_ROT[evento.trilha]}</span>}
+          </div>
+          <h2 style={{ margin: "10px 0 0", fontSize: 30, lineHeight: 1.1, fontWeight: 750, letterSpacing: -0.6, color: "var(--p-text)" }}>{evento.titulo}</h2>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 12, fontSize: 14.5, color: "var(--p-text2)" }}>
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Ic n="cal" t={16} />{[evento.diaSemana, evento.quando].filter(Boolean).join(" · ")}</span>
+            {evento.local && <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Ic n="pino" t={16} />{evento.local}</span>}
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
+            {confirmado
+              ? <span className="pv-destaque-ok"><Ic n="check" t={15} />Presença confirmada</span>
+              : <button className="pv-btn pv-destaque-cta" onClick={() => (onConfirmar ? onConfirmar(evento) : onIr("agenda"))}>Confirmar presença <Ic n="seta" t={14} /></button>}
+            <button className="pv-btn2" onClick={() => onIr("agenda")}>Ver agenda completa</button>
+          </div>
+        </div>
+        <div className="pv-destaque-data">
+          <div className="pv-destaque-dia">{dia}</div>
+          <div className="pv-destaque-mes">{mes}</div>
+          <div className="pv-destaque-falta">{quando || <>faltam <strong>{dias}</strong> dias</>}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function abrirWhatsapp(n?: string | null) {
   const t = (n || "").replace(/\D/g, "");
   if (t) window.open(`https://wa.me/${t.startsWith("55") ? t : `55${t}`}`, "_blank", "noopener");
 }
 
-export function VisaoGeral({ userId, nome, eventos, confirmacoes, onIr, demo }: {
-  userId: string; nome: string; eventos: EventoV[]; confirmacoes: Record<string, string>; onIr: (id: string) => void;
+export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr, onConfirmar, demo }: {
+  userId: string; membroId?: string; nome: string; eventos: EventoV[]; confirmacoes: Record<string, string>; onIr: (id: string) => void;
+  onConfirmar?: (e: EventoV) => void; // sem isso (ex.: "ver como membro"), o botão leva à agenda
   demo?: { ops: Op[]; membros: { nome: string; created_at: string }[] }; // só para pré-visualização
 }) {
   const [ops, setOps] = useState<Op[]>([]);
-  const [crescimento, setCrescimento] = useState<string[]>([]); // datas de entrada dos membros
   const [novos, setNovos] = useState<{ nome: string; created_at: string }[]>([]);
-  const [periodo, setPeriodo] = useState(30);
-  const [hover, setHover] = useState<number | null>(null);
 
   useEffect(() => {
     if (demo) {
-      setOps(demo.ops); setNovos(demo.membros.slice(0, 2));
-      setCrescimento(demo.membros.map((x) => x.created_at).sort()); return;
+      setOps(demo.ops); setNovos(demo.membros.slice(0, 2)); return;
     }
     (async () => {
-      const { data: eu } = await supabase.from("membros").select("id").eq("auth_user_id", userId).maybeSingle();
+      const { data: eu } = membroId ? { data: { id: membroId } } : await supabase.from("membros").select("id").eq("auth_user_id", userId).maybeSingle();
       const [{ data: o }, { data: ms }] = await Promise.all([
         eu ? supabase.from("membros_oportunidades")
           .select("id,tipo,motivo,forca,status,gerado_em,atualizado_em,alvo:membros!membros_oportunidades_alvo_id_fkey(nome,empresa,segmento,cidade,estado,foto_url,logo_url,telefone_whatsapp)")
@@ -246,32 +308,14 @@ export function VisaoGeral({ userId, nome, eventos, confirmacoes, onIr, demo }: 
       setOps(((o as unknown as Op[]) || []).filter((x) => x.alvo && x.status !== "descartada"));
       const lista = (ms as { nome: string; created_at: string }[]) || [];
       setNovos(lista.slice(0, 3));
-      setCrescimento(lista.map((x) => x.created_at).filter(Boolean).sort());
     })();
-  }, [userId]);
+  }, [userId, membroId]);
 
   const conta = (t: TipoOp) => ops.filter((x) => x.tipo === t).length;
   const top = useMemo(() => [...ops].sort((a, b) => b.forca - a.forca).slice(0, 3), [ops]);
-  const match = ops.length ? Math.round(ops.reduce((s, x) => s + pct(x.forca), 0) / ops.length) : 0;
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const prox = [...eventos].filter((e) => new Date(`${e.dataOrdenacao}T00:00:00`) >= hoje).sort((a, b) => a.dataOrdenacao.localeCompare(b.dataOrdenacao))[0];
   const primeiro = (nome || "").trim().split(/\s+/)[0];
-
-  // Série do gráfico: membros ativos no Ecossistema ao longo do período escolhido (dado real).
-  const serie = useMemo(() => {
-    const n = 9, fim = Date.now(), ini = fim - periodo * 86400000;
-    return Array.from({ length: n }, (_, i) => {
-      const t = ini + ((fim - ini) * i) / (n - 1);
-      return { t, v: crescimento.filter((d) => new Date(d).getTime() <= t).length };
-    });
-  }, [crescimento, periodo]);
-  const maxV = Math.max(10, ...serie.map((p) => p.v));
-  const minV = Math.min(...serie.map((p) => p.v));
-  const base = Math.max(0, Math.floor((minV - (maxV - minV) * 0.6) / 10) * 10);
-  const W = 580, H = 140;
-  const xy = serie.map((p, i) => [24 + (i / (serie.length - 1)) * (W - 50), 8 + (1 - (p.v - base) / Math.max(1, maxV - base)) * (H - 22)]);
-  const linha = xy.map(([x, y]) => `${x},${y}`).join(" ");
-  const fmt = (t: number) => new Date(t).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   const atividades: { icone: IconeV; titulo: string; sub: string }[] = [
     ...(ops.length ? [{ icone: "maleta" as IconeV, titulo: "Novas oportunidades encontradas", sub: `${ops.length} conexões para você` }] : []),
@@ -315,42 +359,7 @@ export function VisaoGeral({ userId, nome, eventos, confirmacoes, onIr, demo }: 
       </div>
 
       <div className="pv-meio">
-        <section className="pv-card" style={{ padding: 18 }}>
-          {titulo("grafico", "Crescimento do Ecossistema", (
-            <div className="pv-seg">{[[7, "7 dias"], [30, "30 dias"], [90, "90 dias"], [365, "1 ano"]].map(([d, r]) => (
-              <button key={d} className={periodo === d ? "on" : ""} onClick={() => setPeriodo(d as number)}>{r}</button>))}</div>
-          ))}
-          <div className="pv-grafico" style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 14, alignItems: "center" }}>
-            <div style={{ position: "relative" }}>
-              <svg viewBox={`0 0 ${W} ${H + 20}`} style={{ width: "100%", height: "auto", display: "block" }} onMouseLeave={() => setHover(null)}>
-                <defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={V.verde} stopOpacity=".32" /><stop offset="1" stopColor={V.verde} stopOpacity="0" /></linearGradient></defs>
-                {[0, 0.25, 0.5, 0.75, 1].map((f) => <line key={f} x1="24" x2={W - 6} y1={8 + f * (H - 22)} y2={8 + f * (H - 22)} stroke="var(--p-line)" />)}
-                {[0, 0.5, 1].map((f) => <text key={f} x="0" y={12 + f * (H - 22)} fill={V.claro} fontSize="10">{Math.round(maxV - f * (maxV - base))}</text>)}
-                <polygon points={`${xy[0][0]},${H - 14} ${linha} ${xy[xy.length - 1][0]},${H - 14}`} fill="url(#area)" />
-                <polyline points={linha} fill="none" stroke={V.verde} strokeWidth="2.5" strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 6px ${V.verde})` }} />
-                {xy.map(([x, y], i) => (
-                  <g key={i} onMouseEnter={() => setHover(i)} style={{ cursor: "pointer" }}>
-                    <circle cx={x} cy={y} r="12" fill="transparent" />
-                    <circle cx={x} cy={y} r={hover === i ? 5.5 : 4} fill={V.verde} stroke="var(--p-bg)" strokeWidth="2" />
-                  </g>
-                ))}
-                {[0, 2, 4, 6, 8].map((i) => <text key={i} x={xy[i][0]} y={H + 14} fill={V.claro} fontSize="10.5" textAnchor="middle">{fmt(serie[i].t)}</text>)}
-              </svg>
-              {(() => { const i = hover ?? 5; const [x, y0] = xy[i]; const y = Math.max(y0, 46); return (
-                <div style={{ position: "absolute", left: `${(x / W) * 100}%`, top: `${(y / (H + 20)) * 100}%`, transform: "translate(-50%, -120%)", background: "var(--p-card)", border: `1px solid ${V.borda2}`, borderRadius: 10, padding: "6px 10px", pointerEvents: "none", whiteSpace: "nowrap" }}>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{serie[i].v} membros</div><div style={{ fontSize: 10.5, color: V.suave }}>em {fmt(serie[i].t)}</div>
-                </div>); })()}
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <svg width="104" height="104" viewBox="0 0 104 104" >
-                <circle cx="52" cy="52" r="42" fill="none" stroke="var(--p-card2)" strokeWidth="9" />
-                <circle cx="52" cy="52" r="42" fill="none" stroke={V.verde} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${(match / 100) * 264} 264`} transform="rotate(-90 52 52)" />
-                <text x="52" y="60" textAnchor="middle" fill="var(--p-text)" fontSize="24" fontWeight="800">{match}%</text>
-              </svg>
-              <div style={{ fontSize: 12.5, color: "var(--p-text)", marginTop: 4 }}>Match com<br />seu perfil</div>
-            </div>
-          </div>
-        </section>
+        <EventoDestaque evento={prox} confirmado={!!(prox && confirmacoes[prox.id])} onConfirmar={onConfirmar} onIr={onIr} />
 
         <section className="pv-card" style={{ padding: 18 }}>
           {titulo("raio", "Atividade Recente", <button className="pv-link" onClick={() => onIr("painel")}>Ver todas <Ic n="seta" t={13} /></button>)}

@@ -789,7 +789,7 @@ function PortalConteudo({ membro, onSair }) {
   const atualizarSolicitacoes = () => { if (membro.isAdmin) contarSolicitacoes().then(setSolicitacoesAbertas).catch(() => {}); };
   useEffect(() => { atualizarSolicitacoes(); }, [membro.isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
   type Secao = "visao" | "agenda" | "conteudo" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
-  const hashInicial = window.location.hash.replace("#", "") as Secao;
+  const hashInicial = window.location.hash.replace("#", "").split("/")[0] as Secao; // ex.: #agenda/galeria/... abre a Agenda
   const secoesMembro: Secao[] = ["visao", "painel", "agenda", "conteudo", "membros", "entregas", "cultura", "regras"];
   const secoesValidas: Secao[] = verComo ? secoesMembro : [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "conteudo", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);

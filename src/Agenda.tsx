@@ -61,8 +61,9 @@ const CSS = `
 .ev-tela{ position:fixed; inset:0; z-index:10002; background:#000; display:flex; align-items:center; justify-content:center }
 .ev-tela video, .ev-tela iframe{ width:100%; height:100%; max-height:100vh; border:0; background:#000 }
 .ev-tela-x{ position:absolute; top:14px; right:14px; z-index:2; border:0; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.16); color:#fff; font-size:24px; cursor:pointer }
-.gal-titulo{ font-size:20px; font-weight:700; letter-spacing:-0.02em }
-.gal-corpo.grade{ background:var(--p-bg); overflow-y:auto; padding:14px }
+.gal-olho{ font-size:12.5px; font-weight:600; color:var(--p-accent-text); letter-spacing:.01em }
+.gal-titulo{ font-size:24px; line-height:1.15; font-weight:750; letter-spacing:-0.025em; margin-top:3px; color:var(--p-text) }
+.gal-corpo.grade{ background:var(--p-bg); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:14px }
 .gal-grade{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px }
 .gal-item{ position:relative; aspect-ratio:1/1; border:0; padding:0; border-radius:12px; overflow:hidden; background:var(--p-hover); cursor:pointer; display:block }
 .gal-item img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s ease }
@@ -80,8 +81,7 @@ const CSS = `
 .gal-luz-seta.esq{ left:16px; top:50% } .gal-luz-seta.dir{ right:16px; top:50% }
 .gal-luz-rodape{ position:absolute; bottom:18px; left:0; right:0; text-align:center; color:rgba(255,255,255,.75); font-size:13px }
 .gal-luz-rodape a{ color:#fff; margin-left:12px }
-@media (max-width:640px){ .gal-topo{ padding:12px 14px 10px; gap:10px } .gal-titulo{ font-size:16px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .gal-drive{ padding:6px 12px !important; font-size:12.5px !important } .gal-corpo.grade{ padding:6px }
+@media (max-width:640px){ .gal-topo{ padding:12px 14px 10px; gap:10px } .gal-titulo{ font-size:21px } .gal-corpo.grade{ padding:6px }
   .gal-grade{ grid-template-columns:repeat(3,1fr); gap:4px } .gal-item{ border-radius:6px } .gal-credito{ font-size:9.5px; left:4px; bottom:4px; padding:1px 6px } .gal-luz-seta{ top:auto; bottom:60px } }
 @media (max-width:640px){ .gal-fundo{ padding:0 } .gal{ border-radius:0; height:100% } }
 .ag-data{ border-radius:12px; background:${C.fundo}; text-align:center; padding:9px 0 8px }
@@ -117,6 +117,18 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
   const proximo = ordenados.find((e) => { const d = dataDe(e); return d && d >= hoje; });
   const [galeriaDe, setGaleriaDe] = useState<EventoAgenda | null>(null);
   const [videoDe, setVideoDe] = useState<EventoAgenda | null>(null);
+  // A galeria aberta fica guardada no endereço (#agenda/galeria/<evento>/<dia>/<fotos|videos>):
+  // se a página recarregar (ex.: puxar para baixo no celular), ela volta aberta no mesmo lugar.
+  const [galeriaInicio] = useState(() => {
+    const p = window.location.hash.replace("#", "").split("/");
+    return p[1] === "galeria" ? { id: p[2], dia: Number(p[3]) || 0, tipo: p[4] === "videos" ? "video" as const : "foto" as const } : null;
+  });
+  useEffect(() => {
+    if (!galeriaInicio || galeriaDe) return;
+    const e = eventos.find((x) => x.id === galeriaInicio.id);
+    if (e?.galeria) setGaleriaDe(e);
+  }, [eventos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fecharGaleria = () => { setGaleriaDe(null); history.replaceState(null, "", "#agenda"); };
   const doFiltro = filtro === "todos" ? ordenados : ordenados.filter((e) => e.trilha === filtro);
   // Encontros já realizados ficam sempre visíveis, numa seção própria, do mais recente para o mais antigo.
   const realizados = doFiltro.filter((e) => { const d = dataDe(e); return d && d < hoje; }).reverse();
@@ -177,7 +189,8 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
     <div className="ag">
       <style>{CSS + CSS_VAGAS}</style>
       {videoDe && <TelaVideo e={videoDe} onFechar={() => setVideoDe(null)} />}
-      {galeriaDe?.galeria && <GaleriaEvento evento={galeriaDe} galeria={galeriaDe.galeria} onFechar={() => setGaleriaDe(null)} />}
+      {galeriaDe?.galeria && <GaleriaEvento evento={galeriaDe} galeria={galeriaDe.galeria} onFechar={fecharGaleria}
+        inicio={galeriaInicio?.id === galeriaDe.id ? galeriaInicio : null} />}
       <section className="ag-hero">
         <div className="ag-hero-in">
           <div style={{ maxWidth: 560 }}>
@@ -236,10 +249,24 @@ export function Agenda({ eventos, carregando, filtro, setFiltro, confirmacoes, o
 }
 
 // Galeria do evento: abas por dia e por videomaker; cada pasta do Drive aparece embutida no portal.
-function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; galeria: Galeria; onFechar: () => void }) {
-  const [dia, setDia] = useState(0);
+// Nome da galeria: tipo do encontro + lugar (ex.: "Imersão Morro de São Paulo"); sem lugar, o título do evento.
+function nomeGaleria(e: EventoAgenda) {
+  const tipo = (TIPOS[e.trilha] || TIPOS.growth).rotulo;
+  return e.local ? `${tipo} ${e.local}` : e.titulo;
+}
+
+function GaleriaEvento({ evento, galeria, onFechar, inicio }: { evento: EventoAgenda; galeria: Galeria; onFechar: () => void; inicio?: { dia: number; tipo: "foto" | "video" } | null }) {
+  const [dia, setDia] = useState(Math.min(inicio?.dia || 0, Math.max(0, galeria.dias.length - 1)));
   const [pasta, setPasta] = useState(0);
-  const [tipo, setTipo] = useState<"foto" | "video">("foto");
+  const [tipo, setTipo] = useState<"foto" | "video">(inicio?.tipo || "foto");
+  useEffect(() => { history.replaceState(null, "", `#agenda/galeria/${evento.id}/${dia}/${tipo === "video" ? "videos" : "fotos"}`); }, [evento.id, dia, tipo]);
+  // Com a galeria aberta, puxar a tela para baixo no celular não recarrega a página.
+  useEffect(() => {
+    const h = document.documentElement, b = document.body;
+    const antes = [h.style.overscrollBehaviorY, b.style.overscrollBehaviorY, b.style.overflow];
+    h.style.overscrollBehaviorY = "none"; b.style.overscrollBehaviorY = "none"; b.style.overflow = "hidden";
+    return () => { h.style.overscrollBehaviorY = antes[0]; b.style.overscrollBehaviorY = antes[1]; b.style.overflow = antes[2]; };
+  }, []);
   const [limite, setLimite] = useState(36);
   const [aberto, setAberto] = useState<number | null>(null);
   const d = galeria.dias[dia];
@@ -272,11 +299,9 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
         <div className="gal-topo">
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--p-accent-text)" }}>Fotos e vídeos</div>
-              <div className="gal-titulo">{evento.titulo}{evento.local ? ` · ${evento.local}` : ""}</div>
-              <div style={{ fontSize: 13.5, color: "var(--p-muted)" }}>{evento.quando}</div>
+              <div className="gal-olho">Fotos e vídeos · {evento.quando}</div>
+              <div className="gal-titulo">{nomeGaleria(evento)}</div>
             </div>
-            {galeria.pasta && <a className="ag-btn2 gal-drive" href={`https://drive.google.com/drive/folders/${galeria.pasta}`} target="_blank" rel="noreferrer">Abrir no Drive</a>}
             <button className="gal-x" onClick={onFechar} aria-label="Fechar">×</button>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>

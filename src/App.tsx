@@ -1,6 +1,7 @@
 import { PainelMembro, OportunidadesDoMembro } from "./Painel";
 import { Agenda, type Galeria } from "./Agenda";
 import { PortalShell, VisaoGeral } from "./Visao";
+import { ConteudoMembro } from "./Conteudo";
 import { carregarVagas, type AcoesVaga, type VagaInfo } from "./Vagas";
 import { useState, useMemo, useEffect, type ReactNode, type ChangeEvent, type InputHTMLAttributes } from "react";
 import { supabase } from "./supabase";
@@ -787,17 +788,17 @@ function PortalConteudo({ membro, onSair }) {
   const [solicitacoesAbertas, setSolicitacoesAbertas] = useState(0);
   const atualizarSolicitacoes = () => { if (membro.isAdmin) contarSolicitacoes().then(setSolicitacoesAbertas).catch(() => {}); };
   useEffect(() => { atualizarSolicitacoes(); }, [membro.isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
-  type Secao = "visao" | "agenda" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
+  type Secao = "visao" | "agenda" | "conteudo" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "") as Secao;
-  const secoesMembro: Secao[] = ["visao", "painel", "agenda", "membros", "entregas", "cultura", "regras"];
-  const secoesValidas: Secao[] = verComo ? secoesMembro : [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  const secoesMembro: Secao[] = ["visao", "painel", "agenda", "conteudo", "membros", "entregas", "cultura", "regras"];
+  const secoesValidas: Secao[] = verComo ? secoesMembro : [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "conteudo", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [carregandoEventos, setCarregandoEventos] = useState(true);
 
   useEffect(() => {
     supabase
       .from("eventos")
-      .select("id, trilha, titulo, quando, dia_semana, data_inicio, inscricoes_abertas, local, galeria")
+      .select("id, trilha, titulo, quando, dia_semana, data_inicio, inscricoes_abertas, local, galeria, video_url, video_previa_url")
       .eq("ativo", true)
       .order("data_inicio")
       .then(({ data }) => {
@@ -812,6 +813,8 @@ function PortalConteudo({ membro, onSair }) {
             inscrivel: e.inscricoes_abertas,
             local: e.local,
             galeria: e.galeria,
+            videoUrl: e.video_url,
+            videoPrevia: e.video_previa_url,
           }))
         );
         setCarregandoEventos(false);
@@ -961,6 +964,7 @@ function PortalConteudo({ membro, onSair }) {
           { id: "membros", titulo: "Meus Membros", icone: "pessoas" as const },
           { id: "conexoes", titulo: "Conexões", icone: "rede" as const, pronto: false },
           { id: "agenda", titulo: "Eventos", icone: "cal" as const },
+          { id: "conteudo", titulo: "Conteúdo", icone: "play" as const },
           { id: "dados", titulo: "Inteligência de Dados", icone: "dados" as const, pronto: false },
           { id: "ferramentas", titulo: "Ferramentas", icone: "ferramenta" as const, pronto: false },
         ],
@@ -1005,6 +1009,7 @@ function PortalConteudo({ membro, onSair }) {
         <Agenda eventos={eventosComVaga} carregando={carregandoEventos} filtro={filtro} setFiltro={setFiltro}
           confirmacoes={verComo ? confVisto : confirmacoes} onConfirmar={verComo ? undefined : abrirConfirmacao} onCancelar={verComo ? undefined : cancelarPresenca} onLista={verComo ? undefined : onLista} />
       )}
+      {secao === "conteudo" && <ConteudoMembro />}
       {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin && !verComo} />}
       {secao === "painel" && (verComo ? <OportunidadesDoMembro key={verComo.id} membroId={verComo.id} nome={verComo.nome} /> : <PainelMembro userId={membro.userId} nome={membro.nome} />)}
       {secao === "perfil" && !verComo && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}

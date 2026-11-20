@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B7DB7C"/><stop offset="1" stop-color="#66A653"/></linearGradient>
+    <linearGradient id="gc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C5E48B"/><stop offset="1" stop-color="#93C566"/></linearGradient>
+    <linearGradient id="ge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6DAD5A"/><stop offset="1" stop-color="#3E7E41"/></linearGradient>
+    <linearGradient id="anel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A8D374"/><stop offset=".55" stop-color="#5F9E4E"/><stop offset="1" stop-color="#A3CF70"/></linearGradient>
+    <clipPath id="c"><circle cx="320" cy="320" r="320"/></clipPath>
+  </defs>
+  <g clip-path="url(#c)">
+    <circle cx="320" cy="320" r="320" fill="#040605"/>
+    <path d="M162.4 57.7 A306 306 0 1 1 103.6 103.6" fill="none" stroke="url(#anel)" stroke-width="24" stroke-linecap="round"/>
+    <g stroke="url(#g)" stroke-width="30" stroke-linecap="round"><line x1="315" y1="292" x2="190" y2="150"/><line x1="315" y1="292" x2="512" y2="140"/><line x1="315" y1="292" x2="460" y2="425"/><line x1="315" y1="292" x2="218" y2="548"/></g>
+    <circle cx="190" cy="150" r="63" fill="#040605"/>
+    <path d="M116.3 156.4 A74 74 0 1 1 183.6 223.7" fill="none" stroke="url(#g)" stroke-width="24" stroke-linecap="round"/>
+    <circle cx="190" cy="150" r="55" fill="url(#gc)"/>
+    <circle cx="512" cy="140" r="63" fill="#040605"/>
+    <path d="M455.3 187.6 A74 74 0 1 1 537.3 209.5" fill="none" stroke="url(#g)" stroke-width="24" stroke-linecap="round"/>
+    <circle cx="512" cy="140" r="55" fill="url(#ge)"/>
+    <circle cx="460" cy="425" r="63" fill="#040605"/>
+    <circle cx="460" cy="425" r="74" fill="none" stroke="url(#g)" stroke-width="24"/>
+    <circle cx="460" cy="425" r="55" fill="url(#gc)"/>
+    <circle cx="218" cy="548" r="63" fill="#040605"/>
+    <path d="M211.6 474.3 A74 74 0 1 1 144.3 541.6" fill="none" stroke="url(#g)" stroke-width="24" stroke-linecap="round"/>
+    <circle cx="218" cy="548" r="55" fill="url(#ge)"/>
+    <circle cx="315" cy="292" r="63" fill="#040605"/>
+    <circle cx="315" cy="292" r="74" fill="none" stroke="url(#g)" stroke-width="24"/>
+    <circle cx="315" cy="292" r="55" fill="url(#gc)"/>
+  </g>
+</svg>

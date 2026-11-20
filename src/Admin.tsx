@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { AdminConteudo } from "./Conteudo";
+import { AdminContratos } from "./Contratos";
 import type { CSSProperties } from "react";
 import { supabase } from "./supabase";
 import { ui } from "./ui";
@@ -8,7 +10,7 @@ import { OportunidadesDoMembro } from "./Painel";
 import { baixarPlanilhaOnboarding } from "./planilha";
 import Solicitacoes from "./Solicitacoes";
 
-type Aba = "membros" | "eventos" | "presencas";
+type Aba = "membros" | "eventos" | "presencas" | "conteudo" | "contratos";
 
 type Membro = {
   id: string;
@@ -36,6 +38,9 @@ type Evento = {
   ativo: boolean;
   vagas: number | null;
   vagas_abrem_em: string | null;
+  video_url?: string | null;
+  video_previa_url?: string | null;
+  galeria?: { dias?: unknown[]; itens?: unknown[]; indexado_em?: string; conflitos?: Record<string, number> } | null;
 };
 
 type Presenca = {
@@ -75,18 +80,20 @@ export default function Admin({ onSolicitacoes }: { onSolicitacoes?: () => void 
         <div style={ui.heroInner}>
           <div style={ui.heroEyebrow}>Administração</div>
           <h1 style={ui.heroTitle}>Painel do administrador.</h1>
-          <p style={ui.heroSub}>Gerencie quem tem acesso ao portal, a agenda de eventos e as confirmações de presença.</p>
+          <p style={ui.heroSub}>Gerencie quem tem acesso ao portal, a agenda de eventos, as presenças, o conteúdo e os contratos.</p>
         </div>
       </section>
       <Solicitacoes onMudou={onSolicitacoes} />
       <div style={{ margin: "14px 0 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {([["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"]] as [Aba, string][]).map(([id, r]) => (
+        {([["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"]] as [Aba, string][]).map(([id, r]) => (
           <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}</button>
         ))}
       </div>
       {aba === "membros" && <AdminMembros />}
       {aba === "eventos" && <AdminEventos />}
       {aba === "presencas" && <AdminPresencas />}
+      {aba === "conteudo" && <AdminConteudo />}
+      {aba === "contratos" && <AdminContratos />}
     </>
   );
 }
@@ -408,6 +415,8 @@ function AdminEventos() {
       ativo: !!editando.ativo,
       vagas: editando.vagas && editando.vagas > 0 ? Math.round(editando.vagas) : null,
       vagas_abrem_em: editando.vagas_abrem_em || null,
+      video_url: editando.video_url?.trim() || null,
+      video_previa_url: editando.video_previa_url?.trim() || null,
     };
     const { error } = editando.id
       ? await supabase.from("eventos").update(dados).eq("id", editando.id)
@@ -418,6 +427,31 @@ function AdminEventos() {
     }
     setEditando(null);
     setMsg({ tipo: "ok", texto: "Evento salvo." });
+    carregar();
+  }
+
+  // Envia um vídeo (.mp4) para o armazenamento do portal e devolve o endereço público.
+  const [enviandoVideo, setEnviandoVideo] = useState("");
+  async function enviarVideo(arq: File, campo: "video_url" | "video_previa_url") {
+    if (!editando) return;
+    if (arq.size > 50 * 1024 * 1024) { setMsg({ tipo: "erro", texto: "O arquivo passa de 50 MB. Para o vídeo completo, publique no YouTube e cole o link; aqui envie só o trecho curto." }); return; }
+    setEnviandoVideo(campo);
+    const caminho = `eventos/${editando.id || "novo"}/${campo === "video_url" ? "video" : "previa"}-${Date.now()}.${arq.name.split(".").pop()?.toLowerCase() || "mp4"}`;
+    const { error } = await supabase.storage.from("portal-midia").upload(caminho, arq, { contentType: arq.type || "video/mp4", cacheControl: "31536000" });
+    setEnviandoVideo("");
+    if (error) { setMsg({ tipo: "erro", texto: "Não foi possível enviar o vídeo." }); return; }
+    const { data } = supabase.storage.from("portal-midia").getPublicUrl(caminho);
+    setEditando({ ...editando, [campo]: data.publicUrl });
+  }
+
+  const [indexando, setIndexando] = useState("");
+  async function atualizarGaleria(e: Evento) {
+    setIndexando(e.id); setMsg(null);
+    const { data, error } = await supabase.functions.invoke("galeria-indexar", { body: { evento_id: e.id } });
+    setIndexando("");
+    if (error || !data?.total) { setMsg({ tipo: "erro", texto: "Não foi possível ler as pastas do Drive deste evento." }); return; }
+    const conf = Object.entries(data.conflitos || {}).map(([k, n]) => `${k} (${n})`).join("; ");
+    setMsg({ tipo: "ok", texto: `Galeria atualizada: ${data.fotos} fotos e ${data.videos} vídeos.${conf ? ` Arquivos repetidos em mais de um dia (aparecem uma vez só): ${conf}.` : ""}` });
     carregar();
   }
 
@@ -449,6 +483,11 @@ function AdminEventos() {
             : <div style={{ fontSize: 13, fontWeight: 700, color: "var(--p-accent)" }}>{totais[e.id] || 0} confirmados</div>; })()}
           {e.ativo && e.vagas && e.vagas_abrem_em && new Date(e.vagas_abrem_em) > new Date() && (
             <button style={ui.botaoSecundario} onClick={() => abrirAgora(e)}>Abrir agora</button>
+          )}
+          {!!e.galeria?.dias?.length && (
+            <button style={ui.botaoSecundario} onClick={() => atualizarGaleria(e)} disabled={!!indexando} title="Lê de novo as pastas do Drive (fotos e vídeos)">
+              {indexando === e.id ? "Lendo o Drive..." : "Atualizar galeria"}
+            </button>
           )}
           <button style={ui.botaoSecundario} onClick={() => { setMsg(null); setEditando({ ...e }); }}>Editar</button>
         </div>
@@ -483,6 +522,25 @@ function AdminEventos() {
           <div style={{ fontSize: 12.5, color: "var(--p-muted)", margin: "0 0 12px", lineHeight: 1.45 }}>
             Vagas em branco = sem limite. Abertura em branco = vagas já abertas. Quando lotar, as vagas fecham sozinhas e os próximos entram na fila de espera;
             se alguém cancelar, o 1º da fila entra automaticamente e recebe aviso no WhatsApp. Quem pediu "me avise" recebe mensagem na hora da abertura.
+          </div>
+          <label style={ui.label}>Vídeo do evento (aparece depois que o evento acontece)</label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <input style={{ ...ui.input, flex: 1 }} placeholder="Link do YouTube, do Drive ou envie o arquivo" value={editando.video_url || ""} onChange={(ev) => setEditando({ ...editando, video_url: ev.target.value })} />
+            <label style={{ ...ui.botaoSecundario, display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+              {enviandoVideo === "video_url" ? "Enviando..." : "Enviar .mp4"}
+              <input type="file" accept="video/mp4,video/webm" hidden onChange={(ev) => { const f = ev.target.files?.[0]; if (f) enviarVideo(f, "video_url"); ev.target.value = ""; }} />
+            </label>
+          </div>
+          <label style={ui.label}>Trecho curto que fica rodando no card (opcional)</label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+            <input style={{ ...ui.input, flex: 1 }} placeholder="Se vazio, usa o próprio vídeo" value={editando.video_previa_url || ""} onChange={(ev) => setEditando({ ...editando, video_previa_url: ev.target.value })} />
+            <label style={{ ...ui.botaoSecundario, display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+              {enviandoVideo === "video_previa_url" ? "Enviando..." : "Enviar .mp4"}
+              <input type="file" accept="video/mp4,video/webm" hidden onChange={(ev) => { const f = ev.target.files?.[0]; if (f) enviarVideo(f, "video_previa_url"); ev.target.value = ""; }} />
+            </label>
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--p-muted)", margin: "0 0 12px", lineHeight: 1.45 }}>
+            Arquivo até 50 MB. Para o card ficar leve, o ideal é um trecho de 10 a 20 segundos, sem som.
           </div>
           <Caixa marcado={!!editando.inscricoes_abertas} onChange={(v) => setEditando({ ...editando, inscricoes_abertas: v })} texto="Inscrições abertas (membros podem confirmar presença)" />
           <Caixa marcado={!!editando.ativo} onChange={(v) => setEditando({ ...editando, ativo: v })} texto="Visível na agenda" />

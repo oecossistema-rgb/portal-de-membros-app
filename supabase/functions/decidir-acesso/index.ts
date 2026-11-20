@@ -3,7 +3,8 @@
 //             o cartão de membro com o nome dela + legenda curta com o portal (aprovado em 19/11)
 //             (se a imagem falhar, envia a mensagem só de texto).
 // Recusar  -> só marca a solicitação como recusada (nenhuma mensagem é enviada).
-// Entrada: { id, acao: "aprovar" | "recusar" } ou { id, acao: "reenviar" } (tenta o WhatsApp de novo).
+// Entrada: { id, acao: "aprovar" | "recusar" } ou { id, acao: "reenviar" } (tenta o WhatsApp de novo)
+//          ou { id, acao: "vincular", membro_id } ("É ele": liga o login ao perfil que já existe, sem duplicar).
 // Checagem interna (cabeçalho x-portal-interno): { acao: "testar" } consulta a Z-API (status da instância),
 // sem enviar mensagem nenhuma, para confirmar que as credenciais funcionam.
 // Segredos (cadastrados no painel do Supabase, nunca no código):
@@ -174,9 +175,10 @@ Deno.serve(async (req) => {
   const { data: eu } = await db.from("membros").select("id,is_admin,ativo").eq("auth_user_id", u.user.id).maybeSingle();
   if (!eu?.ativo || !eu.is_admin) return resp(403, { erro: "somente administradores" });
 
-  let corpo: { id?: string; acao?: string } = {};
+  let corpo: { id?: string; acao?: string; membro_id?: string } = {};
   try { corpo = await req.json(); } catch { /* vazio */ }
-  if (!corpo.id || !["aprovar", "recusar", "reenviar"].includes(corpo.acao || "")) return resp(400, { erro: "informe id e acao" });
+  if (!corpo.id || !["aprovar", "recusar", "reenviar", "vincular"].includes(corpo.acao || "")) return resp(400, { erro: "informe id e acao" });
+  if (corpo.acao === "vincular" && !corpo.membro_id) return resp(400, { erro: "informe o membro" });
 
   const { data: s } = await db.from("solicitacoes_acesso").select("*").eq("id", corpo.id).maybeSingle();
   if (!s) return resp(404, { erro: "solicitação não encontrada" });
@@ -189,7 +191,22 @@ Deno.serve(async (req) => {
   }
 
   let membroId: string | null = s.membro_id;
-  if (corpo.acao === "aprovar") {
+  if (corpo.acao === "vincular") {
+    if (s.status === "aprovada") return resp(409, { erro: "já aprovada" });
+    // "É ele": o login do pedido passa a ser o do membro escolhido (perfil, resumo e oportunidades continuam).
+    const { data: alvo } = await db.from("membros").select("id,email,telefone_whatsapp,empresa,auth_user_id").eq("id", corpo.membro_id!).maybeSingle();
+    if (!alvo) return resp(404, { erro: "membro não encontrado" });
+    if (alvo.auth_user_id && alvo.auth_user_id !== s.auth_user_id) return resp(409, { erro: "esse membro já tem outro login" });
+    const { data: outro } = await db.from("membros").select("id").eq("auth_user_id", s.auth_user_id).neq("id", alvo.id).limit(1);
+    if (outro?.length) return resp(409, { erro: "esse login já está ligado a outro cadastro" });
+    const { error } = await db.from("membros").update({
+      ativo: true, auth_user_id: s.auth_user_id,
+      email: alvo.email || s.email, telefone_whatsapp: alvo.telefone_whatsapp || s.whatsapp, empresa: alvo.empresa || s.empresa,
+    }).eq("id", alvo.id);
+    if (error) { console.error("vincular membro", error.message); return resp(500, { erro: `não foi possível ligar ao cadastro (${error.message})` }); }
+    membroId = alvo.id;
+    await db.from("solicitacoes_acesso").update({ status: "aprovada", decidido_em: agora, decidido_por: eu.id, membro_id: membroId }).eq("id", s.id);
+  } else if (corpo.acao === "aprovar") {
     if (s.status === "aprovada") return resp(409, { erro: "já aprovada" });
     // Se já existe um cadastro com esse login ou e-mail (ex.: membro desativado), reativa; senão, cria.
     const { data: porLogin } = await db.from("membros").select("id,nome,empresa,telefone_whatsapp,email").eq("auth_user_id", s.auth_user_id).limit(1);

@@ -204,20 +204,11 @@ export default function PortalAgenda() {
     return <PortalConteudo membro={membroLogado} onSair={sairMembro} />;
   }
 
-  if (tela === "cadastro") {
-    return <TelaCadastro onVoltar={() => setTela("login")} />;
-  }
-
   if (tela === "esqueci") {
     return <TelaEsqueciSenha onVoltar={() => setTela("login")} />;
   }
 
-  return (
-    <TelaLogin
-      onIrCadastro={() => setTela("cadastro")}
-      onEsqueci={() => setTela("esqueci")}
-    />
-  );
+  return <TelaEntrada onEsqueci={() => setTela("esqueci")} />;
 }
 
 function TelaEsqueciSenha({ onVoltar }) {
@@ -457,216 +448,175 @@ function AuthShell({ children }) {
   );
 }
 
-function TelaLogin({ onIrCadastro, onEsqueci }) {
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState("");
-  const [carregando, setCarregando] = useState(false);
+// Entrada única: a pessoa digita o e-mail e o portal decide o resto.
+//  - e-mail já tem senha      -> pede a senha;
+//  - e-mail ainda sem senha    -> pede nome, WhatsApp e uma senha nova;
+//      * se o portal reconhece o membro (e-mail ou WhatsApp do cadastro): manda um código para o WhatsApp
+//        QUE ESTÁ NO CADASTRO e, com o código, entra direto no perfil dele;
+//      * se não reconhece: cria a conta e vira pedido de acesso (a administração aprova).
+type EtapaEntrada = "email" | "senha" | "criar" | "codigo";
 
-  async function entrar() {
-    if (!email.trim() || !senha) {
-      setErro("Preencha e-mail e senha.");
-      return;
-    }
-    setCarregando(true);
-    setErro("");
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password: senha,
-    });
-    if (error) {
-      setErro("E-mail ou senha incorretos.");
-      setCarregando(false);
-    }
-    // Com sucesso, a tela muda sozinha quando a sessão é detectada.
-  }
-
-  return (
-    <AuthShell>
-      <h1 style={S.loginTitulo}>Portal de Membros</h1>
-      <p style={S.loginSub}>Acesso exclusivo para membros.</p>
-
-      <label style={S.modalLabel} htmlFor="email">E-mail</label>
-      <input
-        id="email"
-        style={S.modalInput}
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="seu e-mail de membro"
-        autoFocus
-      />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="senha">Senha</label>
-      <input
-        id="senha"
-        type="password"
-        style={S.modalInput}
-        value={senha}
-        onChange={(e) => setSenha(e.target.value)}
-        placeholder="sua senha"
-        onKeyDown={(e) => { if (e.key === "Enter") entrar(); }}
-      />
-
-      {erro && <div style={S.modalErro}>{erro}</div>}
-
-      <button
-        className="cta-btn"
-        style={{ ...S.ctaBtn, ...S.modalBtn }}
-        onClick={entrar}
-        disabled={carregando}
-      >
-        {carregando ? "Entrando..." : "Entrar"}
-      </button>
-
-      <button style={S.linkBtn} onClick={onEsqueci}>
-        Esqueci minha senha
-      </button>
-      <button style={{ ...S.linkBtn, marginTop: 4 }} onClick={onIrCadastro}>
-        Primeiro acesso? Criar minha senha
-      </button>
-    </AuthShell>
-  );
+async function chamarEntrada(corpo: Record<string, string>): Promise<{ modo?: string; fone?: string; ok?: boolean; erro?: string }> {
+  const { data, error } = await supabase.functions.invoke("entrada", { body: corpo });
+  if (!error) return data || {};
+  try { const ctx = (error as { context?: Response }).context; const j = ctx ? await ctx.json() : null; if (j?.erro) return { erro: j.erro }; } catch { /* sem corpo */ }
+  return { erro: "Não foi possível continuar agora. Tente de novo em instantes." };
 }
 
-function TelaCadastro({ onVoltar }) {
-  const [nome, setNome] = useState("");
+function TelaEntrada({ onEsqueci }) {
+  const [etapa, setEtapa] = useState<EtapaEntrada>("email");
   const [email, setEmail] = useState("");
-  const [whats, setWhats] = useState("");
   const [senha, setSenha] = useState("");
+  const [nome, setNome] = useState("");
+  const [whats, setWhats] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [fone, setFone] = useState("");
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [sucesso, setSucesso] = useState(false);
+  const emailN = email.trim().toLowerCase();
 
-  async function cadastrar() {
-    const emailNormalizado = email.trim().toLowerCase();
+  function ir(e: EtapaEntrada) { setErro(""); setAviso(""); setEtapa(e); }
 
-    const whatsDigitos = whats.replace(/\D/g, "");
-    if (nome.trim().length < 2 || !emailNormalizado || whatsDigitos.length < 10 || senha.length < 6) {
-      setErro("Preencha seu nome, e-mail, WhatsApp com DDD e uma senha de pelo menos 6 caracteres.");
-      return;
-    }
+  async function continuarEmail() {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailN)) { setErro("Digite um e-mail válido."); return; }
+    setCarregando(true); setErro("");
+    const { data, error } = await supabase.rpc("entrada_status", { p_email: emailN });
+    setCarregando(false);
+    if (error) { setErro("Não foi possível continuar agora. Tente de novo em instantes."); return; }
+    ir(data === "senha" ? "senha" : "criar");
+  }
 
-    setCarregando(true);
-    setErro("");
+  async function entrar() {
+    if (!senha) { setErro("Digite sua senha."); return; }
+    setCarregando(true); setErro("");
+    const { error } = await supabase.auth.signInWithPassword({ email: emailN, password: senha });
+    if (error) { setErro("Senha incorreta. Confira e tente de novo, ou use \"Esqueci minha senha\"."); setCarregando(false); }
+    // Com sucesso, o portal abre sozinho quando a sessão é detectada.
+  }
 
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: emailNormalizado,
-        password: senha,
-        options: {
-          data: {
-            nome: nome.trim(),
-            // Vai junto com o pedido de acesso (para quem não está pré-cadastrado) e serve para o aviso de aprovação.
-            whatsapp: whatsDigitos,
-          },
-        },
-      });
-
-      if (error) {
-        const mensagem = error.message.toLowerCase();
-
-        if (
-          mensagem.includes("already") ||
-          mensagem.includes("registered") ||
-          mensagem.includes("exists")
-        ) {
-          throw new Error("Esse e-mail já possui acesso. Volte e faça login.");
-        }
-
-        throw error;
-      }
-
-      if (!data.user) {
-        throw new Error("Não foi possível criar seu acesso agora.");
-      }
-
-      if (!data.session) {
-        setSucesso(true);
-      }
-      // Com sessão criada, o portal abre sozinho.
-
-    } catch (e) {
-      setErro(e?.message || "Não foi possível concluir agora.");
+  // Quem o portal não reconhece: cria a conta e vira pedido de acesso (tela "Solicitação enviada").
+  async function criarComoPedido() {
+    setCarregando(true); setErro("");
+    const { data, error } = await supabase.auth.signUp({
+      email: emailN, password: senha,
+      options: { data: { nome: nome.trim(), whatsapp: whats.replace(/\D/g, "") } },
+    });
+    if (error || !data.user) {
+      const m = (error?.message || "").toLowerCase();
+      setErro(m.includes("already") || m.includes("registered") ? "Esse e-mail já tem senha. Volte e entre com ela." : "Não foi possível criar seu acesso agora.");
       setCarregando(false);
     }
   }
 
-  if (sucesso) {
+  async function continuarCriar() {
+    const d = whats.replace(/\D/g, "");
+    if (nome.trim().length < 2 || d.length < 10 || senha.length < 6) {
+      setErro("Preencha seu nome, o WhatsApp com DDD e uma senha de pelo menos 6 caracteres.");
+      return;
+    }
+    setCarregando(true); setErro("");
+    const r = await chamarEntrada({ acao: "iniciar", email: emailN, nome: nome.trim(), whatsapp: d });
+    setCarregando(false);
+    if (r.erro) { setErro(r.erro); return; }
+    if (r.modo === "senha") { ir("senha"); setAviso("Esse e-mail já tem senha. Entre com ela."); return; }
+    if (r.modo === "codigo") { setFone(r.fone || ""); setCodigo(""); ir("codigo"); return; }
+    await criarComoPedido();
+  }
+
+  async function reenviarCodigo() {
+    setCarregando(true); setErro(""); setAviso("");
+    const r = await chamarEntrada({ acao: "iniciar", email: emailN, nome: nome.trim(), whatsapp: whats.replace(/\D/g, "") });
+    setCarregando(false);
+    if (r.erro) setErro(r.erro); else if (r.modo === "codigo") setAviso("Enviamos um novo código.");
+  }
+
+  async function confirmarCodigo() {
+    const c = codigo.replace(/\D/g, "");
+    if (c.length !== 6) { setErro("Digite os 6 números do código."); return; }
+    setCarregando(true); setErro("");
+    const r = await chamarEntrada({ acao: "confirmar", email: emailN, nome: nome.trim(), whatsapp: whats.replace(/\D/g, ""), senha, codigo: c });
+    if (!r.ok) { setErro(r.erro || "Não foi possível confirmar agora."); setCarregando(false); return; }
+    const { error } = await supabase.auth.signInWithPassword({ email: emailN, password: senha });
+    if (error) { setErro("Seu acesso foi criado. Volte e entre com seu e-mail e a senha que você criou."); setCarregando(false); }
+  }
+
+  const btn = (rotulo: string, ocupado: string, acao: () => void) => (
+    <button className="cta-btn" style={{ ...S.ctaBtn, ...S.modalBtn }} onClick={acao} disabled={carregando}>
+      {carregando ? ocupado : rotulo}
+    </button>
+  );
+  const emailFixo = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 14px", borderRadius: 12, background: "var(--p-hover)", margin: "0 0 14px", fontSize: 14 }}>
+      <span style={{ color: "var(--p-text)", overflowWrap: "anywhere" }}>{emailN}</span>
+      <button style={{ ...S.linkBtn, margin: 0, padding: 0, width: "auto" }} onClick={() => { setSenha(""); ir("email"); }}>Trocar</button>
+    </div>
+  );
+  const erroAviso = <>{aviso && <div style={{ ...S.modalErro, color: "var(--p-accent-text)" }}>{aviso}</div>}{erro && <div style={S.modalErro}>{erro}</div>}</>;
+
+  if (etapa === "senha") {
     return (
       <AuthShell>
-        <h1 style={S.loginTitulo}>Tudo certo!</h1>
+        <h1 style={S.loginTitulo}>Bem-vindo de volta</h1>
+        <p style={S.loginSub}>Digite sua senha para entrar.</p>
+        {emailFixo}
+        <label style={S.modalLabel} htmlFor="senha">Senha</label>
+        <input id="senha" type="password" style={S.modalInput} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="sua senha" autoFocus
+          onKeyDown={(e) => { if (e.key === "Enter") entrar(); }} />
+        {erroAviso}
+        {btn("Entrar", "Entrando...", entrar)}
+        <button style={S.linkBtn} onClick={onEsqueci}>Esqueci minha senha</button>
+      </AuthShell>
+    );
+  }
+
+  if (etapa === "criar") {
+    return (
+      <AuthShell>
+        <h1 style={S.loginTitulo}>Crie sua senha</h1>
+        <p style={S.loginSub}>É o seu primeiro acesso. Preencha abaixo para criar a sua senha.</p>
+        {emailFixo}
+        <label style={S.modalLabel} htmlFor="c-nome">Nome completo</label>
+        <input id="c-nome" style={S.modalInput} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="seu nome" autoFocus />
+        <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-whats">WhatsApp com DDD</label>
+        <input id="c-whats" style={S.modalInput} value={whats} onChange={(e) => setWhats(e.target.value)} placeholder="(71) 99999-9999" inputMode="tel" />
+        <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-senha">Crie uma senha</label>
+        <input id="c-senha" type="password" style={S.modalInput} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="mínimo 6 caracteres"
+          onKeyDown={(e) => { if (e.key === "Enter") continuarCriar(); }} />
+        {erroAviso}
+        {btn("Continuar", "Aguarde...", continuarCriar)}
+      </AuthShell>
+    );
+  }
+
+  if (etapa === "codigo") {
+    return (
+      <AuthShell>
+        <h1 style={S.loginTitulo}>Confirme pelo WhatsApp</h1>
         <p style={S.loginSub}>
-          Seu acesso foi criado. Se pedirmos confirmação, abra o link enviado ao seu e-mail;
-          depois é só entrar com seu e-mail e senha.
+          Encontramos o seu cadastro de membro. Enviamos um código de 6 números para o WhatsApp do cadastro{fone ? <> <strong style={{ whiteSpace: "nowrap" }}>{fone}</strong></> : ""}.
         </p>
-        <button
-          className="cta-btn"
-          style={{ ...S.ctaBtn, ...S.modalBtn }}
-          onClick={onVoltar}
-        >
-          Ir para o login
-        </button>
+        <label style={S.modalLabel} htmlFor="c-codigo">Código</label>
+        <input id="c-codigo" style={{ ...S.modalInput, letterSpacing: ".35em", fontSize: 20, textAlign: "center" }} value={codigo}
+          onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" autoComplete="one-time-code" autoFocus
+          onKeyDown={(e) => { if (e.key === "Enter") confirmarCodigo(); }} />
+        {erroAviso}
+        {btn("Confirmar e entrar", "Confirmando...", confirmarCodigo)}
+        <button style={S.linkBtn} onClick={reenviarCodigo} disabled={carregando}>Reenviar código</button>
+        <button style={{ ...S.linkBtn, marginTop: 4 }} onClick={criarComoPedido} disabled={carregando}>Não tenho mais esse WhatsApp — pedir acesso à administração</button>
       </AuthShell>
     );
   }
 
   return (
     <AuthShell>
-      <h1 style={S.loginTitulo}>Primeiro acesso</h1>
-      <p style={S.loginSub}>
-        Crie sua senha. Válido para quem já é membro do Ecossistema.
-      </p>
-
-      <label style={S.modalLabel} htmlFor="c-nome">Nome completo</label>
-      <input
-        id="c-nome"
-        style={S.modalInput}
-        value={nome}
-        onChange={(e) => setNome(e.target.value)}
-        placeholder="seu nome"
-        autoFocus
-      />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-email">E-mail de membro</label>
-      <input
-        id="c-email"
-        style={S.modalInput}
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="o e-mail cadastrado no Ecossistema"
-      />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-whats">WhatsApp com DDD</label>
-      <input
-        id="c-whats"
-        style={S.modalInput}
-        value={whats}
-        onChange={(e) => setWhats(e.target.value)}
-        placeholder="(71) 99999-9999"
-        inputMode="tel"
-      />
-      <label style={{ ...S.modalLabel, marginTop: 14 }} htmlFor="c-senha">Crie uma senha</label>
-      <input
-        id="c-senha"
-        type="password"
-        style={S.modalInput}
-        value={senha}
-        onChange={(e) => setSenha(e.target.value)}
-        placeholder="mínimo 6 caracteres"
-        onKeyDown={(e) => { if (e.key === "Enter") cadastrar(); }}
-      />
-
-      {erro && <div style={S.modalErro}>{erro}</div>}
-
-      <button
-        className="cta-btn"
-        style={{ ...S.ctaBtn, ...S.modalBtn }}
-        onClick={cadastrar}
-        disabled={carregando}
-      >
-        {carregando ? "Criando..." : "Criar minha senha"}
-      </button>
-
-      <button style={S.linkBtn} onClick={onVoltar}>
-        Já tenho senha — voltar ao login
-      </button>
+      <h1 style={S.loginTitulo}>Portal de Membros</h1>
+      <p style={S.loginSub}>Acesso exclusivo para membros. Digite seu e-mail para continuar.</p>
+      <label style={S.modalLabel} htmlFor="email">E-mail</label>
+      <input id="email" type="email" style={S.modalInput} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu e-mail" autoFocus autoComplete="email"
+        onKeyDown={(e) => { if (e.key === "Enter") continuarEmail(); }} />
+      {erroAviso}
+      {btn("Continuar", "Aguarde...", continuarEmail)}
     </AuthShell>
   );
 }

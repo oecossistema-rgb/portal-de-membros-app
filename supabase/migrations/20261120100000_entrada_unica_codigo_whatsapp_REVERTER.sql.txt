@@ -1,0 +1,26 @@
+-- Desfaz a entrada única com código no WhatsApp (volta ao comportamento de 19/11).
+create trigger on_auth_user_created_vincular_membro after insert on auth.users
+  for each row execute function private.vincular_membro();
+create or replace function private.solicitacao_automatica()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare v_fone text;
+begin
+  begin
+    if not exists (select 1 from public.membros m where m.auth_user_id = new.id or lower(m.email) = lower(new.email)) then
+      v_fone := nullif(left(regexp_replace(coalesce(new.raw_user_meta_data->>'whatsapp', ''), '\D', '', 'g'), 15), '');
+      if v_fone is not null and length(v_fone) < 10 then v_fone := null; end if;
+      insert into public.solicitacoes_acesso (auth_user_id, email, nome, whatsapp)
+      values (new.id, lower(new.email), left(coalesce(nullif(trim(new.raw_user_meta_data->>'nome'), ''), split_part(new.email, '@', 1)), 120), v_fone)
+      on conflict (auth_user_id) do nothing;
+    end if;
+  exception when others then
+    null;
+  end;
+  return new;
+end;
+$$;
+drop function if exists public.entrada_status(text);
+drop function if exists public.membros_para_vincular();
+drop table if exists public.codigos_entrada;
+drop function if exists private.fone_chave(text);
+-- Depois: remover a função "entrada" e reimplantar a versão anterior do portal e da "decidir-acesso".

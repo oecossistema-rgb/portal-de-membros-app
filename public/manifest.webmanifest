@@ -1,0 +1,14 @@
+{
+  "name": "Ecossistema Master Business",
+  "short_name": "Ecossistema",
+  "description": "Portal de Membros do Ecossistema Master Business",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0C0E",
+  "theme_color": "#0A0C0E",
+  "icons": [
+    { "src": "/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

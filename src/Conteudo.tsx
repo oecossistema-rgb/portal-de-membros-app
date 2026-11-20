@@ -56,6 +56,14 @@ const CSS = `
 .ct-player-info h3{ margin:0; font-size:18px; font-weight:700; line-height:1.3; color:#fff }
 .ct-player-info small{ color:rgba(255,255,255,.65); font-size:13px }
 .ct-modal-x{ position:fixed; top:16px; right:16px; border:0; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:24px; cursor:pointer; z-index:2 }
+.ct-cheia{ position:fixed; inset:0; z-index:10003; background:#000; display:flex; align-items:center; justify-content:center }
+.ct-cheia-video{ width:100%; height:100%; border:0; display:block; background:#000 }
+.ct-cheia-video > div, .ct-cheia-video iframe{ width:100%; height:100%; border:0; display:block }
+.ct-cheia-topo{ position:absolute; top:0; left:0; right:0; display:flex; align-items:center; gap:10px; padding:12px 14px; background:linear-gradient(180deg,rgba(0,0,0,.7),rgba(0,0,0,0)); pointer-events:none }
+.ct-cheia-topo > *{ pointer-events:auto }
+.ct-cheia-tit{ flex:1; min-width:0; color:#fff; font-size:14.5px; font-weight:650; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.ct-cheia-bt{ border:0; border-radius:980px; background:rgba(255,255,255,.18); color:#fff; padding:8px 14px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; backdrop-filter:blur(8px); white-space:nowrap }
+.ct-cheia-x{ border:0; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.18); color:#fff; font-size:22px; cursor:pointer; flex-shrink:0 }
 .ct-modal img.ct-foto{ max-width:96vw; max-height:88vh; object-fit:contain; border-radius:8px }
 @media (max-width:1100px){ .ct-trilho{ grid-auto-columns:calc((100% - 32px) / 3) } .ct-grade{ grid-template-columns:repeat(3,1fr) } }
 @media (max-width:640px){
@@ -123,6 +131,23 @@ function Player({ c, prog, naLista, onLista, onSalvar, onFechar }: {
 }) {
   const yid = c.tipo === "video" ? c.youtube_id || ytId(c.url) : null;
   const alvo = useRef<HTMLDivElement>(null);
+  const tela = useRef<HTMLDivElement>(null);
+  // Igual ao vídeo do evento realizado: abre em tela cheia e, no celular, acompanha o giro para a horizontal.
+  useEffect(() => {
+    if (c.tipo !== "video") return;
+    const el = tela.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
+    try { if (el?.requestFullscreen) el.requestFullscreen().catch(() => {}); else el?.webkitRequestFullscreen?.(); } catch { /* sem suporte */ }
+    const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    try { o?.lock?.("landscape").catch(() => {}); } catch { /* sem suporte */ }
+    let entrou = false;
+    const mudou = () => { if (document.fullscreenElement) entrou = true; else if (entrou) onFechar(); };
+    document.addEventListener("fullscreenchange", mudou);
+    return () => {
+      document.removeEventListener("fullscreenchange", mudou);
+      try { o?.unlock?.(); } catch { /* */ }
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const inicio = prog && !prog.concluido ? Math.max(0, Math.floor(prog.segundos) - 3) : 0;
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };
@@ -148,26 +173,23 @@ function Player({ c, prog, naLista, onLista, onSalvar, onFechar }: {
       try { if (player) { const s = player.getCurrentTime(), d = player.getDuration(); if (d > 0 && s > 5) onSalvar(s, d, s / d > 0.95); player.destroy(); } } catch { /* */ }
     };
   }, [yid]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
+  if (c.tipo === "foto") return (
     <div className="ct-modal" onClick={onFechar} role="dialog" aria-label={c.titulo}>
       <button className="ct-modal-x" onClick={onFechar} aria-label="Fechar">×</button>
-      {c.tipo === "foto" ? <img className="ct-foto" src={c.url} alt={c.titulo} onClick={(e) => e.stopPropagation()} /> : (
-        <div className="ct-player" onClick={(e) => e.stopPropagation()}>
-          <div className="ct-player-tela">
-            {yid ? <div ref={alvo} /> : <video src={c.url} controls autoPlay playsInline
-              onLoadedMetadata={(e) => { if (inicio) e.currentTarget.currentTime = inicio; }}
-              onPause={(e) => onSalvar(e.currentTarget.currentTime, e.currentTarget.duration, e.currentTarget.ended)}
-              onEnded={(e) => onSalvar(e.currentTarget.duration, e.currentTarget.duration, true)} />}
-          </div>
-          <div className="ct-player-info">
-            <div>
-              <h3>{c.titulo}</h3>
-              <small>{dataBR(c.publicado_em)}{c.categoria ? ` · ${c.categoria}` : ""}{c.exclusivo ? " · Exclusivo para membros" : ""}</small>
-            </div>
-            <button className="ct-bt sec" onClick={onLista} style={{ flexShrink: 0 }}>{naLista ? "✓ Na minha lista" : "+ Minha lista"}</button>
-          </div>
-        </div>
-      )}
+      <img className="ct-foto" src={c.url} alt={c.titulo} onClick={(e) => e.stopPropagation()} />
+    </div>
+  );
+  return (
+    <div className="ct-cheia" ref={tela} role="dialog" aria-label={c.titulo}>
+      {yid ? <div className="ct-cheia-video"><div ref={alvo} /></div> : <video className="ct-cheia-video" src={c.url} controls autoPlay playsInline
+        onLoadedMetadata={(e) => { if (inicio) e.currentTarget.currentTime = inicio; }}
+        onPause={(e) => onSalvar(e.currentTarget.currentTime, e.currentTarget.duration, e.currentTarget.ended)}
+        onEnded={(e) => onSalvar(e.currentTarget.duration, e.currentTarget.duration, true)} />}
+      <div className="ct-cheia-topo">
+        <div className="ct-cheia-tit">{c.titulo}</div>
+        <button className="ct-cheia-bt" onClick={onLista}>{naLista ? "✓ Na lista" : "+ Minha lista"}</button>
+        <button className="ct-cheia-x" onClick={onFechar} aria-label="Fechar">×</button>
+      </div>
     </div>
   );
 }

@@ -71,16 +71,18 @@ Deno.serve(async (req) => {
     itens.push(...its);
     resumo[`${d.titulo} · ${p.nome}`] = { fotos: its.filter((i) => i.tipo === "foto").length, videos: its.filter((i) => i.tipo === "video").length };
   }
-  // Cópias repetidas (o mesmo arquivo enviado na pasta de mais de um dia) aparecem uma vez só, no primeiro dia.
-  // A lista "conflitos" mostra onde isso aconteceu, para quem organiza o Drive conferir o dia certo.
+  // Regra do dia: o que está num dia fica nesse dia. Se o mesmo arquivo aparece de novo num dia seguinte
+  // (Dia 2 ou Dia 3), ele não é repetido, não importa quem fez. Dentro do mesmo dia nada é removido.
   let repetidos = 0;
   const vistos = new Map<string, Item>();
+  const diaDe = new Map<string, string>();
   const conflitos: Record<string, number> = {};
   for (const it of itens) {
-    const chave = `${it.credito}|${it.tipo}|${it.nome}`;
-    const ja = vistos.get(chave);
-    if (ja) { repetidos++; const k = `${it.credito}: ${ja.dia} e ${it.dia}`; conflitos[k] = (conflitos[k] || 0) + 1; continue; }
-    vistos.set(chave, it);
+    const arquivo = `${it.tipo}|${it.nome.toLowerCase()}`;
+    const primeiroDia = diaDe.get(arquivo);
+    if (primeiroDia && primeiroDia !== it.dia) { repetidos++; const k = `${primeiroDia} repetido no ${it.dia}`; conflitos[k] = (conflitos[k] || 0) + 1; continue; }
+    diaDe.set(arquivo, it.dia);
+    vistos.set(`${it.id}`, it);
   }
   const final = [...vistos.values()];
   final.sort((a, b) => a.dia.localeCompare(b.dia) || a.nome.localeCompare(b.nome, "pt-BR", { numeric: true }));

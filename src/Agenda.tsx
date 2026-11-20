@@ -4,7 +4,7 @@ import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, type AcoesVaga, ty
 
 // Agenda de Eventos: visual minimalista, agrupado por mês, com bloco de data e destaque do próximo encontro.
 // Galeria de fotos e vídeos do evento: pastas do Google Drive compartilhadas por link (nada fica nos nossos servidores).
-export type ItemGaleria = { id: string; nome: string; tipo: "foto" | "video"; dia: string; credito: string; t?: string };
+export type ItemGaleria = { id: string; nome: string; tipo: "foto" | "video"; dia: string; credito: string; t?: string; c?: string };
 export type Galeria = { pasta?: string; dias: { titulo: string; pastas: { nome: string; id: string }[] }[]; itens?: ItemGaleria[] };
 export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean; local?: string | null; galeria?: Galeria | null; vaga?: VagaInfo; videoUrl?: string | null; videoPrevia?: string | null };
 
@@ -61,6 +61,17 @@ const CSS = `
 .ev-tela{ position:fixed; inset:0; z-index:10002; background:#000; display:flex; align-items:center; justify-content:center }
 .ev-tela video, .ev-tela iframe{ width:100%; height:100%; max-height:100vh; border:0; background:#000 }
 .ev-tela-x{ position:absolute; top:14px; right:14px; z-index:2; border:0; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.16); color:#fff; font-size:24px; cursor:pointer }
+.gal-tipos{ display:grid; grid-template-columns:1fr 1fr; gap:4px; background:var(--p-hover); border-radius:14px; padding:4px; max-width:420px }
+.gal-tipos button{ display:flex; align-items:center; justify-content:center; gap:8px; border:0; background:transparent; color:var(--p-text2); border-radius:11px; padding:10px 12px; font:inherit; font-size:15px; font-weight:650; cursor:pointer }
+.gal-tipos button span{ font-size:12.5px; font-weight:600; opacity:.6 }
+.gal-tipos button.on{ background:var(--p-accent); color:var(--p-on-accent); box-shadow:0 6px 16px -8px var(--p-accent) }
+.gal-tipos button.on span{ opacity:.85 }
+.gal-dias{ display:flex; gap:8px; overflow-x:auto; scrollbar-width:none }
+.gal-dias::-webkit-scrollbar{ display:none }
+.gal-dias button{ flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; border:1px solid var(--p-line2); background:var(--p-card); color:var(--p-text); border-radius:980px; padding:7px 15px; font:inherit; font-size:14px; font-weight:600; cursor:pointer }
+.gal-dias button span{ font-size:12px; color:var(--p-muted); font-weight:600 }
+.gal-dias button.on{ border-color:var(--p-text); background:var(--p-text); color:var(--p-card) }
+.gal-dias button.on span{ color:var(--p-card); opacity:.75 }
 .gal-olho{ font-size:12.5px; font-weight:600; color:var(--p-accent-text); letter-spacing:.01em }
 .gal-titulo{ font-size:24px; line-height:1.15; font-weight:750; letter-spacing:-0.025em; margin-top:3px; color:var(--p-text) }
 .gal-corpo.grade{ background:var(--p-bg); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:14px }
@@ -275,6 +286,7 @@ function GaleriaEvento({ evento, galeria, onFechar, inicio }: { evento: EventoAg
   const doDia = useMemo(() => (galeria.itens || []).filter((x) => x.dia === d?.titulo), [galeria.itens, d?.titulo]);
   const fotos = doDia.filter((x) => x.tipo === "foto"), videos = doDia.filter((x) => x.tipo === "video");
   const lista = tipo === "foto" ? fotos : videos;
+  const totalTipo = (t: "foto" | "video") => (galeria.itens || []).filter((x) => x.tipo === t).length;
   useEffect(() => { setLimite(36); }, [dia, tipo]);
   useEffect(() => {
     const tecla = (ev: KeyboardEvent) => {
@@ -288,10 +300,13 @@ function GaleriaEvento({ evento, galeria, onFechar, inicio }: { evento: EventoAg
   }, [onFechar, aberto, lista.length]);
   const atual = aberto !== null ? lista[aberto] : null;
   // Miniatura rápida (servidor de imagens do Google, a mesma que o Drive usa); se falhar, usa a do Drive.
-  const miniatura = (x: ItemGaleria, w = 400) => (x.t ? `${x.t}=s${w}` : `https://drive.google.com/thumbnail?id=${x.id}&sz=w${w}`);
+  // Grade: miniatura guardada no próprio portal (rápida e permanente); foto aberta: versão grande do Google.
+  const miniatura = (x: ItemGaleria, w = 400) => (w <= 400 && x.c ? x.c : x.t ? `${x.t}=s${w}` : `https://drive.google.com/thumbnail?id=${x.id}&sz=w${w}`);
   const reserva = (ev: React.SyntheticEvent<HTMLImageElement>, x: ItemGaleria, w = 400) => {
-    const img = ev.currentTarget; const alt = `https://drive.google.com/thumbnail?id=${x.id}&sz=w${w}`;
-    if (img.src !== alt) img.src = alt;
+    const img = ev.currentTarget;
+    const opcoes = [x.t ? `${x.t}=s${w}` : "", `https://drive.google.com/thumbnail?id=${x.id}&sz=w${w}`].filter(Boolean);
+    const prox = opcoes[opcoes.indexOf(img.src) + 1] ?? (opcoes.includes(img.src) ? null : opcoes[0]);
+    if (prox) img.src = prox;
   };
   return (
     <div className="gal-fundo" onClick={onFechar}>
@@ -304,17 +319,26 @@ function GaleriaEvento({ evento, galeria, onFechar, inicio }: { evento: EventoAg
             </div>
             <button className="gal-x" onClick={onFechar} aria-label="Fechar">×</button>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div className="pv-seg">
+          {indexada ? (
+            <>
+              {/* 1º escolhe Fotos ou Vídeos; 2º, numa linha própria, o dia. */}
+              <div className="gal-tipos">
+                <button className={tipo === "foto" ? "on" : ""} onClick={() => setTipo("foto")}><IconeFoto />Fotos <span>{totalTipo("foto")}</span></button>
+                <button className={tipo === "video" ? "on" : ""} onClick={() => setTipo("video")}><IconeVideo />Vídeos <span>{totalTipo("video")}</span></button>
+              </div>
+              <div className="gal-dias">
+                {galeria.dias.map((x, i) => (
+                  <button key={x.titulo} className={i === dia ? "on" : ""} onClick={() => setDia(i)}>
+                    {x.titulo}<span>{(galeria.itens || []).filter((it) => it.dia === x.titulo && it.tipo === tipo).length}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="pv-seg" style={{ alignSelf: "flex-start" }}>
               {galeria.dias.map((x, i) => <button key={x.titulo} className={i === dia ? "on" : ""} onClick={() => { setDia(i); setPasta(0); }}>{x.titulo}</button>)}
             </div>
-            {indexada && (
-              <div className="gal-chips">
-                <button className={`gal-chip${tipo === "foto" ? " on" : ""}`} onClick={() => setTipo("foto")}><IconeFoto />Fotos <span style={{ opacity: .7 }}>{fotos.length}</span></button>
-                <button className={`gal-chip${tipo === "video" ? " on" : ""}`} onClick={() => setTipo("video")}><IconeVideo />Vídeos <span style={{ opacity: .7 }}>{videos.length}</span></button>
-              </div>
-            )}
-          </div>
+          )}
           {!indexada && d && d.pastas.length > 1 && (
             <div className="gal-chips">
               {d.pastas.map((x, i) => <button key={x.id} className={`gal-chip${p?.id === x.id ? " on" : ""}`} onClick={() => setPasta(i)}>Registro de {x.nome}</button>)}
@@ -327,10 +351,9 @@ function GaleriaEvento({ evento, galeria, onFechar, inicio }: { evento: EventoAg
               <>
                 <div className="gal-grade">
                   {lista.slice(0, limite).map((x, i) => (
-                    <button key={x.id} className="gal-item" onClick={() => setAberto(i)} title={x.tipo === "foto" ? `Foto: ${x.credito}` : `Vídeo: ${x.credito}`}>
+                    <button key={x.id} className="gal-item" onClick={() => setAberto(i)}>
                       <img src={miniatura(x, 320)} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(ev) => reserva(ev, x, 320)} />
                       {x.tipo === "video" && <span className="gal-play"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg></span></span>}
-                      <span className="gal-credito">{x.tipo === "foto" ? "📷" : "🎥"} {x.credito}</span>
                     </button>
                   ))}
                 </div>
@@ -356,7 +379,7 @@ function GaleriaEvento({ evento, galeria, onFechar, inicio }: { evento: EventoAg
           {aberto! > 0 && <button className="gal-luz-seta esq" onClick={(ev) => { ev.stopPropagation(); setAberto(aberto! - 1); }} aria-label="Anterior">‹</button>}
           {aberto! < lista.length - 1 && <button className="gal-luz-seta dir" onClick={(ev) => { ev.stopPropagation(); setAberto(aberto! + 1); }} aria-label="Próxima">›</button>}
           <div className="gal-luz-rodape" onClick={(ev) => ev.stopPropagation()}>
-            {atual.tipo === "foto" ? "Foto" : "Vídeo"}: {atual.credito} · {aberto! + 1} de {lista.length}
+            {aberto! + 1} de {lista.length}
             <a href={`https://drive.google.com/file/d/${atual.id}/view`} target="_blank" rel="noreferrer">Baixar</a>
           </div>
         </div>

@@ -2,7 +2,7 @@
 // da galeria do portal, separando FOTOS e VÍDEOS por dia, com o crédito de quem fez (nome da pasta).
 // Nada é movido nem alterado no Drive: só lemos a listagem pública da pasta.
 // Quem chama: administrador logado (botão "Atualizar galeria") ou o banco (cabeçalho x-portal-interno).
-// Entrada: { evento_id }  ->  grava em eventos.galeria.itens = [{ id, nome, tipo: "foto"|"video", dia, credito, t }]
+// Entrada: { evento_id }  ->  grava em eventos.galeria.itens = [{ id, nome, tipo: "foto"|"video", dia, credito, t, c }]
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-portal-interno" };
@@ -10,7 +10,7 @@ const resp = (s: number, c: unknown) => new Response(JSON.stringify(c), { status
 const URL_BASE = Deno.env.get("SUPABASE_URL")!;
 const db = createClient(URL_BASE, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
-type Item = { id: string; nome: string; tipo: "foto" | "video"; dia: string; credito: string; t?: string };
+type Item = { id: string; nome: string; tipo: "foto" | "video"; dia: string; credito: string; t?: string; c?: string };
 const VIDEO = /\.(mov|mp4|m4v|avi|mkv|webm|3gp)$/i;
 const FOTO = /\.(jpe?g|png|heic|heif|webp|gif|tiff?|dng|cr2|nef|arw)$/i;
 
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   if (!c.evento_id) return resp(400, { erro: "informe evento_id" });
   const { data: ev, error: e0 } = await db.from("eventos").select("id, galeria").eq("id", c.evento_id).maybeSingle();
   if (e0) return resp(500, { erro: e0.message });
-  const g = ev?.galeria as { dias: { titulo: string; pastas: { id: string; nome: string }[] }[] } | null;
+  const g = ev?.galeria as { dias: { titulo: string; pastas: { id: string; nome: string }[] }[]; itens?: Item[] } | null;
   if (!g?.dias?.length) return resp(400, { erro: "evento sem pastas de galeria", evento: c.evento_id, achou: !!ev });
   const itens: Item[] = [];
   const resumo: Record<string, { fotos: number; videos: number }> = {};
@@ -98,7 +98,9 @@ Deno.serve(async (req) => {
     diaDe.set(arquivo, it.dia);
     vistos.set(`${it.id}`, it);
   }
-  const final = [...vistos.values()];
+  // Mantém a miniatura já guardada no portal (campo "c") dos arquivos que continuam na galeria.
+  const guardada = new Map((g.itens || []).filter((i) => i.c).map((i) => [i.id, i.c!]));
+  const final = [...vistos.values()].map((i) => (guardada.has(i.id) ? { ...i, c: guardada.get(i.id) } : i));
   final.sort((a, b) => a.dia.localeCompare(b.dia) || a.nome.localeCompare(b.nome, "pt-BR", { numeric: true }));
   const porDia: Record<string, { fotos: number; videos: number }> = {};
   for (const it of final) { const k = `${it.dia} · ${it.credito}`; porDia[k] ||= { fotos: 0, videos: 0 }; porDia[k][it.tipo === "foto" ? "fotos" : "videos"]++; }

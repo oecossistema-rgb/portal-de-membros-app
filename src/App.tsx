@@ -1,7 +1,7 @@
 import { PainelMembro, OportunidadesDoMembro } from "./Painel";
 import { Agenda, type Galeria } from "./Agenda";
 import { PortalShell, VisaoGeral } from "./Visao";
-import { useState, useMemo, useEffect, type ReactNode, type ChangeEvent } from "react";
+import { useState, useMemo, useEffect, type ReactNode, type ChangeEvent, type InputHTMLAttributes } from "react";
 import { supabase } from "./supabase";
 import Membros from "./Membros";
 import MeuPerfil from "./MeuPerfil";
@@ -316,10 +316,10 @@ function TelaNovaSenha({ onConcluir }) {
       <h1 style={S.loginTitulo}>Criar nova senha</h1>
       <p style={S.loginSub}>Escolha uma senha com pelo menos 8 caracteres.</p>
       <CampoEntrada id="n-senha" rotulo="Nova senha" icone="cadeado" primeiro>
-        <input id="n-senha" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus />
+        <InputSenha id="n-senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus />
       </CampoEntrada>
       <CampoEntrada id="n-conf" rotulo="Confirme a nova senha" icone="cadeado">
-        <input id="n-conf" type="password" autoComplete="new-password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)}
+        <InputSenha id="n-conf" autoComplete="new-password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") salvar(); }} />
       </CampoEntrada>
       {erro && <div style={S.modalErro}>{erro}</div>}
@@ -459,11 +459,32 @@ const CSS_ENTRADA = `
     box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 -2px 0 rgba(0,0,0,.18) inset, 0 4px 10px rgba(31,157,85,.35); }
   .campo-entrada input { width: 100%; height: 52px; padding: 0 16px; border-radius: 14px; font-size: 16px; box-sizing: border-box; outline: none; font-family: inherit;
     background: var(--p-field); color: var(--p-text); border: 1.5px solid var(--p-line2); box-shadow: 0 1px 2px rgba(0,0,0,.04) inset; transition: border-color .15s, box-shadow .15s; }
+  .campo-senha { position: relative; }
+  .campo-entrada .campo-senha input { padding-right: 52px; }
+  .olho-senha { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent;
+    color: var(--p-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .olho-senha:hover { background: var(--p-hover); color: var(--p-text); }
   .campo-entrada input::placeholder { color: var(--p-faint); }
   .campo-entrada input:focus { border-color: var(--p-accent) !important; box-shadow: 0 0 0 4px var(--p-accent-bg); }
   .campo-entrada.com-erro input, .campo-entrada.com-erro input:focus { border-color: var(--p-danger) !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--p-danger) 14%, transparent); }
   .campo-entrada.com-erro .campo-icone { background: linear-gradient(180deg, #FF6B6B 0%, #D70015 60%, #A3000F 100%); box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 -2px 0 rgba(0,0,0,.18) inset, 0 4px 10px rgba(215,0,21,.3); }
 `;
+
+// Campo de senha com o "olhinho" para mostrar/esconder o que foi digitado.
+function InputSenha(props: InputHTMLAttributes<HTMLInputElement>) {
+  const [ver, setVer] = useState(false);
+  return (
+    <div className="campo-senha">
+      <input {...props} type={ver ? "text" : "password"} />
+      <button type="button" className="olho-senha" onClick={() => setVer((v) => !v)} aria-label={ver ? "Esconder senha" : "Mostrar senha"} title={ver ? "Esconder senha" : "Mostrar senha"}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" />
+          {!ver && <path d="M3 3l18 18" />}
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 // WhatsApp: só números, formatado enquanto digita. Devolve o texto formatado e se a pessoa tentou digitar letras.
 export function mascaraFone(bruto: string): { valor: string; letras: boolean } {
@@ -620,7 +641,7 @@ function TelaEntrada({ onEsqueci }) {
         <p style={S.loginSub}>Digite sua senha para entrar.</p>
         {emailFixo}
         <CampoEntrada id="senha" rotulo="Sua senha" icone="cadeado" primeiro>
-          <input id="senha" name="password" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="digite sua senha" autoFocus
+          <InputSenha id="senha" name="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="digite sua senha" autoFocus
             onKeyDown={(e) => { if (e.key === "Enter") entrar(); }} />
         </CampoEntrada>
         {erroAviso}
@@ -644,7 +665,7 @@ function TelaEntrada({ onEsqueci }) {
             placeholder="(71) 99999-9999" maxLength={16} aria-invalid={!!fone.erro} />
         </CampoEntrada>
         <CampoEntrada id="c-senha" rotulo="Crie uma senha" icone="cadeado" dica="Mínimo de 6 caracteres.">
-          <input id="c-senha" name="new-password" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="crie sua senha"
+          <InputSenha id="c-senha" name="new-password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="crie sua senha"
             onKeyDown={(e) => { if (e.key === "Enter") continuarCriar(); }} />
         </CampoEntrada>
         {erroAviso}

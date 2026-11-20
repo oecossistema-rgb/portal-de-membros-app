@@ -4,7 +4,7 @@ import { AcaoVaga, CSS_VAGAS, FotosConfirmados, estadoEvento, type AcoesVaga, ty
 
 // Agenda de Eventos: visual minimalista, agrupado por mês, com bloco de data e destaque do próximo encontro.
 // Galeria de fotos e vídeos do evento: pastas do Google Drive compartilhadas por link (nada fica nos nossos servidores).
-export type ItemGaleria = { id: string; nome: string; tipo: "foto" | "video"; dia: string; credito: string };
+export type ItemGaleria = { id: string; nome: string; tipo: "foto" | "video"; dia: string; credito: string; t?: string };
 export type Galeria = { pasta?: string; dias: { titulo: string; pastas: { nome: string; id: string }[] }[]; itens?: ItemGaleria[] };
 export type EventoAgenda = { id: string; trilha: string; titulo: string; quando: string; diaSemana: string; dataOrdenacao: string; inscrivel?: boolean; local?: string | null; galeria?: Galeria | null; vaga?: VagaInfo; videoUrl?: string | null; videoPrevia?: string | null };
 
@@ -61,6 +61,7 @@ const CSS = `
 .ev-tela{ position:fixed; inset:0; z-index:10002; background:#000; display:flex; align-items:center; justify-content:center }
 .ev-tela video, .ev-tela iframe{ width:100%; height:100%; max-height:100vh; border:0; background:#000 }
 .ev-tela-x{ position:absolute; top:14px; right:14px; z-index:2; border:0; width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.16); color:#fff; font-size:24px; cursor:pointer }
+.gal-titulo{ font-size:20px; font-weight:700; letter-spacing:-0.02em }
 .gal-corpo.grade{ background:var(--p-bg); overflow-y:auto; padding:14px }
 .gal-grade{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px }
 .gal-item{ position:relative; aspect-ratio:1/1; border:0; padding:0; border-radius:12px; overflow:hidden; background:var(--p-hover); cursor:pointer; display:block }
@@ -79,7 +80,9 @@ const CSS = `
 .gal-luz-seta.esq{ left:16px; top:50% } .gal-luz-seta.dir{ right:16px; top:50% }
 .gal-luz-rodape{ position:absolute; bottom:18px; left:0; right:0; text-align:center; color:rgba(255,255,255,.75); font-size:13px }
 .gal-luz-rodape a{ color:#fff; margin-left:12px }
-@media (max-width:640px){ .gal-grade{ grid-template-columns:repeat(3,1fr); gap:4px } .gal-item{ border-radius:6px } .gal-credito{ font-size:9.5px; left:4px; bottom:4px; padding:1px 6px } .gal-luz-seta{ top:auto; bottom:60px } }
+@media (max-width:640px){ .gal-topo{ padding:12px 14px 10px; gap:10px } .gal-titulo{ font-size:16px; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .gal-drive{ padding:6px 12px !important; font-size:12.5px !important } .gal-corpo.grade{ padding:6px }
+  .gal-grade{ grid-template-columns:repeat(3,1fr); gap:4px } .gal-item{ border-radius:6px } .gal-credito{ font-size:9.5px; left:4px; bottom:4px; padding:1px 6px } .gal-luz-seta{ top:auto; bottom:60px } }
 @media (max-width:640px){ .gal-fundo{ padding:0 } .gal{ border-radius:0; height:100% } }
 .ag-data{ border-radius:12px; background:${C.fundo}; text-align:center; padding:9px 0 8px }
 .ag-btn{ border:0; background:linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%); color:var(--p-on-accent); border-radius:980px; padding:10px 18px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap }
@@ -237,7 +240,7 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
   const [dia, setDia] = useState(0);
   const [pasta, setPasta] = useState(0);
   const [tipo, setTipo] = useState<"foto" | "video">("foto");
-  const [limite, setLimite] = useState(60);
+  const [limite, setLimite] = useState(36);
   const [aberto, setAberto] = useState<number | null>(null);
   const d = galeria.dias[dia];
   const p = d?.pastas[pasta] || d?.pastas[0];
@@ -245,7 +248,7 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
   const doDia = useMemo(() => (galeria.itens || []).filter((x) => x.dia === d?.titulo), [galeria.itens, d?.titulo]);
   const fotos = doDia.filter((x) => x.tipo === "foto"), videos = doDia.filter((x) => x.tipo === "video");
   const lista = tipo === "foto" ? fotos : videos;
-  useEffect(() => { setLimite(60); }, [dia, tipo]);
+  useEffect(() => { setLimite(36); }, [dia, tipo]);
   useEffect(() => {
     const tecla = (ev: KeyboardEvent) => {
       if (aberto !== null) {
@@ -257,7 +260,12 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
     window.addEventListener("keydown", tecla); return () => window.removeEventListener("keydown", tecla);
   }, [onFechar, aberto, lista.length]);
   const atual = aberto !== null ? lista[aberto] : null;
-  const miniatura = (id: string, w = 480) => `https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
+  // Miniatura rápida (servidor de imagens do Google, a mesma que o Drive usa); se falhar, usa a do Drive.
+  const miniatura = (x: ItemGaleria, w = 400) => (x.t ? `${x.t}=s${w}` : `https://drive.google.com/thumbnail?id=${x.id}&sz=w${w}`);
+  const reserva = (ev: React.SyntheticEvent<HTMLImageElement>, x: ItemGaleria, w = 400) => {
+    const img = ev.currentTarget; const alt = `https://drive.google.com/thumbnail?id=${x.id}&sz=w${w}`;
+    if (img.src !== alt) img.src = alt;
+  };
   return (
     <div className="gal-fundo" onClick={onFechar}>
       <div className="gal" role="dialog" aria-label={`Fotos e vídeos: ${evento.titulo}`} onClick={(ev) => ev.stopPropagation()}>
@@ -265,10 +273,10 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--p-accent-text)" }}>Fotos e vídeos</div>
-              <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>{evento.titulo}{evento.local ? ` · ${evento.local}` : ""}</div>
+              <div className="gal-titulo">{evento.titulo}{evento.local ? ` · ${evento.local}` : ""}</div>
               <div style={{ fontSize: 13.5, color: "var(--p-muted)" }}>{evento.quando}</div>
             </div>
-            {galeria.pasta && <a className="ag-btn2" href={`https://drive.google.com/drive/folders/${galeria.pasta}`} target="_blank" rel="noreferrer">Abrir no Drive</a>}
+            {galeria.pasta && <a className="ag-btn2 gal-drive" href={`https://drive.google.com/drive/folders/${galeria.pasta}`} target="_blank" rel="noreferrer">Abrir no Drive</a>}
             <button className="gal-x" onClick={onFechar} aria-label="Fechar">×</button>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -295,13 +303,13 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
                 <div className="gal-grade">
                   {lista.slice(0, limite).map((x, i) => (
                     <button key={x.id} className="gal-item" onClick={() => setAberto(i)} title={x.tipo === "foto" ? `Foto: ${x.credito}` : `Vídeo: ${x.credito}`}>
-                      <img src={miniatura(x.id)} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                      <img src={miniatura(x, 320)} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(ev) => reserva(ev, x, 320)} />
                       {x.tipo === "video" && <span className="gal-play"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg></span></span>}
                       <span className="gal-credito">{x.tipo === "foto" ? "📷" : "🎥"} {x.credito}</span>
                     </button>
                   ))}
                 </div>
-                {lista.length > limite && <button className="ag-btn2 gal-mais" onClick={() => setLimite((l) => l + 60)}>Ver mais ({lista.length - limite})</button>}
+                {lista.length > limite && <button className="ag-btn2 gal-mais" onClick={() => setLimite((l) => l + 36)}>Ver mais ({lista.length - limite})</button>}
               </>
             )}
           </div>
@@ -316,7 +324,7 @@ function GaleriaEvento({ evento, galeria, onFechar }: { evento: EventoAgenda; ga
         <div className="gal-luz" onClick={(ev) => { ev.stopPropagation(); setAberto(null); }}>
           <div onClick={(ev) => ev.stopPropagation()} style={{ display: "contents" }}>
             {atual.tipo === "foto"
-              ? <img src={miniatura(atual.id, 2000)} alt="" referrerPolicy="no-referrer" />
+              ? <img src={miniatura(atual, 1600)} alt="" referrerPolicy="no-referrer" onError={(ev) => reserva(ev, atual, 1600)} />
               : <iframe key={atual.id} src={`https://drive.google.com/file/d/${atual.id}/preview`} allow="autoplay; fullscreen" allowFullScreen title={atual.nome} />}
           </div>
           <button className="gal-luz-x" onClick={(ev) => { ev.stopPropagation(); setAberto(null); }} aria-label="Fechar">×</button>

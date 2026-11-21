@@ -308,7 +308,7 @@ export function AdminConteudo() {
   async function carregar() {
     const [{ data: c }, { data: cfg }] = await Promise.all([
       supabase.from("conteudos").select("*").order("publicado_em", { ascending: false }),
-      supabase.from("portal_config").select("valor").eq("chave", "youtube_canal").maybeSingle(),
+      supabase.from("portal_config").select("valor").eq("chave", "youtube_playlists").maybeSingle(),
     ]);
     setItens((c as Conteudo[]) || []);
     if (cfg?.valor) setCanal(cfg.valor);
@@ -320,16 +320,17 @@ export function AdminConteudo() {
     const { data, error } = await supabase.functions.invoke("youtube-sincronizar", { body: completo ? { completo: true } : {} });
     setOcupado("");
     if (error || data?.erro) { setMsg({ tipo: "erro", texto: data?.erro ? `Não foi possível: ${data.erro}.` : "Não foi possível sincronizar agora." }); return; }
-    if (data?.aviso) { setMsg({ tipo: "erro", texto: "Informe o canal do YouTube primeiro." }); return; }
-    setMsg({ tipo: "ok", texto: data.novos ? `${data.novos} vídeo(s) trazido(s) do canal.` : "Canal conferido: nenhum vídeo novo." });
+    if (data?.aviso) { setMsg({ tipo: "erro", texto: "Cole o link de pelo menos uma playlist \"Portal\" primeiro." }); return; }
+    const nomes = (data.playlists || []).map((p: { nome: string; videos: number }) => `${p.nome || "(playlist sem acesso)"}: ${p.videos}`).join(" · ");
+    setMsg({ tipo: "ok", texto: `Playlists conferidas (${nomes}). Novos: ${data.novos} · Voltaram: ${data.voltaram} · Saíram do portal: ${data.sairam}.` });
     carregar();
   }
 
   async function salvarCanal() {
     setOcupado("canal");
-    const { error } = await supabase.from("portal_config").upsert({ chave: "youtube_canal", valor: canal.trim(), atualizado_em: new Date().toISOString() });
+    const { error } = await supabase.from("portal_config").upsert({ chave: "youtube_playlists", valor: canal.trim(), atualizado_em: new Date().toISOString() });
     setOcupado("");
-    if (error) { setMsg({ tipo: "erro", texto: "Não foi possível salvar o canal." }); return; }
+    if (error) { setMsg({ tipo: "erro", texto: "Não foi possível salvar as playlists." }); return; }
     await sincronizar();
   }
 
@@ -366,13 +367,16 @@ export function AdminConteudo() {
     <main style={ui.largo}>
       {msg && <div style={msg.tipo === "ok" ? ui.ok : ui.erro}>{msg.texto}</div>}
       <div style={{ ...ui.cartao, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 16 }}>Canal do YouTube</div>
-        <div style={{ fontSize: 13.5, color: "var(--p-muted)" }}>Cole o link do canal (ex.: youtube.com/@ecossistema). Os vídeos novos entram sozinhos no Conteúdo a cada hora.</div>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>Playlists do portal (YouTube)</div>
+        <div style={{ fontSize: 13.5, color: "var(--p-muted)", lineHeight: 1.5 }}>
+          Só entra no portal o que estiver nestas playlists. Crie no YouTube Studio playlists com o nome <strong>"Portal · Categoria"</strong>
+          (ex.: Portal · Imersões) e cole o link de cada uma abaixo, uma por linha. Vídeo <strong>não listado</strong> entra como
+          "Exclusivo para membros". Tirou da playlist, sai do portal. O portal confere a cada hora.
+        </div>
+        <textarea style={{ ...ui.input, minHeight: 84, fontFamily: "inherit" }} placeholder={"https://www.youtube.com/playlist?list=...\nhttps://www.youtube.com/playlist?list=..."} value={canal} onChange={(e) => setCanal(e.target.value)} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input style={{ ...ui.input, flex: "1 1 280px" }} placeholder="https://www.youtube.com/@..." value={canal} onChange={(e) => setCanal(e.target.value)} />
-          <button className="cta-btn" style={ui.botao} onClick={salvarCanal} disabled={!canal.trim() || !!ocupado}>{ocupado === "canal" ? "Salvando..." : "Salvar canal"}</button>
+          <button className="cta-btn" style={ui.botao} onClick={salvarCanal} disabled={!canal.trim() || !!ocupado}>{ocupado === "canal" ? "Salvando..." : "Salvar playlists"}</button>
           <button style={ui.botaoSecundario} onClick={() => sincronizar()} disabled={!!ocupado}>{ocupado === "sync" ? "Sincronizando..." : "Sincronizar agora"}</button>
-          <button style={ui.botaoSecundario} onClick={() => sincronizar(true)} disabled={!!ocupado} title="Traz também os vídeos antigos do canal">{ocupado === "completo" ? "Trazendo..." : "Trazer catálogo completo"}</button>
         </div>
       </div>
       <div style={{ ...ui.cartao, display: "flex", flexDirection: "column", gap: 10 }}>

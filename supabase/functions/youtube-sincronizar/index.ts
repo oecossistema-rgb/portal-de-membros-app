@@ -1,6 +1,7 @@
 // Função "youtube-sincronizar": a aba Conteúdo mostra SÓ os vídeos que a equipe coloca nas playlists "Portal" do YouTube.
 // Regra: playlist "Portal · Imersões" -> categoria "Imersões". Vídeo não listado -> selo "Exclusivo para membros".
 // Saiu da playlist -> sai do portal (fica oculto, nada é apagado). O restante do canal não entra.
+// Vídeos que já estavam no portal sem playlist (ex.: episódios do podcast) não são mexidos pela sincronização.
 // As playlists ficam em Administração > Conteúdo (portal_config.youtube_playlists: um link por linha).
 // Roda a cada hora e pelo botão "Sincronizar agora". Sem senha nem chave: usa as páginas públicas do YouTube.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -62,7 +63,7 @@ async function detalhes(videoId: string): Promise<{ naoListado: boolean; publica
   try {
     const j = await api("player", { videoId });
     const m = j?.microformat?.playerMicroformatRenderer;
-    return { naoListado: !!m?.isUnlisted, publicado: m?.publishDate || m?.uploadDate || null, descricao: m?.description?.simpleText?.slice(0, 2000) || null };
+    return { naoListado: m ? !!m.isUnlisted : true, publicado: m?.publishDate || m?.uploadDate || null, descricao: m?.description?.simpleText?.slice(0, 2000) || null };
   } catch { return { naoListado: false, publicado: null, descricao: null }; }
 }
 
@@ -115,7 +116,8 @@ Deno.serve(async (req) => {
     }
   }
   if (!falhou) {
-    const fora = (atuais || []).filter((c) => c.ativo && !noPortal.has(c.youtube_id)).map((c) => c.id);
+    // Só tira do portal o que entrou por playlist e saiu dela. Vídeos colocados de outra forma ficam (a equipe oculta no painel).
+    const fora = (atuais || []).filter((c) => c.ativo && c.playlist_id && !noPortal.has(c.youtube_id)).map((c) => c.id);
     if (fora.length) { await db.from("conteudos").update({ ativo: false }).in("id", fora); sairam = fora.length; }
   }
   await db.from("portal_config").update({ atualizado_em: new Date().toISOString() }).eq("chave", "youtube_playlists");

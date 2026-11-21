@@ -5,6 +5,8 @@ import { aplicarTema, temaSalvo } from './tema'
 aplicarTema(temaSalvo() || "claro")
 import App from './App.tsx'
 import { NovaVersao } from './NovaVersao'
+import { lembrarPosicao } from './posicao'
+lembrarPosicao()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

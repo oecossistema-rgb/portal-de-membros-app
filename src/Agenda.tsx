@@ -417,19 +417,11 @@ function TelaVideo({ e, onFechar }: { e: EventoAgenda; onFechar: () => void }) {
   const f = fonteVideo(e.videoUrl) || fonteVideo(e.videoPrevia);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const el = ref.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
-    // Tela cheia e, no celular, acompanha o giro para a horizontal.
-    try { if (el?.requestFullscreen) el.requestFullscreen().catch(() => {}); else el?.webkitRequestFullscreen?.(); } catch { /* sem suporte */ }
-    const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-    try { o?.lock?.("landscape").catch(() => {}); } catch { /* sem suporte */ }
+    // Ocupa a tela inteira sem pedir a "tela cheia" do sistema (evita o aviso branco do Android).
     const esc = (ev: KeyboardEvent) => { if (ev.key === "Escape") onFechar(); };
-    const saiu = () => { if (!document.fullscreenElement) onFechar(); };
-    window.addEventListener("keydown", esc); document.addEventListener("fullscreenchange", saiu);
-    return () => {
-      window.removeEventListener("keydown", esc); document.removeEventListener("fullscreenchange", saiu);
-      try { o?.unlock?.(); } catch { /* */ }
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    };
+    const b = document.body, antes = b.style.overflow; b.style.overflow = "hidden";
+    window.addEventListener("keydown", esc);
+    return () => { window.removeEventListener("keydown", esc); b.style.overflow = antes; };
   }, [onFechar]);
   if (!f) return null;
   return (

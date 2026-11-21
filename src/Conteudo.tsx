@@ -132,22 +132,12 @@ function Player({ c, prog, naLista, onLista, onSalvar, onFechar }: {
   const yid = c.tipo === "video" ? c.youtube_id || ytId(c.url) : null;
   const alvo = useRef<HTMLDivElement>(null);
   const tela = useRef<HTMLDivElement>(null);
-  // Igual ao vídeo do evento realizado: abre em tela cheia e, no celular, acompanha o giro para a horizontal.
+  // Ocupa a tela inteira com fundo preto sem pedir a "tela cheia" do sistema (que mostra o aviso branco do Android).
+  // Virar o celular de lado acompanha a rotação automática do aparelho.
   useEffect(() => {
-    if (c.tipo !== "video") return;
-    const el = tela.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
-    try { if (el?.requestFullscreen) el.requestFullscreen().catch(() => {}); else el?.webkitRequestFullscreen?.(); } catch { /* sem suporte */ }
-    const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-    try { o?.lock?.("landscape").catch(() => {}); } catch { /* sem suporte */ }
-    let entrou = false;
-    const mudou = () => { if (document.fullscreenElement) entrou = true; else if (entrou) onFechar(); };
-    document.addEventListener("fullscreenchange", mudou);
-    return () => {
-      document.removeEventListener("fullscreenchange", mudou);
-      try { o?.unlock?.(); } catch { /* */ }
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const b = document.body, antes = b.style.overflow; b.style.overflow = "hidden";
+    return () => { b.style.overflow = antes; };
+  }, []);
   const inicio = prog && !prog.concluido ? Math.max(0, Math.floor(prog.segundos) - 3) : 0;
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };

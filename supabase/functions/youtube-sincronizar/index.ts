@@ -38,6 +38,12 @@ function percorrer(o: any, out: { videos: Map<string, string>; nome: string; con
   if (Array.isArray(o)) { for (const x of o) percorrer(x, out); return; }
   const v = o.playlistVideoRenderer;
   if (v?.videoId && v.isPlayable !== false) { const t = v.title?.runs?.[0]?.text || v.title?.simpleText; if (t && !out.videos.has(v.videoId)) out.videos.set(v.videoId, t); }
+  // Formato novo de lista (lockupViewModel).
+  const lv = o.lockupViewModel;
+  if (lv?.contentId && /VIDEO/.test(lv.contentType || "VIDEO") && /^[\w-]{11}$/.test(lv.contentId)) {
+    const t = lv.metadata?.lockupMetadataViewModel?.title?.content;
+    if (t && !out.videos.has(lv.contentId)) out.videos.set(lv.contentId, t);
+  }
   if (!out.nome && o.playlistMetadataRenderer?.title) out.nome = o.playlistMetadataRenderer.title;
   const tok = o.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
   if (tok) out.conts.push(tok);
@@ -67,6 +73,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return resp(405, { erro: "método não permitido" });
   if (!(await autorizado(req))) return resp(401, { erro: "somente administradores" });
+  let pedido: { diag?: string } = {};
+  try { pedido = await req.json(); } catch { /* vazio */ }
+  if (pedido.diag) {
+    const txt = JSON.stringify(await api("browse", { browseId: `VL${pedido.diag}` }));
+    const conta = (k: string) => (txt.match(new RegExp(`"${k}"`, "g")) || []).length;
+    return resp(200, { tam: txt.length, playlistVideoRenderer: conta("playlistVideoRenderer"), lockupViewModel: conta("lockupViewModel"), videoId: conta("videoId"),
+      alerta: /"alertMessageRenderer"[\s\S]{0,300}/.exec(txt)?.[0]?.slice(0, 300) || null, ocultos: /unavailable|ocult|indispon/i.exec(txt)?.[0] || null });
+  }
   const { data: cfg } = await db.from("portal_config").select("valor").eq("chave", "youtube_playlists").maybeSingle();
   const ids = [...new Set((cfg?.valor || "").split(/\s+/).map(idDaPlaylist).filter(Boolean) as string[])];
   if (!ids.length) return resp(200, { ok: false, aviso: "nenhuma playlist do portal configurada" });
@@ -79,7 +93,7 @@ Deno.serve(async (req) => {
     for (const [vid, titulo] of p.videos) if (!noPortal.has(vid)) noPortal.set(vid, { titulo, categoria: categoriaDoNome(p.nome), playlist: id });
   }
   // Se alguma playlist não pôde ser lida, não esconde nada (evita sumir tudo por falha do YouTube).
-  const falhou = playlists.some((p) => !p.nome && !p.videos);
+  const falhou = playlists.some((p) => !p.nome);
 
   const { data: atuais } = await db.from("conteudos").select("id, youtube_id, ativo, playlist_id").eq("origem", "youtube");
   const porVideo = new Map((atuais || []).map((c) => [c.youtube_id, c]));

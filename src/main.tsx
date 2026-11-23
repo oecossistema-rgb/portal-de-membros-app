@@ -6,12 +6,15 @@ aplicarTema(temaSalvo() || "claro")
 import App from './App.tsx'
 import { NovaVersao } from './NovaVersao'
 import { lembrarPosicao } from './posicao'
+import FormularioContrato from './FormularioContrato'
 lembrarPosicao()
+
+// Link do WhatsApp do membro novo: #contrato/<código> abre só o formulário do contrato (sem login).
+const contrato = /^#contrato\/([0-9a-f-]{36})/i.exec(window.location.hash)?.[1]
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
-    <NovaVersao />
+    {contrato ? <FormularioContrato token={contrato} /> : <><App /><NovaVersao /></>}
   </StrictMode>,
 )
 

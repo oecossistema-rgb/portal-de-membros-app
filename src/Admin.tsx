@@ -114,6 +114,8 @@ function AdminMembros() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todos" | "ativos" | "inativos" | "sem-email" | "sem-acesso" | "equipe">("ativos");
   const [editando, setEditando] = useState<Partial<Membro> | null>(null);
+  // Membro novo: ao salvar, recebe no WhatsApp o link do formulário do contrato (desmarcar para membro antigo/correção).
+  const [enviarContrato, setEnviarContrato] = useState(true);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [onboarding, setOnboarding] = useState<Record<string, string | null>>({}); // membro_id -> concluído em
   const [vendoOnboarding, setVendoOnboarding] = useState<Membro | null>(null);
@@ -177,15 +179,23 @@ function AdminMembros() {
       is_admin: !!editando.is_admin || !!editando.equipe,
       equipe: !!editando.equipe,
     };
-    const { error } = editando.id
-      ? await supabase.from("membros").update(dados).eq("id", editando.id)
-      : await supabase.from("membros").insert(dados);
+    const { data: salvo, error } = editando.id
+      ? await supabase.from("membros").update(dados).eq("id", editando.id).select("id").single()
+      : await supabase.from("membros").insert(dados).select("id").single();
     if (error) {
       setMsg({ tipo: "erro", texto: error.message.includes("membros_email_unique") ? "Já existe um membro com esse e-mail." : "Não foi possível salvar." });
       return;
     }
+    const novoComContrato = !editando.id && enviarContrato && !dados.equipe && salvo?.id;
     setEditando(null);
-    setMsg({ tipo: "ok", texto: editando.id ? "Membro atualizado." : "Membro incluído. Ele já pode criar a senha em \"Primeiro acesso\"." });
+    if (novoComContrato) {
+      const { data: r, error: e2 } = await supabase.functions.invoke("contratos", { body: { acao: "convidar", membro_id: salvo.id } });
+      setMsg(e2 || !r?.ok || r?.whatsapp !== "enviado"
+        ? { tipo: "erro", texto: `Membro incluído, mas o formulário do contrato não foi enviado${r?.erro ? ` (${r.erro})` : ""}. Reenvie em Administração > Contratos.` }
+        : { tipo: "ok", texto: `Membro incluído. ${nome.split(" ")[0]} recebeu no WhatsApp o link do formulário do contrato.` });
+    } else {
+      setMsg({ tipo: "ok", texto: editando.id ? "Membro atualizado." : "Membro incluído. Ele já pode criar a senha em \"Primeiro acesso\"." });
+    }
     carregar();
   }
 
@@ -331,6 +341,14 @@ function AdminMembros() {
                 : editando.is_admin ? "É membro normal e também acessa a Administração." : "Acesso de membro ao portal."}
             </div>
           </div>
+          {!editando.id && !editando.equipe && (
+            <div style={{ background: "var(--p-accent-bg)", borderRadius: 12, padding: "10px 12px", margin: "4px 0 12px" }}>
+              <Caixa marcado={enviarContrato} onChange={setEnviarContrato} texto="Membro novo: enviar formulário do contrato" />
+              <div style={{ fontSize: 12.5, color: "var(--p-muted)", marginTop: 4 }}>
+                Ao salvar, ele recebe no WhatsApp o link para preencher os dados do contrato. Desmarque se for um membro antigo.
+              </div>
+            </div>
+          )}
           {msg?.tipo === "erro" && <div style={ui.erro}>{msg.texto}</div>}
           <button className="cta-btn" style={{ ...ui.botao, width: "100%", marginTop: 8 }} onClick={salvar}>Salvar</button>
         </Modal>

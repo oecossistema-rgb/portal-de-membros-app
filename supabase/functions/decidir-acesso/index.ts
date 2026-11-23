@@ -65,7 +65,8 @@ async function gerarCartaoMembro(nome: string): Promise<string> {
 // Envio novo: cartão de membro + legenda curta com o link. (O envio com botão existe só para teste: em 19/11 a Z-API
 // aceitou, mas a mensagem com botão não chegou ao celular.) Se a imagem falhar, vai o texto.
 export const LEGENDA_CURTA = "*Seu acesso está liberado.*\nEntre com seu e-mail e senha em portal.oecossistemabusiness.com";
-async function enviarCartaoMembro(telefone: string, nome: string, email: string, comBotao = false): Promise<{ ok: boolean; erro?: string; tipo?: string }> {
+export const LEGENDA_PRIMEIRO_ACESSO = "*Contrato assinado. Seu acesso está liberado.*\nEntre em portal.oecossistemabusiness.com com o seu e-mail e crie sua senha no primeiro acesso.";
+async function enviarCartaoMembro(telefone: string, nome: string, email: string, comBotao = false, legenda = LEGENDA_CURTA): Promise<{ ok: boolean; erro?: string; tipo?: string }> {
   try {
     const imagem = await gerarCartaoMembro(nome);
     const b = !comBotao ? { ok: false, erro: "sem botão" } : await enviarZapi("send-button-actions", {
@@ -74,7 +75,7 @@ async function enviarCartaoMembro(telefone: string, nome: string, email: string,
     });
     if (b.ok) return { ...b, tipo: "cartao_botao" };
     if (comBotao) console.error("botão recusado, indo para cartão com legenda", b.erro);
-    const i = await enviarZapi("send-image", { phone: telefone, image: imagem, caption: LEGENDA_CURTA });
+    const i = await enviarZapi("send-image", { phone: telefone, image: imagem, caption: legenda });
     if (i.ok) return { ...i, tipo: "cartao_legenda" };
   } catch (e) {
     console.error("cartão de membro não gerado, indo para texto", e instanceof Error ? e.message : e);
@@ -147,8 +148,16 @@ Deno.serve(async (req) => {
   if (interno) {
     const { data: valido } = await db.rpc("token_interno_valido", { p_token: interno });
     if (valido !== true) return resp(401, { erro: "código interno inválido" });
-    let ci: { acao?: string; nome?: string; telefone?: string; formato?: string } = {};
+    let ci: { acao?: string; nome?: string; telefone?: string; formato?: string; membro_id?: string } = {};
     try { ci = await req.json(); } catch { /* vazio */ }
+    if (ci.acao === "boas_vindas" && ci.membro_id) {
+      // Contrato do membro novo assinado por todos (função "contratos"): mesmo cartão de membro da aprovação,
+      // com a legenda de primeiro acesso (ele ainda vai criar a senha).
+      const { data: m } = await db.from("membros").select("nome, email, telefone_whatsapp").eq("id", ci.membro_id).maybeSingle();
+      if (!m?.telefone_whatsapp) return resp(200, { ok: false, erro: "membro sem WhatsApp" });
+      const w = await enviarCartaoMembro(telefoneZapi(m.telefone_whatsapp), m.nome || "", m.email || "", false, LEGENDA_PRIMEIRO_ACESSO);
+      return resp(200, w);
+    }
     if (ci.acao === "cartao") {
       // Gera o cartão no servidor, sem enviar nada: confere que imagem, fonte e fundo estão funcionando.
       const t0 = Date.now();

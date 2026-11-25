@@ -30,6 +30,7 @@ const dataBR = (iso: string | null, hora = false) => (iso ? new Date(iso).toLoca
 
 // Vigência: 12 meses contados da assinatura do MEMBRO (o banco grava início/fim quando ele assina). Antes disso, previsão se assinar hoje.
 const MESES_VIGENCIA = 12;
+const VERDE = "#1f9d55";
 const diaLocal = (s: string) => { const [a, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(a, m - 1, d); };
 const maisMeses = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
 const fmt = (d: Date) => d.toLocaleDateString("pt-BR");
@@ -46,13 +47,20 @@ export function vigencia(c: Pick<Contrato, "status" | "vigencia_inicio" | "vigen
   const dias = Math.round((fim.getTime() - maisMeses(hoje, Math.max(meses, 0)).getTime()) / 86400000);
   const falta = diasTotal < 0 ? `vencido há ${-diasTotal} dia${diasTotal === -1 ? "" : "s"}`
     : `${meses > 0 ? `${meses} ${meses === 1 ? "mês" : "meses"}${dias ? " e " : ""}` : ""}${dias || !meses ? `${dias} dia${dias === 1 ? "" : "s"}` : ""} (${diasTotal} dias)`;
-  const cor = diasTotal < 0 ? "var(--p-danger)" : diasTotal <= 60 ? "var(--p-warn)" : "var(--p-text2)";
+  const cor = diasTotal < 0 ? "var(--p-danger)" : diasTotal <= 60 ? "var(--p-warn)" : VERDE;
   return { inicio: fmt(inicio), fim: fmt(fim), falta, cor, previsto, dias: diasTotal };
 }
 function Vigencia({ c, grande }: { c: Contrato; grande?: boolean }) {
   const v = vigencia(c);
   if (!v) return null;
   const linha = { display: "flex", justifyContent: "space-between", gap: 12 } as const;
+  // Membro já assinou: vigência valendo, em destaque (verde; laranja perto de vencer; vermelho vencido).
+  if (!grande && !v.previsto) return (
+    <div style={{ marginTop: 6, padding: "7px 10px", borderRadius: 10, border: `1.5px solid ${v.cor}`, background: `color-mix(in srgb, ${v.cor} 10%, transparent)`, color: v.cor, fontSize: 12.5, lineHeight: 1.5, fontWeight: 600 }}>
+      <div>Início: <b>{v.inicio}</b> · Fim: <b>{v.fim}</b></div>
+      <div>Faltam <b>{v.falta}</b></div>
+    </div>
+  );
   if (!grande) return (
     <div style={{ fontSize: 12, fontWeight: 500, color: "var(--p-muted)", marginTop: 4, lineHeight: 1.45 }}>
       {v.previsto ? "Previsto (se o membro assinar hoje): " : ""}{v.inicio} → {v.fim}
@@ -60,8 +68,8 @@ function Vigencia({ c, grande }: { c: Contrato; grande?: boolean }) {
     </div>
   );
   return (
-    <div style={{ ...ui.cartao, padding: "14px 16px" }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Vigência do contrato{v.previsto ? " (previsão)" : ""}</div>
+    <div style={{ ...ui.cartao, padding: "14px 16px", ...(v.previsto ? {} : { border: `1.5px solid ${v.cor}`, background: `color-mix(in srgb, ${v.cor} 8%, var(--p-card))` }) }}>
+      <div style={{ fontWeight: 700, marginBottom: 8, color: v.previsto ? undefined : v.cor }}>Vigência do contrato{v.previsto ? " (previsão)" : ""}</div>
       <div style={{ display: "grid", gap: 4, fontSize: 14 }}>
         <div style={linha}><span style={{ color: "var(--p-muted)" }}>Data inicial</span><b>{v.inicio}</b></div>
         <div style={linha}><span style={{ color: "var(--p-muted)" }}>Data final</span><b>{v.fim}</b></div>
@@ -159,7 +167,7 @@ export function AdminContratos() {
               <div style={{ fontSize: 12.5, color: "var(--p-muted)" }}>{m?.empresa || ""}</div>
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, color: ROTULO[c.status].cor, minWidth: 170 }}>
-              {ROTULO[c.status].t}{c.status === "enviado" && ass.length ? ` (${feitas} de ${ass.length})` : ""}
+              {ROTULO[c.status].t}{c.status === "enviado" && ass.length ? ` · falta${ass.length - feitas === 1 ? "" : "m"} ${ass.length - feitas} de ${ass.length}` : ""}
               <div style={{ fontWeight: 500, color: "var(--p-muted)", fontSize: 12 }}>
                 {c.status === "aguardando_formulario" && (c.whatsapp_erro ? `WhatsApp não enviado: ${c.whatsapp_erro}` : c.formulario_enviado_em ? `link enviado em ${dataBR(c.formulario_enviado_em)}` : "")}
                 {c.status === "revisao" && c.formulario_respondido_em && `preenchido em ${dataBR(c.formulario_respondido_em)}`}

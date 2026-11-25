@@ -15,12 +15,12 @@ type Dados = {
 };
 
 const VERDE = "#1f9d55";
-const escuro = (c: string, p: number) => `color-mix(in srgb, ${c} ${100 - p}%, black)`;
-const claro = (c: string, p: number) => `color-mix(in srgb, ${c} ${100 - p}%, white)`;
+export const escuro = (c: string, p: number) => `color-mix(in srgb, ${c} ${100 - p}%, black)`;
+export const claro = (c: string, p: number) => `color-mix(in srgb, ${c} ${100 - p}%, white)`;
 const dataCurta = (s: string) => { const [, m, d] = s.split("-"); return `${d}/${m}`; };
 
 // Cartão com profundidade (camadas de sombra + leve inclinação ao passar o mouse).
-function Cartao3D({ titulo, sub, aba, onIr, children }: { titulo: string; sub?: string; aba?: Aba; onIr: (a: Aba) => void; children: ReactNode }) {
+export function Cartao3D({ titulo, sub, aba, onIr, children }: { titulo: string; sub?: string; aba?: Aba; onIr: (a: Aba) => void; children: ReactNode }) {
   const [hover, setHover] = useState(false);
   return (
     <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={() => aba && onIr(aba)}
@@ -40,51 +40,57 @@ function Cartao3D({ titulo, sub, aba, onIr, children }: { titulo: string; sub?: 
   );
 }
 
-function Indicador({ rotulo, valor, de, cor = "var(--p-accent)", onClick }: { rotulo: string; valor: number; de?: number; cor?: string; onClick?: () => void }) {
-  const pct = de ? Math.round((valor / Math.max(de, 1)) * 100) : null;
+export function Indicador({ rotulo, valor, de, cor = "var(--p-accent)", onClick, nota }: { rotulo: string; valor: number | string; de?: number; cor?: string; onClick?: () => void; nota?: string }) {
+  const pct = de && typeof valor === "number" ? Math.round((valor / Math.max(de, 1)) * 100) : null;
   return (
     <div onClick={onClick} style={{ cursor: onClick ? "pointer" : "default", borderRadius: 20, padding: "16px 18px", color: "#fff", position: "relative", overflow: "hidden",
       background: `linear-gradient(150deg, ${claro(cor, 10)} 0%, ${escuro(cor, 22)} 100%)`,
       boxShadow: `0 6px 0 ${escuro(cor, 45)}, 0 18px 30px -14px ${escuro(cor, 30)}`, transform: "translateY(-3px)" }}>
       <div style={{ position: "absolute", right: -30, top: -30, width: 110, height: 110, borderRadius: 99, background: "rgba(255,255,255,.12)" }} />
       <div style={{ fontSize: 13, opacity: 0.92, fontWeight: 600 }}>{rotulo}</div>
-      <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1, marginTop: 4 }}>
+      <div style={{ fontSize: typeof valor === "string" ? 24 : 34, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1, marginTop: 4 }}>
         {valor}{de !== undefined && <span style={{ fontSize: 16, fontWeight: 600, opacity: 0.85 }}> de {de}</span>}
       </div>
       {pct !== null && <div style={{ fontSize: 12.5, opacity: 0.9, marginTop: 2 }}>{pct}%</div>}
+      {nota && <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 2 }}>{nota}</div>}
     </div>
   );
 }
 
 // Barras horizontais com profundidade (face da frente, de cima e da ponta). Em HTML para o texto ficar legível no celular.
-function BarrasH({ itens, total, cor = "var(--p-accent)" }: { itens: { rotulo: string; valor: number }[]; total: number; cor?: string }) {
-  const D = 7, max = Math.max(total, 1);
+// Uma barra com profundidade 3D (usada nas listas de barras daqui e da Saúde do sistema).
+export function Barra3D({ pct, cor }: { pct: number; cor: string }) {
+  const D = 7, w = Math.min(Math.max(pct, pct > 0 ? 2 : 0), 100);
+  return (
+    <div style={{ position: "relative", height: 18, marginRight: D, marginTop: D, background: "color-mix(in srgb, var(--p-line) 60%, transparent)", borderRadius: 3 }}>
+      {w > 0 && <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${w}%` }}>
+        <div style={{ position: "absolute", inset: 0, background: cor }} />
+        <div style={{ position: "absolute", left: D / 2, right: -D / 2, top: -D, height: D, background: claro(cor, 30), transform: "skewX(-45deg)", transformOrigin: "bottom" }} />
+        <div style={{ position: "absolute", right: -D, top: -D / 2, bottom: D / 2, width: D, background: escuro(cor, 30), transform: "skewY(-45deg)", transformOrigin: "left" }} />
+      </div>}
+    </div>
+  );
+}
+
+export function BarrasH({ itens, total, cor = "var(--p-accent)" }: { itens: { rotulo: string; valor: number }[]; total: number; cor?: string }) {
+  const max = Math.max(total, 1);
   return (
     <div style={{ display: "grid", gap: 12, paddingTop: 4 }}>
-      {itens.map((it) => {
-        const pct = Math.max((it.valor / max) * 100, it.valor ? 2 : 0);
-        return (
-          <div key={it.rotulo} title={`${it.rotulo}: ${it.valor} de ${total}`}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 4 + D }}>
-              <span style={{ color: "var(--p-text2)" }}>{it.rotulo}</span>
-              <b>{it.valor} <span style={{ color: "var(--p-muted)", fontWeight: 500 }}>({Math.round((it.valor / max) * 100)}%)</span></b>
-            </div>
-            <div style={{ position: "relative", height: 18, marginRight: D, background: "color-mix(in srgb, var(--p-line) 60%, transparent)", borderRadius: 3 }}>
-              {pct > 0 && <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct}%` }}>
-                <div style={{ position: "absolute", inset: 0, background: cor }} />
-                <div style={{ position: "absolute", left: D / 2, right: -D / 2, top: -D, height: D, background: claro(cor, 30), transform: "skewX(-45deg)", transformOrigin: "bottom" }} />
-                <div style={{ position: "absolute", right: -D, top: -D / 2, bottom: D / 2, width: D, background: escuro(cor, 30), transform: "skewY(-45deg)", transformOrigin: "left" }} />
-              </div>}
-            </div>
+      {itens.map((it) => (
+        <div key={it.rotulo} title={`${it.rotulo}: ${it.valor} de ${total}`}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 4 }}>
+            <span style={{ color: "var(--p-text2)" }}>{it.rotulo}</span>
+            <b>{it.valor} <span style={{ color: "var(--p-muted)", fontWeight: 500 }}>({Math.round((it.valor / max) * 100)}%)</span></b>
           </div>
-        );
-      })}
+          <Barra3D pct={(it.valor / max) * 100} cor={cor} />
+        </div>
+      ))}
     </div>
   );
 }
 
 // Rosca em 3D (camadas empilhadas dão a espessura); os ângulos seguem os números exatos.
-function Rosca3D({ fatias }: { fatias: { rotulo: string; valor: number; cor: string }[] }) {
+export function Rosca3D({ fatias }: { fatias: { rotulo: string; valor: number; cor: string }[] }) {
   const total = fatias.reduce((s, f) => s + f.valor, 0);
   const cx = 110, cy = 82, rx = 96, ry = 56, ri = 0.55, PROF = 16;
   const pt = (a: number, k = 1, dy = 0) => `${cx + rx * k * Math.cos(a)},${cy + ry * k * Math.sin(a) + dy}`;

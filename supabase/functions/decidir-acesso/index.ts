@@ -1,5 +1,6 @@
 // Função "decidir-acesso": o administrador aprova ou recusa uma solicitação de acesso ao portal.
-// Aprovar  -> cria (ou reativa) o cadastro de membro ligado ao login da pessoa e envia pelo WhatsApp
+// Aprovar  -> cria (ou reativa) o cadastro de membro ligado ao login da pessoa. Membro NOVO (cadastro criado agora) passa
+//             primeiro pelo contrato (formulário no WhatsApp; cartão só depois das assinaturas). Reativado: envia pelo WhatsApp
 //             o cartão de membro com o nome dela + legenda curta com o portal (aprovado em 19/11)
 //             (se a imagem falhar, envia a mensagem só de texto).
 // Recusar  -> só marca a solicitação como recusada (nenhuma mensagem é enviada).
@@ -200,6 +201,7 @@ Deno.serve(async (req) => {
   }
 
   let membroId: string | null = s.membro_id;
+  let novoMembro = false; // cadastro criado agora: membro novo, passa primeiro pelo contrato
   if (corpo.acao === "vincular") {
     if (s.status === "aprovada") return resp(409, { erro: "já aprovada" });
     // "É ele": o login do pedido passa a ser o do membro escolhido (perfil, resumo e oportunidades continuam).
@@ -231,15 +233,23 @@ Deno.serve(async (req) => {
     } else {
       const { data: novo, error } = await db.from("membros").insert({
         nome: s.nome, email: s.email, empresa: s.empresa || null, telefone_whatsapp: s.whatsapp || null, ativo: true, auth_user_id: s.auth_user_id, is_admin: false, equipe: false,
+        contrato_pendente: true, // o banco já manda o formulário do contrato no WhatsApp
       }).select("id").single();
       if (error) { console.error("criar membro", error.message); return resp(500, { erro: `não foi possível criar o cadastro (${error.message})` }); }
       membroId = novo.id;
+      novoMembro = true;
     }
     await db.from("solicitacoes_acesso").update({ status: "aprovada", decidido_em: agora, decidido_por: eu.id, membro_id: membroId }).eq("id", s.id);
   } else if (s.status !== "aprovada") {
     return resp(409, { erro: "só dá para reenviar o WhatsApp de uma solicitação aprovada" });
   }
 
+  // Membro novo: o cartão de membro só sai depois de todas as assinaturas do contrato (função "contratos").
+  if (novoMembro) return resp(200, { ok: true, status: "aprovada", membro_id: membroId, whatsapp: "contrato", formato: "formulario_contrato" });
+  if (corpo.acao === "reenviar") {
+    const { data: mm } = await db.from("membros").select("contrato_pendente").eq("id", membroId!).maybeSingle();
+    if (mm?.contrato_pendente) return resp(409, { erro: "membro novo com contrato em andamento: o cartão sai depois das assinaturas" });
+  }
   if (!s.whatsapp) return resp(200, { ok: true, status: "aprovada", membro_id: membroId, whatsapp: "sem_numero" });
   const w = await enviarCartaoMembro(telefoneZapi(s.whatsapp), s.nome, s.email);
   await db.from("solicitacoes_acesso").update(w.ok ? { whatsapp_enviado_em: new Date().toISOString(), whatsapp_erro: null } : { whatsapp_erro: w.erro }).eq("id", s.id);

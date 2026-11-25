@@ -79,6 +79,8 @@ export default function Solicitacoes({ onMudou }: { onMudou?: () => void }) {
       setMsg({ tipo: "erro", texto: `Não foi possível concluir${motivo ? `: ${motivo}` : ". Tente de novo em instantes; se continuar, avise o suporte."}` });
     } else if (acao === "recusar") {
       setMsg({ tipo: "ok", texto: `Solicitação de ${primeiro} recusada.` });
+    } else if (data.whatsapp === "contrato") {
+      setMsg({ tipo: "ok", texto: `${primeiro} aprovado como membro novo: recebeu no WhatsApp o link do formulário do contrato. Acompanhe em Contratos.` });
     } else if (data.whatsapp === "sem_numero") {
       setMsg({ tipo: "ok", texto: `${primeiro} aprovado. Como não informou WhatsApp, não recebeu aviso: avise por outro canal que o acesso está liberado.` });
     } else if (data.whatsapp === "enviado") {

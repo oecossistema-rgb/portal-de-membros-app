@@ -28,7 +28,7 @@ const ROTULO: Record<Status, { t: string; cor: string }> = {
 const PORTAL = "https://portal.oecossistemabusiness.com";
 const dataBR = (iso: string | null, hora = false) => (iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", ...(hora ? { hour: "2-digit", minute: "2-digit" } : {}) }) : "");
 
-// Vigência: 12 meses contados da assinatura (cláusula 3.2). Antes de todos assinarem, mostra a previsão se assinarem hoje.
+// Vigência: 12 meses contados da assinatura do MEMBRO (o banco grava início/fim quando ele assina). Antes disso, previsão se assinar hoje.
 const MESES_VIGENCIA = 12;
 const diaLocal = (s: string) => { const [a, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(a, m - 1, d); };
 const maisMeses = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
@@ -55,7 +55,7 @@ function Vigencia({ c, grande }: { c: Contrato; grande?: boolean }) {
   const linha = { display: "flex", justifyContent: "space-between", gap: 12 } as const;
   if (!grande) return (
     <div style={{ fontSize: 12, fontWeight: 500, color: "var(--p-muted)", marginTop: 4, lineHeight: 1.45 }}>
-      {v.previsto ? "Previsto (se assinar hoje): " : ""}{v.inicio} → {v.fim}
+      {v.previsto ? "Previsto (se o membro assinar hoje): " : ""}{v.inicio} → {v.fim}
       <div style={{ color: v.cor, fontWeight: 650 }}>{v.previsto ? "Duração: 12 meses" : `Faltam ${v.falta}`}</div>
     </div>
   );
@@ -67,7 +67,7 @@ function Vigencia({ c, grande }: { c: Contrato; grande?: boolean }) {
         <div style={linha}><span style={{ color: "var(--p-muted)" }}>Data final</span><b>{v.fim}</b></div>
         <div style={linha}><span style={{ color: "var(--p-muted)" }}>{v.previsto ? "Duração" : "Tempo restante"}</span><b style={{ color: v.cor }}>{v.previsto ? "12 meses" : v.falta}</b></div>
       </div>
-      {v.previsto && <div style={{ fontSize: 12.5, color: "var(--p-muted)", marginTop: 8 }}>A vigência conta da assinatura (cláusula 3.2). As datas ficam fixas quando todos assinarem.</div>}
+      {v.previsto && <div style={{ fontSize: 12.5, color: "var(--p-muted)", marginTop: 8 }}>A vigência começa no dia em que o membro assina (com sócio, quando os dois assinarem). As datas ficam fixas nesse momento.</div>}
     </div>
   );
 }

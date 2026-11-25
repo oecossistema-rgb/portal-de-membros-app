@@ -79,8 +79,8 @@ begin
       v_fone := nullif(left(regexp_replace(coalesce(new.raw_user_meta_data->>'whatsapp', ''), '\D', '', 'g'), 15), '');
       if v_fone is not null and length(v_fone) < 10 then v_fone := null; end if;
       v_nome := left(coalesce(nullif(trim(new.raw_user_meta_data->>'nome'), ''), split_part(new.email, '@', 1)), 120);
-      if exists (select 1 from public.membros m where lower(m.email) = lower(new.email)
-                 or (v_fone is not null and right(regexp_replace(coalesce(m.telefone_whatsapp, ''), '\D', '', 'g'), 8) = right(v_fone, 8))) then
+      if exists (select 1 from public.membros m where m.auth_user_id is null and (lower(m.email) = lower(new.email)
+                 or (v_fone is not null and right(regexp_replace(coalesce(m.telefone_whatsapp, ''), '\D', '', 'g'), 8) = right(v_fone, 8)))) then
         insert into public.solicitacoes_acesso (auth_user_id, email, nome, whatsapp)
         values (new.id, lower(new.email), v_nome, v_fone) on conflict (auth_user_id) do nothing;
       else

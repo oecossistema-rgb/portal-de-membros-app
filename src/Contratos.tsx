@@ -12,7 +12,7 @@ type Contrato = {
   id: string; membro_id: string; status: Status; token: string; texto: string | null; socio: boolean;
   arquivo_path: string | null; assinado_path: string | null; enviado_em: string | null; assinado_em: string | null;
   formulario_enviado_em: string | null; formulario_respondido_em: string | null; whatsapp_erro: string | null;
-  vigencia_inicio: string | null; vigencia_fim: string | null;
+  vigencia_inicio: string | null; vigencia_fim: string | null; renovacao_de: string | null;
   assinaturas: Assinatura[] | null; autentique_id: string | null; autentique_teste: boolean; verificado_em: string | null; criado_em: string; atualizado_em: string;
 };
 type Membro = { id: string; nome: string | null; empresa: string | null; foto_url: string | null; telefone_whatsapp: string | null };
@@ -47,7 +47,7 @@ export function vigencia(c: Pick<Contrato, "status" | "vigencia_inicio" | "vigen
   const falta = diasTotal < 0 ? `vencido há ${-diasTotal} dia${diasTotal === -1 ? "" : "s"}`
     : `${meses > 0 ? `${meses} ${meses === 1 ? "mês" : "meses"}${dias ? " e " : ""}` : ""}${dias || !meses ? `${dias} dia${dias === 1 ? "" : "s"}` : ""} (${diasTotal} dias)`;
   const cor = diasTotal < 0 ? "var(--p-danger)" : diasTotal <= 60 ? "var(--p-warn)" : "var(--p-text2)";
-  return { inicio: fmt(inicio), fim: fmt(fim), falta, cor, previsto };
+  return { inicio: fmt(inicio), fim: fmt(fim), falta, cor, previsto, dias: diasTotal };
 }
 function Vigencia({ c, grande }: { c: Contrato; grande?: boolean }) {
   const v = vigencia(c);
@@ -144,13 +144,18 @@ export function AdminContratos() {
         const m = membro(c.membro_id);
         const ass = (c.assinaturas || []);
         const feitas = ass.filter((a) => a.assinado_em).length;
+        const renovacao = contratos.find((x) => x.renovacao_de === c.id && x.status !== "cancelado");
+        const v = c.status === "assinado" ? vigencia(c) : null;
+        const podeRenovar = !!v && !v.previsto && v.dias <= 60 && !renovacao; // vencido ou faltando 60 dias ou menos
         return (
           <div key={c.id} style={{ ...ui.cartao, padding: "12px 16px", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", cursor: c.texto ? "pointer" : "default" }}
             onClick={() => c.texto && setAberto(c.id)}>
             {m?.foto_url ? <img src={m.foto_url} alt="" style={{ width: 40, height: 40, borderRadius: 12, objectFit: "cover" }} />
               : <div style={{ width: 40, height: 40, borderRadius: 12, background: "var(--p-accent-bg)", color: "var(--p-accent-text)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{(m?.nome || "?")[0]}</div>}
             <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-              <div style={{ fontWeight: 650 }}>{m?.nome || "Membro"}{c.socio ? " + sócio" : ""}</div>
+              <div style={{ fontWeight: 650 }}>{m?.nome || "Membro"}{c.socio ? " + sócio" : ""}
+                {c.renovacao_de && <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 700, color: "var(--p-accent-text)", background: "var(--p-accent-bg)", borderRadius: 6, padding: "2px 7px" }}>Renovação</span>}
+              </div>
               <div style={{ fontSize: 12.5, color: "var(--p-muted)" }}>{m?.empresa || ""}</div>
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, color: ROTULO[c.status].cor, minWidth: 170 }}>
@@ -162,12 +167,20 @@ export function AdminContratos() {
                 {c.status === "assinado" && c.assinado_em && `em ${dataBR(c.assinado_em)}`}
               </div>
               {(c.status === "enviado" || c.status === "assinado") && <Vigencia c={c} />}
+              {renovacao && <div style={{ fontSize: 12, fontWeight: 600, color: "var(--p-accent-text)", marginTop: 4 }}>Renovação: {ROTULO[renovacao.status].t.toLowerCase()}</div>}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
               {c.status === "aguardando_formulario" && <>
                 <button style={ui.botaoSecundario} disabled={ocupado === c.id} onClick={() => acao(c, { acao: "reenviar_link", id: c.id }, `Link reenviado para ${m?.nome}.`)}>{ocupado === c.id ? "Enviando..." : "Reenviar link"}</button>
                 <button style={ui.botaoSecundario} onClick={() => copiar(`${PORTAL}/#contrato/${c.token}`)}>Copiar link</button>
               </>}
+              {podeRenovar && (
+                <button className="cta-btn" style={{ ...ui.botao, padding: "8px 16px", fontSize: 13 }} disabled={ocupado === c.id} onClick={async () => {
+                  if (!confirm(`Gerar a renovação do contrato de ${m?.nome}?\n\nNovo contrato com os mesmos dados, sem taxa de adesão. Você digita os valores e as alterações antes de enviar para assinatura.`)) return;
+                  const r = await acao(c, { acao: "renovar", id: c.id }, "Renovação gerada. Digite os valores (campos ____) em Editar e envie para assinatura.");
+                  if (r.id) setAberto(String(r.id));
+                }}>{ocupado === c.id ? "Gerando..." : "Renovar contrato"}</button>
+              )}
               {c.texto && <button className={c.status === "revisao" ? "cta-btn" : undefined} style={c.status === "revisao" ? { ...ui.botao, padding: "8px 16px", fontSize: 13 } : ui.botaoSecundario} onClick={() => setAberto(c.id)}>{c.status === "revisao" ? "Revisar" : "Abrir"}</button>}
               {c.status !== "cancelado" && c.status !== "assinado" && (
                 <button style={ui.botaoPerigo} onClick={() => confirm(`Cancelar o contrato de ${m?.nome}?`) && acao(c, { acao: "cancelar", id: c.id }, "Contrato cancelado.")}>Cancelar</button>
@@ -294,6 +307,11 @@ function TelaContrato({ c, nome, msg, ocupado, onFechar, onAcao, onCopiar, onSal
                 </div>
               ))}
               {c.verificado_em && <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 6 }}>Conferido na Autentique em {dataBR(c.verificado_em, true)}. O portal confere sozinho a cada 10 minutos.</div>}
+            </div>
+          )}
+          {c.status === "revisao" && !editando && c.renovacao_de && (
+            <div style={{ ...ui.aviso, margin: "0 0 12px" }}>
+              <b>Renovação (sem taxa de adesão).</b> Clique em <b>Editar</b> e troque cada <b style={{ color: "#C62828" }}>____</b> pelos valores combinados (cláusulas 5.1 e 6.2), e o que mais tiver mudado (endereço, estado civil etc.). O portal só deixa enviar quando não houver mais nenhum ____.
             </div>
           )}
           {c.status === "revisao" && !editando && (

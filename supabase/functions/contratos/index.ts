@@ -10,6 +10,7 @@
 //   { acao: "enviar", id, teste? }         -> PDF + Autentique; cada assinante recebe o link pelo WhatsApp
 //   { acao: "reenviar_assinatura", id }    -> manda de novo os links de assinatura de quem ainda não assinou
 //   { acao: "verificar", id }              -> consulta as assinaturas agora
+//   { acao: "renovar", id }                -> novo contrato (mesmos dados, sem taxa de adesão) em revisão, para digitar os valores
 //   { acao: "cancelar", id }               -> cancela (e tira o documento da Autentique, se já tiver ido)
 // Banco (cabeçalho x-portal-interno):
 //   { varredura: true }                    -> a cada 10 min: confere assinaturas e reenvia ao Google Forms o que faltou
@@ -185,6 +186,20 @@ function pagamento(d: Dados): { c51: string; bloco: string } {
       "6.4. Embora a adesão permita duas cadeiras, o valor residual de R$ 22.020,00 (vinte e dois mil e vinte reais) deverá ser pago individualmente por cada PARTICIPANTE, nos termos desta cláusula.",
     ].join("\n\n"),
   };
+}
+
+// Renovação (item 6.8: quem renova não paga a taxa de adesão). Valores em branco ("____") para a equipe digitar em Editar;
+// o portal não deixa enviar para assinatura enquanto houver "____" no texto.
+export function gerarTextoRenovacao(modelo: string, d: Dados): string {
+  const c51 = "5.1. A remuneração pelo acesso ao ECOSSISTEMA na modalidade EXCLUSIVE, em renovação, se dará através do pagamento do valor total de R$ ____ (____), sem taxa de adesão, nos termos do item 6.8.";
+  const bloco = [
+    "6.1. Por se tratar de renovação de contrato, o PARTICIPANTE fica desobrigado do pagamento da taxa de adesão, nos termos do item 6.8.",
+    "6.2. O PARTICIPANTE pagará para a CONTRATADA o valor total de R$ ____ (____), em ____ parcela(s) de R$ ____ (____), via ____.",
+    "6.3. A renovação mantém o ingresso de até 2 (dois) PARTICIPANTES, desde que sejam sócios da mesma empresa ou casal.",
+    "6.4. Embora a renovação permita duas cadeiras, o valor deste contrato deverá ser pago individualmente por cada PARTICIPANTE, nos termos desta cláusula.",
+  ].join("\n\n");
+  const corpo = modelo.replace("{{CLAUSULA_5_1}}", c51).replace("{{PAGAMENTO}}", bloco).replace("{{DATA}}", dataExtenso());
+  return `${cabecalho(d.participantes)}\n\n${corpo}`;
 }
 
 export function gerarTexto(modelo: string, d: Dados): string {
@@ -400,7 +415,11 @@ async function verificar(c: Reg): Promise<Reg> {
   // Todas as assinaturas: libera o portal (agora é membro) e dispara o que já existe: cartão de membro; o onboarding vem no
   // próximo acesso. Teste não dispara.
   if (tudo && !c.autentique_teste) await db.from("membros").update({ contrato_pendente: false }).eq("id", c.membro_id);
-  if (tudo && !c.boas_vindas_em && !c.autentique_teste) {
+  // Renovação: só avisa a equipe (o membro já tem acesso e já recebeu o cartão).
+  if (tudo && c.renovacao_de && c.status !== "assinado" && !c.autentique_teste) {
+    await avisarGrupo(`✅ *Renovação assinada por todos*\n\n*${(c.dados?.participantes || []).map((p: Participante) => p.nome).join(" e ")}*\nNovo período de 12 meses a partir de hoje.`);
+  }
+  if (tudo && !c.renovacao_de && !c.boas_vindas_em && !c.autentique_teste) {
     await avisarGrupo(`✅ *Contrato assinado por todos*\n\n*${(c.dados?.participantes || []).map((p: Participante) => p.nome).join(" e ")}*\nO portal foi liberado e o membro recebeu o cartão de boas-vindas.`);
     const { error } = await db.rpc("contrato_boas_vindas", { p_membro_id: c.membro_id });
     if (!error) await db.from("contratos").update({ boas_vindas_em: new Date().toISOString() }).eq("id", c.id);
@@ -559,6 +578,7 @@ Deno.serve(async (req) => {
     }
     if (c.acao === "enviar") {
       if (k.status !== "revisao" && !(k.status === "enviado" && k.autentique_teste)) return resp(409, { erro: "esse contrato não está em revisão" });
+      if ((k.texto || "").includes("____")) return resp(409, { erro: "Ainda há campos em branco (____) no contrato. Clique em Editar e preencha os valores antes de enviar." });
       if (k.status === "enviado" && k.autentique_teste && k.autentique_id) { try { await gql(`mutation { deleteDocument(id: "${k.autentique_id}") }`); } catch { /* */ } }
       const n = await enviarAutentique(k, !!c.teste);
       return resp(200, { ok: true, contrato: n });
@@ -567,6 +587,18 @@ Deno.serve(async (req) => {
       if (k.status !== "enviado") return resp(409, { erro: "contrato não está aguardando assinaturas" });
       const a = await avisarAssinantes(k, (k.assinaturas || []).filter((x: Assinatura) => !x.assinado_em));
       return resp(200, { ok: true, avisados: a.filter((x) => x.avisado).length });
+    }
+    if (c.acao === "renovar") {
+      if (k.status !== "assinado" || !k.dados) return resp(409, { erro: "só dá para renovar um contrato assinado" });
+      const { data: ja } = await db.from("contratos").select("id").eq("renovacao_de", k.id).neq("status", "cancelado").limit(1).maybeSingle();
+      if (ja) return resp(409, { erro: "esse contrato já tem uma renovação" });
+      const { data: n, error } = await db.from("contratos").insert({
+        membro_id: k.membro_id, status: "revisao", origem: "renovacao", renovacao_de: k.id, dados: k.dados, socio: k.socio,
+        texto: gerarTextoRenovacao(await modelo(), k.dados), formulario_respondido_em: new Date().toISOString(),
+        google_enviado_em: new Date().toISOString(), criado_por: admin,
+      }).select("id").single();
+      if (error || !n) return resp(500, { erro: error?.message || "não foi possível criar a renovação" });
+      return resp(200, { ok: true, id: n.id });
     }
     if (c.acao === "verificar") return resp(200, { ok: true, contrato: await verificar(k) });
     if (c.acao === "cancelar") {

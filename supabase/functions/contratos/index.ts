@@ -34,7 +34,7 @@ type Participante = {
   rg: string; orgao_emissor: string; documento: string; endereco: string; cidade: string; estado: string; cep: string;
 };
 type Dados = { participantes: Participante[]; pagamento: "avista" | "cartao" | "boleto"; dia_boleto?: string };
-type Assinatura = { nome: string; papel: string; link: string | null; public_id: string; assinado_em: string | null; recusado_em: string | null; avisado: boolean };
+type Assinatura = { nome: string; email?: string | null; papel: string; link: string | null; public_id: string; assinado_em: string | null; recusado_em: string | null; avisado: boolean };
 // deno-lint-ignore no-explicit-any
 type Reg = Record<string, any>;
 
@@ -98,7 +98,7 @@ async function criarDocumento(nome: string, pdf: Uint8Array, signers: Reg[], tes
   if (!tok) throw new Error("AUTENTIQUE_TOKEN não cadastrado");
   const query = `mutation($document: DocumentInput!, $signers: [SignerInput!]!, $file: Upload!) {
     createDocument(sandbox: ${teste ? "true" : "false"}, document: $document, signers: $signers, file: $file) {
-      id name signatures { public_id name action { name } link { short_link } }
+      id name signatures { public_id name email action { name } link { short_link } }
     } }`;
   const fd = new FormData();
   fd.append("operations", JSON.stringify({ query, variables: { document: { name: nome, refusable: true }, signers, file: null } }));
@@ -110,7 +110,12 @@ async function criarDocumento(nome: string, pdf: Uint8Array, signers: Reg[], tes
   return j.data.createDocument;
 }
 const consultarDocumento = (id: string) => gql(`query($id: UUID!) { document(id: $id) {
-  id files { signed } signatures { public_id name action { name } link { short_link } signed { created_at } rejected { created_at } } } }`, { id });
+  id files { signed } signatures { public_id name email action { name } link { short_link } signed { created_at } rejected { created_at } } } }`, { id });
+// Link de assinatura de quem recebe por e-mail (a Autentique manda o e-mail; o mesmo link vai também pelo WhatsApp).
+async function linkDe(publicId: string): Promise<string | null> {
+  try { const d = await gql(`mutation { createLinkToSignature(public_id: "${publicId}") { short_link } }`); return d.createLinkToSignature?.short_link || null; }
+  catch (e) { console.error("link de assinatura", e); return null; }
+}
 
 // ---------- modelo do contrato ----------
 // Junta as linhas quebradas do PDF em parágrafos (cada cláusula, item, alínea e linha de assinatura vira um parágrafo).
@@ -300,13 +305,13 @@ async function enviarConvite(c: Reg): Promise<{ ok: boolean; erro?: string }> {
   return r;
 }
 
-async function equipeAssinantes(): Promise<{ nome: string; acao: string; papel: string; whatsapp: string | null }[]> {
+async function equipeAssinantes(): Promise<{ nome: string; acao: string; papel: string; whatsapp: string | null; email: string | null }[]> {
   const { data } = await db.from("portal_config").select("valor").eq("chave", "contrato_assinantes").maybeSingle();
   const lista: { nome: string; acao: string; papel: string }[] = JSON.parse(data?.valor || "[]");
   const out = [];
   for (const a of lista) {
-    const { data: m } = await db.from("membros").select("telefone_whatsapp").ilike("nome", a.nome).limit(1).maybeSingle();
-    out.push({ ...a, whatsapp: m?.telefone_whatsapp || null });
+    const { data: m } = await db.from("membros").select("telefone_whatsapp, email").ilike("nome", a.nome).limit(1).maybeSingle();
+    out.push({ ...a, whatsapp: m?.telefone_whatsapp || null, email: (a as Reg).email || m?.email || null });
   }
   return out;
 }
@@ -317,13 +322,14 @@ async function avisarAssinantes(c: Reg, assinaturas: Assinatura[]): Promise<Assi
   const nomeMembro = d.participantes.map((p) => p.nome).join(" e ");
   for (const a of assinaturas) {
     if (!a.link || a.assinado_em) continue;
-    const part = d.participantes.find((p) => p.nome === a.nome);
-    const eq = equipe.find((e) => e.nome === a.nome);
+    const mesmo = (n?: string | null, e?: string | null) => (!!a.email && !!e && a.email.toLowerCase() === e.toLowerCase()) || (!!a.nome && a.nome === n);
+    const part = d.participantes.find((p) => mesmo(p.nome, p.email));
+    const eq = equipe.find((e) => mesmo(e.nome, e.email));
     const fone = part?.whatsapp || eq?.whatsapp;
     if (!fone) continue;
     const msg = part
-      ? `*Seu contrato do Ecossistema Master Business está pronto.* ✍️\n\n${primeiro(part.nome)}, é só assinar por este link:\n${a.link}\n\nAssim que todas as assinaturas forem concluídas, você recebe o acesso ao portal.`
-      : `*Contrato para assinar* ✍️\n\n${nomeMembro} · Ecossistema Master Business\nSua assinatura (${a.papel.toLowerCase()}):\n${a.link}`;
+      ? `*Seu contrato do Ecossistema Master Business está pronto.* ✍️\n\n${primeiro(part.nome)}, é só assinar por este link (também enviamos para o seu e-mail):\n${a.link}\n\nAssim que todas as assinaturas forem concluídas, você recebe o acesso ao portal.`
+      : `*Contrato para assinar* ✍️\n\n${nomeMembro} · Ecossistema Master Business\nSua assinatura (${a.papel.toLowerCase()}):\n${a.link}\n\n(O link também foi para o seu e-mail.)`;
     const r = await zapiTexto(fone, msg);
     a.avisado = a.avisado || r.ok;
   }
@@ -338,15 +344,21 @@ async function enviarAutentique(c: Reg, teste: boolean): Promise<Reg> {
   const caminho = `${c.membro_id}/${c.id}${teste ? "-teste" : ""}.pdf`;
   await db.storage.from("contratos").upload(caminho, pdf, { contentType: "application/pdf", upsert: true });
   const equipe = await equipeAssinantes();
+  // Assinatura pelo e-mail (a Autentique manda o e-mail) e pelo WhatsApp (o portal manda o link). Sem e-mail: só link.
+  const signer = (nome: string, email: string | null, acao: string) => (email ? { email: email.toLowerCase(), action: acao } : { name: nome, action: acao });
   const signers = [
-    ...d.participantes.map((p) => ({ name: p.nome, action: "SIGN" })),
-    ...equipe.map((e) => ({ name: e.nome, action: e.acao })),
+    ...d.participantes.map((p) => signer(p.nome, p.email, "SIGN")),
+    ...equipe.map((e) => signer(e.nome, e.email, e.acao)),
   ];
   const doc = await criarDocumento(titulo, pdf, signers, teste);
-  const papel = (nome: string) => d.participantes.some((p) => p.nome === nome) ? "Participante" : (equipe.find((e) => e.nome === nome)?.papel || "Assinante");
-  let assinaturas: Assinatura[] = (doc.signatures || []).filter((s: Reg) => s.action).map((s: Reg) => ({
-    nome: s.name, papel: papel(s.name), link: s.link?.short_link || null, public_id: s.public_id, assinado_em: null, recusado_em: null, avisado: false,
-  }));
+  const pessoas = [...d.participantes.map((p) => ({ nome: p.nome, email: p.email, papel: "Participante" })), ...equipe.map((e) => ({ nome: e.nome, email: e.email, papel: e.papel }))];
+  const quem = (s: Reg) => pessoas.find((x) => (s.email && x.email && x.email.toLowerCase() === String(s.email).toLowerCase()) || (s.name && x.nome === s.name));
+  let assinaturas: Assinatura[] = [];
+  for (const s of (doc.signatures || []).filter((x: Reg) => x.action)) {
+    const q = quem(s);
+    assinaturas.push({ nome: q?.nome || s.name || s.email, email: s.email || q?.email || null, papel: q?.papel || "Assinante",
+      link: s.link?.short_link || await linkDe(s.public_id), public_id: s.public_id, assinado_em: null, recusado_em: null, avisado: false });
+  }
   assinaturas = await avisarAssinantes(c, assinaturas);
   const { data } = await db.from("contratos").update({
     status: "enviado", autentique_id: doc.id, autentique_teste: teste, arquivo_path: caminho, assinaturas, enviado_em: new Date().toISOString(), verificado_em: null,
@@ -361,7 +373,7 @@ async function verificar(c: Reg): Promise<Reg> {
   const antes: Assinatura[] = c.assinaturas || [];
   const assinaturas: Assinatura[] = (doc.signatures || []).filter((s: Reg) => s.action).map((s: Reg) => {
     const a = antes.find((x) => x.public_id === s.public_id);
-    return { nome: s.name, papel: a?.papel || "Assinante", link: s.link?.short_link || a?.link || null, public_id: s.public_id,
+    return { nome: a?.nome || s.name || s.email, email: a?.email || s.email || null, papel: a?.papel || "Assinante", link: a?.link || s.link?.short_link || null, public_id: s.public_id,
       assinado_em: s.signed?.created_at || null, recusado_em: s.rejected?.created_at || null, avisado: a?.avisado || false };
   });
   const tudo = assinaturas.length > 0 && assinaturas.every((a) => a.assinado_em);

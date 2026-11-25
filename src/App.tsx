@@ -115,6 +115,8 @@ async function montarMembro(user: { id: string; email?: string; user_metadata?: 
     .maybeSingle();
   // Onboarding obrigatório: só bloqueia quando o banco responde "pendente".
   // Admin nunca é bloqueado; se a consulta falhar, não trava o acesso (o banco já protege os dados).
+  // Conta um acesso por dia (gráfico "Acessos ao portal" da Administração). Não trava nada se falhar.
+  if (data?.ativo) supabase.rpc("registrar_acesso").then(() => {}, () => {});
   let onboardingPendente = false;
   if (data?.ativo && !data?.is_admin) {
     const { data: status } = await supabase.rpc("meu_status_onboarding");
@@ -1031,7 +1033,7 @@ function PortalConteudo({ membro, onSair }) {
       {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin && !verComo} />}
       {secao === "painel" && (verComo ? <OportunidadesDoMembro key={verComo.id} membroId={verComo.id} nome={verComo.nome} /> : <PainelMembro userId={membro.userId} nome={membro.nome} />)}
       {secao === "perfil" && !verComo && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}
-      {secao === "admin" && membro.isAdmin && !verComo && <Admin onSolicitacoes={atualizarSolicitacoes} />}
+      {secao === "admin" && membro.isAdmin && !verComo && <Admin onSolicitacoes={atualizarSolicitacoes} onVerComo={() => setEscolhendo(true)} />}
       {escolhendo && <EscolherMembro onFechar={() => setEscolhendo(false)} onEscolher={(m) => { setVerComo(m); setEscolhendo(false); mudarSecao("visao"); }} />}
       {secao === "entregas" && <SecaoEntregas />}
       {secao === "cultura" && <SecaoCultura />}

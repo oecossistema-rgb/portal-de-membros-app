@@ -10,8 +10,9 @@ import { OportunidadesDoMembro } from "./Painel";
 import { baixarPlanilhaOnboarding } from "./planilha";
 import Solicitacoes from "./Solicitacoes";
 import { PainelAdmin } from "./PainelAdmin";
+import { VisaoGeralAdmin } from "./VisaoGeralAdmin";
 
-type Aba = "painel" | "membros" | "eventos" | "presencas" | "conteudo" | "contratos";
+type Aba = "visao" | "membros" | "eventos" | "presencas" | "conteudo" | "contratos" | "sistema";
 
 type Membro = {
   id: string;
@@ -75,8 +76,13 @@ function dataCurta(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function Admin({ onSolicitacoes }: { onSolicitacoes?: () => void } = {}) {
-  const [aba, setAba] = useState<Aba>("painel");
+export default function Admin({ onSolicitacoes, onVerComo }: { onSolicitacoes?: () => void; onVerComo?: () => void } = {}) {
+  const [aba, setAba] = useState<Aba>("visao");
+  // Quantos problemas abertos o vigia encontrou (bolinha vermelha na aba Saúde do sistema).
+  const [problemas, setProblemas] = useState(0);
+  useEffect(() => {
+    supabase.from("portal_alertas").select("chave", { count: "exact", head: true }).is("resolvido_em", null).then(({ count }) => setProblemas(count || 0));
+  }, [aba]);
   return (
     <>
       <section style={ui.hero}>
@@ -84,15 +90,17 @@ export default function Admin({ onSolicitacoes }: { onSolicitacoes?: () => void 
           <div style={ui.heroEyebrow}>Administração</div>
           <h1 style={ui.heroTitle}>Painel do administrador.</h1>
           <p style={ui.heroSub}>Gerencie quem tem acesso ao portal, a agenda de eventos, as presenças, o conteúdo e os contratos.</p>
+          {onVerComo && <button style={{ ...ui.botaoSecundario, marginTop: 12 }} onClick={onVerComo}>👁 Ver como membro</button>}
         </div>
       </section>
       <Solicitacoes onMudou={onSolicitacoes} />
       <div style={{ margin: "14px 0 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {([["painel", "Painel"], ["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"]] as [Aba, string][]).map(([id, r]) => (
-          <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}</button>
+        {([["visao", "Visão geral"], ["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"], ["sistema", "Saúde do sistema"]] as [Aba, string][]).map(([id, r]) => (
+          <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}{id === "sistema" && problemas > 0 && <span style={{ marginLeft: 6, background: "var(--p-danger)", color: "#fff", borderRadius: 99, padding: "0 7px", fontSize: 12, fontWeight: 700 }}>{problemas}</span>}</button>
         ))}
       </div>
-      {aba === "painel" && <PainelAdmin onIr={setAba} />}
+      {aba === "visao" && <VisaoGeralAdmin onIr={setAba} />}
+      {aba === "sistema" && <PainelAdmin onIr={setAba} />}
       {aba === "membros" && <AdminMembros />}
       {aba === "eventos" && <AdminEventos />}
       {aba === "presencas" && <AdminPresencas />}

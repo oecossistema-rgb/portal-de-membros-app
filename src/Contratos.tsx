@@ -244,7 +244,7 @@ function TelaContrato({ c, nome, msg, ocupado, onFechar, onAcao, onCopiar, onSal
           )}
           {c.status === "revisao" && !editando && (
             <div style={{ fontSize: 13.5, color: "var(--p-muted)", margin: "0 0 12px" }}>
-              Confira o contrato. Se precisar mudar algo (valores, condição especial), clique em <b>Editar</b>. Depois é só <b>Enviar para assinatura</b>.
+              Confira o contrato. O que está <b style={{ color: "#C62828" }}>em vermelho</b> muda de um membro para outro (dados do membro, valores e data): revise com atenção. Se precisar mudar algo, clique em <b>Editar</b>. Depois é só <b>Enviar para assinatura</b>.
             </div>
           )}
           {editando ? (
@@ -252,10 +252,25 @@ function TelaContrato({ c, nome, msg, ocupado, onFechar, onAcao, onCopiar, onSal
               style={{ ...ui.input, minHeight: "70vh", fontSize: 15, lineHeight: 1.6, padding: "18px 18px", borderRadius: 16, resize: "vertical" }} />
           ) : (
             <article style={{ background: "#fff", color: "#1a1a1a", borderRadius: 16, boxShadow: "var(--p-shadow)", border: "1px solid var(--p-line)", padding: "clamp(20px, 5vw, 56px)", fontSize: 14.5, lineHeight: 1.65 }}>
-              {blocos.map((b, i) => {
-                const titulo = i === 0, forte = titulo || /^CLÁUSULA/.test(b) || /^(\dº PARTICIPANTE|De um lado|De outro lado a CONTRATADA:)/.test(b);
-                return <p key={i} style={{ margin: titulo ? "0 0 18px" : "0 0 10px", whiteSpace: "pre-wrap", fontWeight: forte ? 700 : 400, textAlign: titulo ? "center" : "left", fontSize: titulo ? 16.5 : undefined, marginTop: /^CLÁUSULA/.test(b) ? 18 : undefined }}>{b}</p>;
-              })}
+              {(() => {
+                const fimCabecalho = blocos.findIndex((x) => /^De outro lado/.test(x));
+                return blocos.map((b, i) => {
+                  const titulo = i === 0, forte = titulo || /^CLÁUSULA/.test(b) || /^(\dº PARTICIPANTE|De um lado|De outro lado a CONTRATADA:)/.test(b);
+                  // O que muda de um membro para outro (dados do membro, valores e data) fica em vermelho para a revisão.
+                  const dadosMembro = i > 0 && (fimCabecalho < 0 || i < fimCabecalho) && /:\s/.test(b) && !/^De um lado/.test(b);
+                  const revisar = dadosMembro || /^(5\.1\.|6\.[1-4]\.)\s/.test(b) || /^Salvador, capital/.test(b);
+                  const estilo = { margin: titulo ? "0 0 18px" : "0 0 10px", whiteSpace: "pre-wrap" as const, fontWeight: forte ? 700 : 400, textAlign: (titulo ? "center" : "left") as "center" | "left", fontSize: titulo ? 16.5 : undefined, marginTop: /^CLÁUSULA/.test(b) ? 18 : undefined };
+                  if (!revisar) return <p key={i} style={estilo}>{b}</p>;
+                  return (
+                    <p key={i} style={{ ...estilo, color: "#C62828", background: "#FDECEC", borderLeft: "3px solid #E53935", borderRadius: 6, padding: "6px 10px" }}>
+                      {dadosMembro ? b.split("\n").map((l, j) => {
+                        const k = l.indexOf(": ");
+                        return <span key={j}>{j > 0 && "\n"}{k > 0 ? <><span style={{ color: "#1a1a1a" }}>{l.slice(0, k + 2)}</span><b>{l.slice(k + 2)}</b></> : l}</span>;
+                      }) : b}
+                    </p>
+                  );
+                });
+              })()}
             </article>
           )}
         </div>

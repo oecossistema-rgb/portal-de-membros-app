@@ -16,6 +16,7 @@
 //   { acao: "importar_modelo", id }        -> monta o texto-modelo a partir de um contrato padrão já assinado na Autentique
 //   (e qualquer ação de administrador acima, para testes da equipe; o banco chama "convidar" quando o membro novo cria a senha)
 // Membro novo logado: { acao: "meu_contrato" } -> em que passo está o contrato (tela de contrato em andamento)
+// Avisos no grupo "GESTÃO DE CONTRATO": contrato gerado (para revisar/enviar) e contrato assinado por todos.
 // Quando TODOS assinam: guarda o PDF assinado e dispara a mensagem de boas-vindas que já existe (cartão de membro).
 // Segredos: AUTENTIQUE_TOKEN, ZAPI_INSTANCE_ID, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN. Nenhum dado de membro fica no código.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -62,6 +63,23 @@ async function zapiTexto(telefone: string, message: string): Promise<{ ok: boole
     return r.ok ? { ok: true } : { ok: false, erro: `Z-API ${r.status}` };
   } catch (e) { return { ok: false, erro: e instanceof Error ? e.message : String(e) }; }
 }
+// Avisos para o grupo de WhatsApp da equipe "GESTÃO DE CONTRATO" (o id do grupo fica em portal_config.contrato_grupo_whatsapp).
+async function avisarGrupo(texto: string): Promise<{ ok: boolean; erro?: string }> {
+  const { data } = await db.from("portal_config").select("valor").eq("chave", "contrato_grupo_whatsapp").maybeSingle();
+  const grupo = (data?.valor || "").trim();
+  if (!grupo) return { ok: false, erro: "grupo não configurado" };
+  const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
+  if (!inst || !tok || !cli) return { ok: false, erro: "credenciais da Z-API não configuradas" };
+  try {
+    const r = await fetch(`https://api.z-api.io/instances/${inst}/token/${tok}/send-text`, {
+      method: "POST", headers: { "Content-Type": "application/json", "Client-Token": cli }, body: JSON.stringify({ phone: grupo, message: texto }),
+    });
+    if (!r.ok) console.error("aviso ao grupo", r.status, (await r.text()).slice(0, 200));
+    return r.ok ? { ok: true } : { ok: false, erro: `Z-API ${r.status}` };
+  } catch (e) { return { ok: false, erro: e instanceof Error ? e.message : String(e) }; }
+}
+const PAGAMENTO_CURTO: Record<string, string> = { avista: "R$ 28.000 à vista", cartao: "12x de R$ 3.084,45 no cartão", boleto: "R$ 8.000 de adesão + 12x de R$ 1.835 no boleto" };
+
 const dataExtenso = (d = new Date()) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Bahia", day: "numeric", month: "long", year: "numeric" }).format(d);
 
 // ---------- Autentique ----------
@@ -365,6 +383,7 @@ async function verificar(c: Reg): Promise<Reg> {
   // próximo acesso. Teste não dispara.
   if (tudo && !c.autentique_teste) await db.from("membros").update({ contrato_pendente: false }).eq("id", c.membro_id);
   if (tudo && !c.boas_vindas_em && !c.autentique_teste) {
+    await avisarGrupo(`✅ *Contrato assinado por todos*\n\n*${(c.dados?.participantes || []).map((p: Participante) => p.nome).join(" e ")}*\nO portal foi liberado e o membro recebeu o cartão de boas-vindas.`);
     const { error } = await db.rpc("contrato_boas_vindas", { p_membro_id: c.membro_id });
     if (!error) await db.from("contratos").update({ boas_vindas_em: new Date().toISOString() }).eq("id", c.id);
     else console.error("boas-vindas", error.message);
@@ -418,6 +437,14 @@ Deno.serve(async (req) => {
         await db.from("portal_config").update({ valor: m, atualizado_em: new Date().toISOString() }).eq("chave", "contrato_modelo");
         return resp(200, { ok: true, paragrafos: m.split("\n\n").length, marcadores: (m.match(/\{\{\w+\}\}/g) || []) });
       }
+      if (c.acao === "grupos") {
+        // Lista os grupos do WhatsApp conectado (só nome e id), para configurar o grupo da equipe.
+        const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
+        const r = await fetch(`https://api.z-api.io/instances/${inst}/token/${tok}/groups?page=1&pageSize=200`, { headers: { "Client-Token": cli! } });
+        const j = await r.json().catch(() => []);
+        return resp(200, { status: r.status, grupos: (Array.isArray(j) ? j : []).map((g: Reg) => ({ nome: g.name, id: g.phone })).filter((g: Reg) => !c.busca || String(g.nome || "").toLowerCase().includes(String(c.busca).toLowerCase())) });
+      }
+      if (c.acao === "teste_grupo") return resp(200, await avisarGrupo("✅ Teste: o portal está ligado a este grupo e vai avisar aqui sempre que um contrato for gerado ou assinado."));
       porBanco = true; // a equipe também pode acionar as ações de administrador pelo banco (testes)
     }
 
@@ -437,6 +464,13 @@ Deno.serve(async (req) => {
       await db.from("contratos").update({
         dados: v.dados, socio: v.dados.participantes.length > 1, texto, status: "revisao", formulario_respondido_em: new Date().toISOString(),
       }).eq("id", k.id);
+      // Aviso no grupo da equipe: contrato gerado, pronto para revisar e enviar.
+      if (k.observacoes !== "TESTE") {
+        const nomes = v.dados.participantes.map((p) => p.nome).join(" e ");
+        await avisarGrupo(`📄 *Novo contrato gerado*\n\n*${nomes}*${v.dados.participantes.length > 1 ? " (com sócio)" : ""}\n` +
+          `Pagamento: ${PAGAMENTO_CURTO[v.dados.pagamento]}${v.dados.dia_boleto ? `, dia ${v.dados.dia_boleto}` : ""}\n\n` +
+          `Revise e envie para assinatura:\n${PORTAL}/#admin`);
+      }
       // Contrato de teste da equipe (observacoes = "TESTE") não vai para a planilha do Google.
       const g = k.observacoes === "TESTE" ? { ok: true } : await espelharGoogle(v.dados);
       await db.from("contratos").update(g.ok ? { google_enviado_em: new Date().toISOString(), google_erro: null } : { google_erro: g.erro }).eq("id", k.id);

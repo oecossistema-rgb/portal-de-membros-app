@@ -12,6 +12,7 @@ type Contrato = {
   id: string; membro_id: string; status: Status; token: string; texto: string | null; socio: boolean;
   arquivo_path: string | null; assinado_path: string | null; enviado_em: string | null; assinado_em: string | null;
   formulario_enviado_em: string | null; formulario_respondido_em: string | null; whatsapp_erro: string | null;
+  vigencia_inicio: string | null; vigencia_fim: string | null;
   assinaturas: Assinatura[] | null; autentique_id: string | null; autentique_teste: boolean; verificado_em: string | null; criado_em: string; atualizado_em: string;
 };
 type Membro = { id: string; nome: string | null; empresa: string | null; foto_url: string | null; telefone_whatsapp: string | null };
@@ -26,6 +27,50 @@ const ROTULO: Record<Status, { t: string; cor: string }> = {
 };
 const PORTAL = "https://portal.oecossistemabusiness.com";
 const dataBR = (iso: string | null, hora = false) => (iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", ...(hora ? { hour: "2-digit", minute: "2-digit" } : {}) }) : "");
+
+// Vigência: 12 meses contados da assinatura (cláusula 3.2). Antes de todos assinarem, mostra a previsão se assinarem hoje.
+const MESES_VIGENCIA = 12;
+const diaLocal = (s: string) => { const [a, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(a, m - 1, d); };
+const maisMeses = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
+const fmt = (d: Date) => d.toLocaleDateString("pt-BR");
+export function vigencia(c: Pick<Contrato, "status" | "vigencia_inicio" | "vigencia_fim" | "assinado_em">) {
+  if (c.status === "cancelado") return null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const ini = c.vigencia_inicio ? diaLocal(c.vigencia_inicio) : c.assinado_em ? diaLocal(new Date(c.assinado_em).toLocaleDateString("sv-SE")) : null;
+  const previsto = !ini;
+  const inicio = ini || hoje;
+  const fim = c.vigencia_fim ? diaLocal(c.vigencia_fim) : maisMeses(inicio, MESES_VIGENCIA);
+  const diasTotal = Math.round((fim.getTime() - hoje.getTime()) / 86400000);
+  let meses = (fim.getFullYear() - hoje.getFullYear()) * 12 + fim.getMonth() - hoje.getMonth();
+  if (maisMeses(hoje, meses) > fim) meses--;
+  const dias = Math.round((fim.getTime() - maisMeses(hoje, Math.max(meses, 0)).getTime()) / 86400000);
+  const falta = diasTotal < 0 ? `vencido há ${-diasTotal} dia${diasTotal === -1 ? "" : "s"}`
+    : `${meses > 0 ? `${meses} ${meses === 1 ? "mês" : "meses"}${dias ? " e " : ""}` : ""}${dias || !meses ? `${dias} dia${dias === 1 ? "" : "s"}` : ""} (${diasTotal} dias)`;
+  const cor = diasTotal < 0 ? "var(--p-danger)" : diasTotal <= 60 ? "var(--p-warn)" : "var(--p-text2)";
+  return { inicio: fmt(inicio), fim: fmt(fim), falta, cor, previsto };
+}
+function Vigencia({ c, grande }: { c: Contrato; grande?: boolean }) {
+  const v = vigencia(c);
+  if (!v) return null;
+  const linha = { display: "flex", justifyContent: "space-between", gap: 12 } as const;
+  if (!grande) return (
+    <div style={{ fontSize: 12, fontWeight: 500, color: "var(--p-muted)", marginTop: 4, lineHeight: 1.45 }}>
+      {v.previsto ? "Previsto (se assinar hoje): " : ""}{v.inicio} → {v.fim}
+      <div style={{ color: v.cor, fontWeight: 650 }}>{v.previsto ? "Duração: 12 meses" : `Faltam ${v.falta}`}</div>
+    </div>
+  );
+  return (
+    <div style={{ ...ui.cartao, padding: "14px 16px" }}>
+      <div style={{ fontWeight: 700, marginBottom: 8 }}>Vigência do contrato{v.previsto ? " (previsão)" : ""}</div>
+      <div style={{ display: "grid", gap: 4, fontSize: 14 }}>
+        <div style={linha}><span style={{ color: "var(--p-muted)" }}>Data inicial</span><b>{v.inicio}</b></div>
+        <div style={linha}><span style={{ color: "var(--p-muted)" }}>Data final</span><b>{v.fim}</b></div>
+        <div style={linha}><span style={{ color: "var(--p-muted)" }}>{v.previsto ? "Duração" : "Tempo restante"}</span><b style={{ color: v.cor }}>{v.previsto ? "12 meses" : v.falta}</b></div>
+      </div>
+      {v.previsto && <div style={{ fontSize: 12.5, color: "var(--p-muted)", marginTop: 8 }}>A vigência conta da assinatura (cláusula 3.2). As datas ficam fixas quando todos assinarem.</div>}
+    </div>
+  );
+}
 
 async function chamar(corpo: Record<string, unknown>): Promise<{ ok?: boolean; erro?: string; [k: string]: unknown }> {
   const { data, error } = await supabase.functions.invoke("contratos", { body: corpo });
@@ -116,6 +161,7 @@ export function AdminContratos() {
                 {c.status === "enviado" && c.enviado_em && `enviado em ${dataBR(c.enviado_em)}`}
                 {c.status === "assinado" && c.assinado_em && `em ${dataBR(c.assinado_em)}`}
               </div>
+              {(c.status === "enviado" || c.status === "assinado") && <Vigencia c={c} />}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
               {c.status === "aguardando_formulario" && <>
@@ -231,6 +277,7 @@ function TelaContrato({ c, nome, msg, ocupado, onFechar, onAcao, onCopiar, onSal
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 16px 40px" }}>
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
           {msg && <div style={msg.tipo === "ok" ? ui.ok : ui.erro}>{msg.texto}</div>}
+          {c.status !== "aguardando_formulario" && <Vigencia c={c} grande />}
           {ass.length > 0 && (
             <div style={{ ...ui.cartao, padding: "14px 16px" }}>
               <div style={{ fontWeight: 700, marginBottom: 8 }}>Assinaturas</div>

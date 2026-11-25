@@ -29,6 +29,15 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
   auth: { persistSession: false },
 });
 
+// Registro do uso da IA (tokens) para a Saúde do sistema mostrar o gasto em tempo real. Nunca trava a função.
+async function registrarUsoIA(funcao: string, j: { model?: string; usage?: Record<string, number> }) {
+  try {
+    const u = j?.usage || {};
+    await db.from("portal_uso_ia").insert({ funcao, modelo: j?.model || MODELO, entrada: u.input_tokens || 0, saida: u.output_tokens || 0,
+      cache_leitura: u.cache_read_input_tokens || 0, cache_escrita: u.cache_creation_input_tokens || 0 });
+  } catch (e) { console.error("uso da IA", e); }
+}
+
 async function chamarIA(sistema: string, pedido: string, max = 1500): Promise<string> {
   const chave = Deno.env.get("ANTHROPIC_API_KEY");
   if (!chave) throw new Error("ANTHROPIC_API_KEY não configurada");
@@ -44,6 +53,7 @@ async function chamarIA(sistema: string, pedido: string, max = 1500): Promise<st
   }
   if (!r!.ok) { console.error("IA erro", r!.status, (await r!.text()).slice(0, 300)); throw new Error(`API da IA respondeu ${r!.status}`); }
   const j = await r!.json();
+  await registrarUsoIA("gerar-resumo", j);
   return (j.content || []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("");
 }
 

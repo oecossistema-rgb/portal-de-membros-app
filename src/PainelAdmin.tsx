@@ -11,7 +11,8 @@ type Pendencia = { nivel: "erro" | "atencao" | "acao"; aba?: string; titulo: str
 type Alerta = { chave: string; nivel: "erro" | "atencao"; titulo: string; detalhe: string | null; como_resolver: string | null; aba: string | null; primeira_vez: string };
 type Vigia = { verificado_em: string | null; resultado: { whatsapp?: { conectado: boolean }; autentique?: { ok: boolean } } | null };
 type Rotina = { nome: string; agenda: string; ativa: boolean; ultima: string | null; execucoes_24h: number; falhas_24h: number; funcoes: number };
-type Sistema = { rotinas: Rotina[]; chamadas_6h: { ok: number; erro: number }; ia_mes: { resumos: number; oportunidades: number }; autentique_mes: number; alertas_resolvidos_30d: number };
+type Custo = { chamadas: number; entrada: number; saida: number; custo_usd: number };
+type Sistema = { rotinas: Rotina[]; chamadas_6h: { ok: number; erro: number }; ia_mes: { resumos: number; oportunidades: number }; ia_custo?: { mes: Custo; hoje: Custo; desde: string | null }; autentique_mes: number; alertas_resolvidos_30d: number };
 
 const VERDE = "#1f9d55", VERMELHO = "#ec4647", LARANJA = "#f47230";
 const COR = { erro: "var(--p-danger)", atencao: "var(--p-warn)", acao: "var(--p-accent-text)" } as const;
@@ -160,9 +161,10 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
               <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>{Math.round((execMes / LIMITE_SUPABASE) * 100)}% do limite grátis, calculado pelas rotinas das últimas 24 horas.</div>
             </div>
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}><span style={{ color: "var(--p-text2)" }}>IA: resumos de perfil gerados</span><b>{sis.ia_mes.resumos}</b></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginTop: 6 }}><span style={{ color: "var(--p-text2)" }}>IA: rodadas de oportunidades</span><b>{sis.ia_mes.oportunidades}</b></div>
-              <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>São as únicas partes do portal que usam IA (custo por uso). O valor em reais entra no levantamento de custos.</div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}><span style={{ color: "var(--p-text2)" }}>IA (API do Claude): gasto no mês</span><b>US$ {(sis.ia_custo?.mes.custo_usd ?? 0).toFixed(2)}</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginTop: 6 }}><span style={{ color: "var(--p-text2)" }}>IA: gasto hoje</span><b>US$ {(sis.ia_custo?.hoje.custo_usd ?? 0).toFixed(2)}</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginTop: 6 }}><span style={{ color: "var(--p-text2)" }}>IA: usos no mês (tokens)</span><b>{sis.ia_custo?.mes.chamadas ?? 0} ({mil((sis.ia_custo?.mes.entrada ?? 0) + (sis.ia_custo?.mes.saida ?? 0))})</b></div>
+              <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>Resumo do perfil e oportunidades são as únicas partes que usam IA. Gasto calculado na hora, a cada uso, com o preço de tabela{sis.ia_custo?.desde ? `; contando desde ${dataBR(sis.ia_custo.desde)}` : "; começa a contar no próximo uso"}. Saldo de créditos: pendente (precisa de chave de administrador da Anthropic).</div>
             </div>
           </div>
         </Cartao3D>

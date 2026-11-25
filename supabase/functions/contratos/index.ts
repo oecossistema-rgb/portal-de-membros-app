@@ -81,6 +81,9 @@ async function avisarGrupo(texto: string): Promise<{ ok: boolean; erro?: string 
 }
 const PAGAMENTO_CURTO: Record<string, string> = { avista: "R$ 28.000 à vista", cartao: "12x de R$ 3.084,45 no cartão", boleto: "R$ 8.000 de adesão + 12x de R$ 1.835 no boleto" };
 
+const dataBR = (d?: string | null) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "");
+const linhaEmpresa = (e?: string | null) => (e ? `\n🏢 ${e}` : "");
+
 const dataExtenso = (d = new Date()) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Bahia", day: "numeric", month: "long", year: "numeric" }).format(d);
 
 // ---------- Autentique ----------
@@ -303,7 +306,7 @@ async function modelo(): Promise<string> {
   return data.valor;
 }
 async function membro(id: string): Promise<Reg | null> {
-  const { data } = await db.from("membros").select("id, nome, email, telefone_whatsapp, ativo").eq("id", id).maybeSingle();
+  const { data } = await db.from("membros").select("id, nome, email, telefone_whatsapp, ativo, empresa").eq("id", id).maybeSingle();
   return data;
 }
 const linkFormulario = (token: string) => `${PORTAL}/#contrato/${token}`;
@@ -417,10 +420,14 @@ async function verificar(c: Reg): Promise<Reg> {
   if (tudo && !c.autentique_teste) await db.from("membros").update({ contrato_pendente: false }).eq("id", c.membro_id);
   // Renovação: só avisa a equipe (o membro já tem acesso e já recebeu o cartão).
   if (tudo && c.renovacao_de && c.status !== "assinado" && !c.autentique_teste) {
-    await avisarGrupo(`✅ *Renovação assinada por todos*\n\n*${(c.dados?.participantes || []).map((p: Participante) => p.nome).join(" e ")}*\nNovo período de 12 meses a partir de hoje.`);
+    const m = await membro(c.membro_id);
+    await avisarGrupo(`✅ *RENOVAÇÃO ASSINADA*\n\n👤 *${(c.dados?.participantes || []).map((p: Participante) => p.nome).join(" e ")}*${linhaEmpresa(m?.empresa)}\n` +
+      `📅 Nova vigência: ${dataBR(data?.vigencia_inicio)} a ${dataBR(data?.vigencia_fim)}`);
   }
   if (tudo && !c.renovacao_de && !c.boas_vindas_em && !c.autentique_teste) {
-    await avisarGrupo(`✅ *Contrato assinado por todos*\n\n*${(c.dados?.participantes || []).map((p: Participante) => p.nome).join(" e ")}*\nO portal foi liberado e o membro recebeu o cartão de boas-vindas.`);
+    const m = await membro(c.membro_id);
+    await avisarGrupo(`✅ *CONTRATO ASSINADO*\n\n👤 *${(c.dados?.participantes || []).map((p: Participante) => p.nome).join(" e ")}*${linhaEmpresa(m?.empresa)}\n` +
+      `📅 Vigência: ${dataBR(data?.vigencia_inicio)} a ${dataBR(data?.vigencia_fim)}\n\nPortal liberado e cartão de boas-vindas enviado.`);
     const { error } = await db.rpc("contrato_boas_vindas", { p_membro_id: c.membro_id });
     if (!error) await db.from("contratos").update({ boas_vindas_em: new Date().toISOString() }).eq("id", c.id);
     else console.error("boas-vindas", error.message);
@@ -517,9 +524,10 @@ Deno.serve(async (req) => {
       // Aviso no grupo da equipe: contrato gerado, pronto para revisar e enviar.
       if (k.observacoes !== "TESTE") {
         const nomes = v.dados.participantes.map((p) => p.nome).join(" e ");
-        await avisarGrupo(`📄 *Novo contrato gerado*\n\n*${nomes}*${v.dados.participantes.length > 1 ? " (com sócio)" : ""}\n` +
-          `Pagamento: ${PAGAMENTO_CURTO[v.dados.pagamento]}${v.dados.dia_boleto ? `, dia ${v.dados.dia_boleto}` : ""}\n\n` +
-          `Revise e envie para assinatura:\n${PORTAL}/#admin`);
+        // Aviso curto para a equipe: quem é e o que fazer; o pagamento fica numa linha no fim (interessa ao financeiro).
+        await avisarGrupo(`📄 *NOVO CONTRATO PARA REVISAR*\n\n👤 *${nomes}*${v.dados.participantes.length > 1 ? " (com sócio)" : ""}${linhaEmpresa(m?.empresa)}\n\n` +
+          `👉 Revisar e enviar para assinatura:\n${PORTAL}/#admin\n\n` +
+          `💳 ${PAGAMENTO_CURTO[v.dados.pagamento]}${v.dados.dia_boleto ? `, dia ${v.dados.dia_boleto}` : ""}`);
       }
       // Contrato de teste da equipe (observacoes = "TESTE") não vai para a planilha do Google.
       const g = k.observacoes === "TESTE" ? { ok: true } : await espelharGoogle(v.dados);

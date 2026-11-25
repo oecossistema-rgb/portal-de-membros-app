@@ -28,3 +28,6 @@ language sql stable security definer set search_path = '' as $$
                        + u.cl * (p.j->>'cache_leitura')::numeric + u.ce * (p.j->>'cache_escrita')::numeric) / 1000000)::numeric, 4))
   from u, p;
 $$;
+
+-- As funções gravam com a chave de serviço (este projeto não dá permissões automáticas em tabelas novas).
+grant select, insert on public.portal_uso_ia to service_role;

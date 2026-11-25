@@ -12,7 +12,7 @@ type Alerta = { chave: string; nivel: "erro" | "atencao"; titulo: string; detalh
 type Vigia = { verificado_em: string | null; resultado: { whatsapp?: { conectado: boolean }; autentique?: { ok: boolean } } | null };
 type Rotina = { nome: string; agenda: string; ativa: boolean; ultima: string | null; execucoes_24h: number; falhas_24h: number; funcoes: number };
 type Custo = { chamadas: number; entrada: number; saida: number; custo_usd: number };
-type Sistema = { rotinas: Rotina[]; chamadas_6h: { ok: number; erro: number }; ia_mes: { resumos: number; oportunidades: number }; ia_custo?: { mes: Custo; hoje: Custo; desde: string | null }; autentique_mes: number; alertas_resolvidos_30d: number };
+type Sistema = { rotinas: Rotina[]; chamadas_6h: { ok: number; erro: number }; ia_mes: { resumos: number; oportunidades: number }; ia_custo?: { mes: Custo; hoje: Custo; desde: string | null; desde_saldo?: Custo; saldo?: { saldo_inicial: number; em: string; gasto_mes_console: number } | null }; autentique_mes: number; alertas_resolvidos_30d: number };
 
 const VERDE = "#1f9d55", VERMELHO = "#ec4647", LARANJA = "#f47230";
 const COR = { erro: "var(--p-danger)", atencao: "var(--p-warn)", acao: "var(--p-accent-text)" } as const;
@@ -38,8 +38,6 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [vigia, setVigia] = useState<Vigia | null>(null);
   const [sis, setSis] = useState<Sistema | null>(null);
-  // Gasto real da IA, direto da Anthropic (função vigia, ação "custos").
-  const [fonte, setFonte] = useState<{ configurado?: boolean; erro?: string; mes_usd?: number; hoje_usd?: number } | null>(null);
   const [erro, setErro] = useState("");
   const [verificando, setVerificando] = useState(false);
 
@@ -56,7 +54,6 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
     setAlertas((a.data as Alerta[]) || []);
     setVigia((v.data as Vigia) || null);
     setSis(s.data as Sistema);
-    supabase.functions.invoke("vigia", { body: { acao: "custos" } }).then(({ data }) => setFonte(data || { configurado: true, erro: "sem resposta" }));
   }
   useEffect(() => { carregar(); const t = window.setInterval(carregar, 60000); return () => window.clearInterval(t); }, []);
 
@@ -165,15 +162,21 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
             </div>
             <div>
               {(() => {
-                const f = fonte;
+                const c = sis.ia_custo;
                 const linha = (r: string, v: string, cor?: string) => <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginTop: 6 }}><span style={{ color: "var(--p-text2)" }}>{r}</span><b style={{ color: cor }}>{v}</b></div>;
-                if (!f) return linha("IA (API do Claude): gasto real", "consultando...");
-                if (!f.configurado) return <>{linha("IA (API do Claude): gasto real", "aguardando chave", LARANJA)}<div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>Falta cadastrar a chave de administrador da Anthropic (ANTHROPIC_ADMIN_KEY). Com ela, o gasto vem direto da Anthropic.</div></>;
-                if (f.erro) return <>{linha("IA (API do Claude): gasto real", "erro ao consultar", VERMELHO)}<div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>{f.erro}</div></>;
+                const usd = (n?: number) => `US$ ${(n ?? 0).toFixed(2)}`;
+                const sd = c?.saldo;
+                const gastoDesde = c?.desde_saldo?.custo_usd ?? 0;
+                const saldo = sd ? sd.saldo_inicial - gastoDesde : null;
                 return <>
-                  {linha("IA (API do Claude): gasto no mês", `US$ ${(f.mes_usd ?? 0).toFixed(2)}`)}
-                  {linha("IA: gasto hoje", `US$ ${(f.hoje_usd ?? 0).toFixed(2)}`)}
-                  <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>Direto da Anthropic (o que é cobrado), atualizado ao abrir esta tela; cada uso aparece em uns 5 minutos. O saldo de créditos a Anthropic não informa por sistema: veja no console.</div>
+                  {saldo !== null && linha("IA: saldo estimado de créditos", usd(saldo), saldo < 3 ? VERMELHO : saldo < 5 ? LARANJA : VERDE)}
+                  {sd && linha("IA: gasto do portal desde o saldo de partida", usd(gastoDesde))}
+                  {linha("IA: gasto do portal hoje", usd(c?.hoje.custo_usd))}
+                  {linha("IA: usos no mês (tokens)", `${c?.mes.chamadas ?? 0} (${mil((c?.mes.entrada ?? 0) + (c?.mes.saida ?? 0))})`)}
+                  <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>
+                    {sd ? `Em teste: partiu de ${usd(sd.saldo_inicial)} no console em ${dataBR(sd.em)} (com ${usd(sd.gasto_mes_console)} já gastos no mês). ` : ""}
+                    Cada uso é contado pelos tokens que a própria Anthropic devolve, vezes o preço oficial. Só a chave do portal entra (Kommo e Make usam outras chaves); para conferir, compare com o console.
+                  </div>
                 </>;
               })()}
             </div>

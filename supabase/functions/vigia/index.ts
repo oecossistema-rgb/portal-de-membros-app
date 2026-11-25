@@ -3,7 +3,7 @@
 // Quem vigia o vigia: o painel mostra quando foi a última verificação e fica vermelho se ela ficar velha.
 // Chamado pelo banco (x-portal-interno, rotina "vigia") ou por um administrador (botão "Verificar agora").
 // Confere: rotinas do banco, chamadas internas com erro, segredos, WhatsApp (Z-API) conectado, chave da Autentique
-// e documentos da Autentique usados no mês.
+// e documentos da Autentique usados no mês. { acao: "custos" } devolve o gasto real da IA na Anthropic.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-portal-interno" };
@@ -79,7 +79,39 @@ async function verificar(): Promise<{ alertas: Alerta[]; resultado: Record<strin
   resultado.autentique_documentos_mes = count || 0;
   if ((count || 0) >= 8) alertas.push({ chave: "autentique:cota", nivel: "atencao", titulo: `Autentique: ${count} documentos enviados neste mês`, detalhe: "O plano grátis cobre 10 por mês; depois cada documento custa cerca de R$ 0,10.", como_resolver: "Só informativo: o portal continua funcionando. Avalie o plano se o volume crescer.", aba: "contratos" });
 
+  const ia = await custoAnthropic().catch((e) => ({ configurado: true, erro: String(e).slice(0, 200) }));
+  resultado.ia_fonte = ia;
+  if (ia.erro) alertas.push({ chave: "anthropic:custos", nivel: "atencao", titulo: "Não foi possível ler o gasto da IA na Anthropic", detalhe: String(ia.erro), como_resolver: "Confira a chave de administrador (ANTHROPIC_ADMIN_KEY) no Supabase > Edge Functions > Secrets; ela é criada no console da Anthropic em Settings > Admin keys." });
   return { alertas, resultado };
+}
+
+// Gasto real da IA, direto da fonte (relatório de custos da Anthropic; chave de administrador ANTHROPIC_ADMIN_KEY).
+// O valor chega em centavos de dólar; a Anthropic leva uns 5 minutos para registrar cada uso.
+async function custoAnthropic(): Promise<Record<string, unknown>> {
+  const chave = Deno.env.get("ANTHROPIC_ADMIN_KEY");
+  if (!chave) return { configurado: false };
+  const agora = new Date();
+  const dia = (d: Date) => `${d.toISOString().slice(0, 10)}T00:00:00Z`;
+  const inicioMes = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), 1));
+  const fim = new Date(agora.getTime() + 86400000);
+  let total = 0, hoje = 0, pagina: string | null = null;
+  const hojeIso = agora.toISOString().slice(0, 10);
+  for (let i = 0; i < 5; i++) {
+    const u = new URL("https://api.anthropic.com/v1/organizations/cost_report");
+    u.searchParams.set("starting_at", dia(inicioMes)); u.searchParams.set("ending_at", dia(fim)); u.searchParams.set("limit", "31");
+    if (pagina) u.searchParams.set("page", pagina);
+    const r = await fetch(u, { headers: { "x-api-key": chave, "anthropic-version": "2023-06-01" } });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { configurado: true, erro: `Anthropic respondeu ${r.status}: ${(j?.error?.message || "").slice(0, 160)}` };
+    for (const b of j.data || []) {
+      const soma = (b.results || []).reduce((t: number, x: { amount?: string }) => t + (Number(x.amount) || 0), 0) / 100;
+      total += soma;
+      if (String(b.starting_at || "").slice(0, 10) === hojeIso) hoje += soma;
+    }
+    if (!j.has_more || !j.next_page) break;
+    pagina = j.next_page;
+  }
+  return { configurado: true, mes_usd: Math.round(total * 100) / 100, hoje_usd: Math.round(hoje * 100) / 100, consultado_em: agora.toISOString() };
 }
 
 Deno.serve(async (req) => {
@@ -96,6 +128,10 @@ Deno.serve(async (req) => {
     const { data: m } = await db.from("membros").select("is_admin, ativo").eq("auth_user_id", u.user.id).maybeSingle();
     if (!m?.ativo || !m.is_admin) return resp(403, { erro: "somente administradores" });
   }
+  let corpo: Record<string, unknown> = {};
+  try { corpo = await req.json(); } catch { /* vazio */ }
+  // Painel aberto: busca o gasto real da IA na hora, sem rodar a verificação inteira.
+  if (corpo.acao === "custos") return resp(200, await custoAnthropic().catch((e) => ({ configurado: true, erro: String(e).slice(0, 200) })));
   try {
     const { alertas, resultado } = await verificar();
     const { error } = await db.rpc("vigia_registrar", { p_alertas: alertas, p_resultado: resultado });

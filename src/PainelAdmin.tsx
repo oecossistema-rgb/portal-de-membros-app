@@ -38,6 +38,8 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [vigia, setVigia] = useState<Vigia | null>(null);
   const [sis, setSis] = useState<Sistema | null>(null);
+  // Gasto real da IA, direto da Anthropic (função vigia, ação "custos").
+  const [fonte, setFonte] = useState<{ configurado?: boolean; erro?: string; mes_usd?: number; hoje_usd?: number } | null>(null);
   const [erro, setErro] = useState("");
   const [verificando, setVerificando] = useState(false);
 
@@ -54,6 +56,7 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
     setAlertas((a.data as Alerta[]) || []);
     setVigia((v.data as Vigia) || null);
     setSis(s.data as Sistema);
+    supabase.functions.invoke("vigia", { body: { acao: "custos" } }).then(({ data }) => setFonte(data || { configurado: true, erro: "sem resposta" }));
   }
   useEffect(() => { carregar(); const t = window.setInterval(carregar, 60000); return () => window.clearInterval(t); }, []);
 
@@ -161,10 +164,18 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
               <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>{Math.round((execMes / LIMITE_SUPABASE) * 100)}% do limite grátis, calculado pelas rotinas das últimas 24 horas.</div>
             </div>
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}><span style={{ color: "var(--p-text2)" }}>IA (API do Claude): gasto no mês</span><b>US$ {(sis.ia_custo?.mes.custo_usd ?? 0).toFixed(2)}</b></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginTop: 6 }}><span style={{ color: "var(--p-text2)" }}>IA: gasto hoje</span><b>US$ {(sis.ia_custo?.hoje.custo_usd ?? 0).toFixed(2)}</b></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginTop: 6 }}><span style={{ color: "var(--p-text2)" }}>IA: usos no mês (tokens)</span><b>{sis.ia_custo?.mes.chamadas ?? 0} ({mil((sis.ia_custo?.mes.entrada ?? 0) + (sis.ia_custo?.mes.saida ?? 0))})</b></div>
-              <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>Resumo do perfil e oportunidades são as únicas partes que usam IA. Gasto calculado na hora, a cada uso, com o preço de tabela{sis.ia_custo?.desde ? `; contando desde ${dataBR(sis.ia_custo.desde)}` : "; começa a contar no próximo uso"}. Saldo de créditos: pendente (precisa de chave de administrador da Anthropic).</div>
+              {(() => {
+                const f = fonte;
+                const linha = (r: string, v: string, cor?: string) => <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginTop: 6 }}><span style={{ color: "var(--p-text2)" }}>{r}</span><b style={{ color: cor }}>{v}</b></div>;
+                if (!f) return linha("IA (API do Claude): gasto real", "consultando...");
+                if (!f.configurado) return <>{linha("IA (API do Claude): gasto real", "aguardando chave", LARANJA)}<div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>Falta cadastrar a chave de administrador da Anthropic (ANTHROPIC_ADMIN_KEY). Com ela, o gasto vem direto da Anthropic.</div></>;
+                if (f.erro) return <>{linha("IA (API do Claude): gasto real", "erro ao consultar", VERMELHO)}<div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>{f.erro}</div></>;
+                return <>
+                  {linha("IA (API do Claude): gasto no mês", `US$ ${(f.mes_usd ?? 0).toFixed(2)}`)}
+                  {linha("IA: gasto hoje", `US$ ${(f.hoje_usd ?? 0).toFixed(2)}`)}
+                  <div style={{ fontSize: 12, color: "var(--p-muted)", marginTop: 4 }}>Direto da Anthropic (o que é cobrado), atualizado ao abrir esta tela; cada uso aparece em uns 5 minutos. O saldo de créditos a Anthropic não informa por sistema: veja no console.</div>
+                </>;
+              })()}
             </div>
           </div>
         </Cartao3D>

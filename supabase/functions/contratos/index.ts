@@ -462,6 +462,19 @@ Deno.serve(async (req) => {
         const j = await r.json().catch(() => []);
         return resp(200, { status: r.status, grupos: (Array.isArray(j) ? j : []).map((g: Reg) => ({ nome: g.name, id: g.phone })).filter((g: Reg) => !c.busca || String(g.nome || "").toLowerCase().includes(String(c.busca).toLowerCase())) });
       }
+      if (c.acao === "criar_grupo") {
+        // Cria o grupo da equipe pelo WhatsApp do portal com os assinantes da equipe (Mennandro, Rodrigo, Cíntia) e guarda o id.
+        const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
+        const phones = (await equipeAssinantes()).map((e) => telefoneZapi(e.whatsapp || "")).filter((p) => p.length >= 12);
+        const r = await fetch(`https://api.z-api.io/instances/${inst}/token/${tok}/create-group`, {
+          method: "POST", headers: { "Content-Type": "application/json", "Client-Token": cli! },
+          body: JSON.stringify({ autoInvite: true, groupName: String(c.nome || "GESTÃO DE CONTRATO"), phones }),
+        });
+        const j = await r.json().catch(() => ({}));
+        const id = j.phone || j.groupId || null;
+        if (id) await db.from("portal_config").upsert({ chave: "contrato_grupo_whatsapp", valor: id, atualizado_em: new Date().toISOString() }, { onConflict: "chave" });
+        return resp(200, { status: r.status, criado: !!id, membros: phones.length, link: j.invitationLink || null, erro: id ? null : JSON.stringify(j).slice(0, 300) });
+      }
       if (c.acao === "teste_grupo") return resp(200, await avisarGrupo("✅ Teste: o portal está ligado a este grupo e vai avisar aqui sempre que um contrato for gerado ou assinado."));
       porBanco = true; // a equipe também pode acionar as ações de administrador pelo banco (testes)
     }

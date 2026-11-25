@@ -34,7 +34,7 @@ type Participante = {
   rg: string; orgao_emissor: string; documento: string; endereco: string; cidade: string; estado: string; cep: string;
 };
 type Dados = { participantes: Participante[]; pagamento: "avista" | "cartao" | "boleto"; dia_boleto?: string };
-type Assinatura = { nome: string; email?: string | null; papel: string; link: string | null; public_id: string; assinado_em: string | null; recusado_em: string | null; avisado: boolean };
+type Assinatura = { nome: string; email?: string | null; papel: string; link: string | null; public_id: string; assinado_em: string | null; recusado_em: string | null; avisado: boolean; aviso?: string | null };
 // deno-lint-ignore no-explicit-any
 type Reg = Record<string, any>;
 
@@ -320,6 +320,11 @@ async function avisarAssinantes(c: Reg, assinaturas: Assinatura[]): Promise<Assi
   const d = c.dados as Dados;
   const equipe = await equipeAssinantes();
   const nomeMembro = d.participantes.map((p) => p.nome).join(" e ");
+  // Segurança: cada link de assinatura só vai para o WhatsApp da própria pessoa. Se dois assinantes do contrato tiverem o
+  // mesmo número, nenhum dos dois recebe por WhatsApp (só por e-mail) e a tela do contrato avisa a equipe.
+  const fim8 = (f?: string | null) => (f || "").replace(/\D/g, "").slice(-8);
+  const fones = [...d.participantes.map((p) => fim8(p.whatsapp)), ...equipe.map((e) => fim8(e.whatsapp))].filter(Boolean);
+  const repetido = (f: string) => fones.filter((x) => x === fim8(f)).length > 1;
   for (const a of assinaturas) {
     if (!a.link || a.assinado_em) continue;
     const mesmo = (n?: string | null, e?: string | null) => (!!a.email && !!e && a.email.toLowerCase() === e.toLowerCase()) || (!!a.nome && a.nome === n);
@@ -327,6 +332,7 @@ async function avisarAssinantes(c: Reg, assinaturas: Assinatura[]): Promise<Assi
     const eq = equipe.find((e) => mesmo(e.nome, e.email));
     const fone = part?.whatsapp || eq?.whatsapp;
     if (!fone) continue;
+    if (repetido(fone)) { a.aviso = "Mesmo WhatsApp de outro assinante: o link não foi pelo WhatsApp (só por e-mail)."; continue; }
     const msg = part
       ? `*Seu contrato do Ecossistema Master Business está pronto.* ✍️\n\n${primeiro(part.nome)}, é só assinar por este link (também enviamos para o seu e-mail):\n${a.link}\n\nAssim que todas as assinaturas forem concluídas, você recebe o acesso ao portal.`
       : `*Contrato para assinar* ✍️\n\n${nomeMembro} · Ecossistema Master Business\nSua assinatura (${a.papel.toLowerCase()}):\n${a.link}\n\n(O link também foi para o seu e-mail.)`;
@@ -374,7 +380,7 @@ async function verificar(c: Reg): Promise<Reg> {
   const assinaturas: Assinatura[] = (doc.signatures || []).filter((s: Reg) => s.action).map((s: Reg) => {
     const a = antes.find((x) => x.public_id === s.public_id);
     return { nome: a?.nome || s.name || s.email, email: a?.email || s.email || null, papel: a?.papel || "Assinante", link: a?.link || s.link?.short_link || null, public_id: s.public_id,
-      assinado_em: s.signed?.created_at || null, recusado_em: s.rejected?.created_at || null, avisado: a?.avisado || false };
+      assinado_em: s.signed?.created_at || null, recusado_em: s.rejected?.created_at || null, avisado: a?.avisado || false, aviso: a?.aviso || null };
   });
   const tudo = assinaturas.length > 0 && assinaturas.every((a) => a.assinado_em);
   const mud: Reg = { assinaturas, verificado_em: new Date().toISOString() };

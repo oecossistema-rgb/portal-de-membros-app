@@ -7,7 +7,7 @@ import { supabase } from "./supabase";
 import { ui } from "./ui";
 
 type Status = "aguardando_formulario" | "revisao" | "rascunho" | "enviado" | "assinado" | "cancelado";
-type Assinatura = { nome: string; papel: string; link: string | null; assinado_em: string | null; recusado_em: string | null; avisado: boolean };
+type Assinatura = { nome: string; email?: string | null; papel: string; link: string | null; assinado_em: string | null; recusado_em: string | null; avisado: boolean; aviso?: string | null };
 type Contrato = {
   id: string; membro_id: string; status: Status; token: string; texto: string | null; socio: boolean;
   arquivo_path: string | null; assinado_path: string | null; enviado_em: string | null; assinado_em: string | null;
@@ -234,7 +234,7 @@ function TelaContrato({ c, nome, msg, ocupado, onFechar, onAcao, onCopiar, onSal
                     <div style={{ fontSize: 12, color: "var(--p-muted)" }}>{a.papel}</div>
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 650, color: a.assinado_em ? "var(--p-accent-text)" : a.recusado_em ? "var(--p-danger)" : "var(--p-warn)" }}>
-                    {a.assinado_em ? `✓ Assinou em ${dataBR(a.assinado_em, true)}` : a.recusado_em ? "Recusou" : a.avisado ? "Aguardando · link enviado" : "Aguardando · sem WhatsApp, copie o link"}
+                    {a.assinado_em ? `✓ Assinou em ${dataBR(a.assinado_em, true)}` : a.recusado_em ? "Recusou" : a.aviso ? `Aguardando · ${a.aviso}` : a.avisado ? "Aguardando · link enviado (WhatsApp e e-mail)" : a.email ? "Aguardando · link enviado por e-mail" : "Aguardando · sem WhatsApp, copie o link"}
                   </div>
                   {!a.assinado_em && a.link && <button style={ui.botaoSecundario} onClick={() => onCopiar(a.link!)}>Copiar link</button>}
                 </div>

@@ -169,3 +169,6 @@ grant execute on function public.painel_resumo() to authenticated;
 
 -- Rotina do vigia: de hora em hora, no minuto 7 (criada à parte com cron.schedule):
 -- select cron.schedule('vigia', '7 * * * *', $$ select private.chamar_funcao('vigia', '{}'::jsonb); $$);
+
+-- Leitura pelo painel (as políticas acima limitam a administradores).
+grant select on public.portal_vigia, public.portal_alertas to authenticated;

@@ -12,7 +12,7 @@ type Contrato = {
   id: string; membro_id: string; status: Status; token: string; texto: string | null; socio: boolean;
   arquivo_path: string | null; assinado_path: string | null; enviado_em: string | null; assinado_em: string | null;
   formulario_enviado_em: string | null; formulario_respondido_em: string | null; whatsapp_erro: string | null;
-  assinaturas: Assinatura[] | null; autentique_teste: boolean; verificado_em: string | null; criado_em: string; atualizado_em: string;
+  assinaturas: Assinatura[] | null; autentique_id: string | null; autentique_teste: boolean; verificado_em: string | null; criado_em: string; atualizado_em: string;
 };
 type Membro = { id: string; nome: string | null; empresa: string | null; foto_url: string | null; telefone_whatsapp: string | null };
 
@@ -217,7 +217,14 @@ function TelaContrato({ c, nome, msg, ocupado, onFechar, onAcao, onCopiar, onSal
           <button style={ui.botaoSecundario} disabled={ocupado} onClick={() => onAcao(c, { acao: "verificar", id: c.id }, "Assinaturas atualizadas.")}>Atualizar</button>
           <button style={ui.botaoSecundario} disabled={ocupado} onClick={() => onAcao(c, { acao: "reenviar_assinatura", id: c.id }, "Links reenviados no WhatsApp para quem ainda não assinou.")}>Reenviar links</button>
         </>}
-        {c.arquivo_path && c.status !== "revisao" && <button style={ui.botaoSecundario} onClick={() => abrirPdf(c.arquivo_path!)}>PDF enviado</button>}
+        {c.autentique_id && (c.status === "enviado" || c.status === "assinado") && (
+          // Abre o documento no painel da Autentique (login da conta do Ecossistema) para conferir as assinaturas lá.
+          <a style={{ ...ui.botaoSecundario, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            href={`https://painel.autentique.com.br/documentos/${c.autentique_id}`} target="_blank" rel="noopener noreferrer">
+            Verificar assinaturas ↗
+          </a>
+        )}
+        {c.arquivo_path && c.status !== "revisao" &&<button style={ui.botaoSecundario} onClick={() => abrirPdf(c.arquivo_path!)}>PDF enviado</button>}
         {c.assinado_path && <button className="cta-btn" style={{ ...ui.botao, padding: "9px 18px", fontSize: 14 }} onClick={() => abrirPdf(c.assinado_path!)}>PDF assinado</button>}
       </div>
 

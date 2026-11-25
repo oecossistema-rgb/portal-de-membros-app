@@ -9,8 +9,9 @@ import { RevisaoResumo } from "./ResumoPerfil";
 import { OportunidadesDoMembro } from "./Painel";
 import { baixarPlanilhaOnboarding } from "./planilha";
 import Solicitacoes from "./Solicitacoes";
+import { PainelAdmin } from "./PainelAdmin";
 
-type Aba = "membros" | "eventos" | "presencas" | "conteudo" | "contratos";
+type Aba = "painel" | "membros" | "eventos" | "presencas" | "conteudo" | "contratos";
 
 type Membro = {
   id: string;
@@ -75,7 +76,7 @@ function dataCurta(iso: string) {
 }
 
 export default function Admin({ onSolicitacoes }: { onSolicitacoes?: () => void } = {}) {
-  const [aba, setAba] = useState<Aba>("membros");
+  const [aba, setAba] = useState<Aba>("painel");
   return (
     <>
       <section style={ui.hero}>
@@ -87,10 +88,11 @@ export default function Admin({ onSolicitacoes }: { onSolicitacoes?: () => void 
       </section>
       <Solicitacoes onMudou={onSolicitacoes} />
       <div style={{ margin: "14px 0 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {([["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"]] as [Aba, string][]).map(([id, r]) => (
+        {([["painel", "Painel"], ["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"]] as [Aba, string][]).map(([id, r]) => (
           <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}</button>
         ))}
       </div>
+      {aba === "painel" && <PainelAdmin onIr={setAba} />}
       {aba === "membros" && <AdminMembros />}
       {aba === "eventos" && <AdminEventos />}
       {aba === "presencas" && <AdminPresencas />}

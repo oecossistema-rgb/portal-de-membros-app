@@ -2,6 +2,7 @@ import { PainelMembro, OportunidadesDoMembro } from "./Painel";
 import { Agenda, type Galeria } from "./Agenda";
 import { PortalShell, VisaoGeral } from "./Visao";
 import { ConteudoMembro } from "./Conteudo";
+import { Ofertas, ofertasLiberada } from "./Ofertas";
 import { carregarVagas, type AcoesVaga, type VagaInfo } from "./Vagas";
 import { useState, useMemo, useEffect, type ReactNode, type ChangeEvent, type InputHTMLAttributes } from "react";
 import { supabase } from "./supabase";
@@ -806,10 +807,14 @@ function PortalConteudo({ membro, onSair }) {
   const [solicitacoesAbertas, setSolicitacoesAbertas] = useState(0);
   const atualizarSolicitacoes = () => { if (membro.isAdmin) contarSolicitacoes().then(setSolicitacoesAbertas).catch(() => {}); };
   useEffect(() => { atualizarSolicitacoes(); }, [membro.isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
-  type Secao = "visao" | "agenda" | "conteudo" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
+  type Secao = "visao" | "agenda" | "conteudo" | "ofertas" | "membros" | "painel" | "perfil" | "entregas" | "cultura" | "regras" | "admin";
   const hashInicial = window.location.hash.replace("#", "").split("/")[0] as Secao; // ex.: #agenda/galeria/... abre a Agenda
-  const secoesMembro: Secao[] = ["visao", "painel", "agenda", "conteudo", "membros", "entregas", "cultura", "regras"];
-  const secoesValidas: Secao[] = verComo ? secoesMembro : [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "conteudo", "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
+  // Aba Ofertas: até ser liberada, só administradores veem.
+  const [ofertasAberta, setOfertasAberta] = useState(false);
+  useEffect(() => { ofertasLiberada().then(setOfertasAberta).catch(() => {}); }, []);
+  const verOfertas = verComo ? ofertasAberta : (ofertasAberta || membro.isAdmin);
+  const secoesMembro: Secao[] = ["visao", "painel", "agenda", "conteudo", ...(ofertasAberta ? ["ofertas" as Secao] : []), "membros", "entregas", "cultura", "regras"];
+  const secoesValidas: Secao[] = verComo ? secoesMembro : [...(membro.equipe ? [] : ["visao"] as Secao[]), "agenda", "conteudo", ...(verOfertas ? ["ofertas" as Secao] : []), "membros", ...(membro.equipe ? ["perfil"] : ["painel", "perfil"]) as Secao[], "entregas", "cultura", "regras", ...(membro.isAdmin ? ["admin" as Secao] : [])];
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [carregandoEventos, setCarregandoEventos] = useState(true);
 
@@ -985,6 +990,7 @@ function PortalConteudo({ membro, onSair }) {
           { id: "conexoes", titulo: "Conexões", icone: "rede" as const, pronto: false },
           { id: "agenda", titulo: "Eventos", icone: "cal" as const },
           { id: "conteudo", titulo: "Conteúdo", icone: "play" as const },
+          ...(verOfertas ? [{ id: "ofertas", titulo: "Ofertas", icone: "tag" as const }] : []),
           { id: "dados", titulo: "Inteligência de Dados", icone: "dados" as const, pronto: false },
           { id: "ferramentas", titulo: "Ferramentas", icone: "ferramenta" as const, pronto: false },
         ],
@@ -1030,6 +1036,7 @@ function PortalConteudo({ membro, onSair }) {
           confirmacoes={verComo ? confVisto : confirmacoes} onConfirmar={verComo ? undefined : abrirConfirmacao} onCancelar={verComo ? undefined : cancelarPresenca} onLista={verComo ? undefined : onLista} />
       )}
       {secao === "conteudo" && <ConteudoMembro />}
+      {secao === "ofertas" && verOfertas && <Ofertas admin={membro.isAdmin && !verComo} somenteVer={!!verComo} />}
       {secao === "membros" && <Membros busca={buscaGeral} admin={membro.isAdmin && !verComo} />}
       {secao === "painel" && (verComo ? <OportunidadesDoMembro key={verComo.id} membroId={verComo.id} nome={verComo.nome} /> : <PainelMembro userId={membro.userId} nome={membro.nome} />)}
       {secao === "perfil" && !verComo && <MeuPerfil userId={membro.userId} equipe={membro.equipe} />}

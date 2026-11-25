@@ -151,11 +151,11 @@ Deno.serve(async (req) => {
     let ci: { acao?: string; nome?: string; telefone?: string; formato?: string; membro_id?: string } = {};
     try { ci = await req.json(); } catch { /* vazio */ }
     if (ci.acao === "boas_vindas" && ci.membro_id) {
-      // Contrato do membro novo assinado por todos (função "contratos"): mesmo cartão de membro da aprovação,
-      // com a legenda de primeiro acesso (ele ainda vai criar a senha).
+      // Contrato do membro novo assinado por todos (função "contratos"): o mesmo cartão de membro de sempre
+      // (ele já criou a senha; o onboarding vem no próximo acesso).
       const { data: m } = await db.from("membros").select("nome, email, telefone_whatsapp").eq("id", ci.membro_id).maybeSingle();
       if (!m?.telefone_whatsapp) return resp(200, { ok: false, erro: "membro sem WhatsApp" });
-      const w = await enviarCartaoMembro(telefoneZapi(m.telefone_whatsapp), m.nome || "", m.email || "", false, LEGENDA_PRIMEIRO_ACESSO);
+      const w = await enviarCartaoMembro(telefoneZapi(m.telefone_whatsapp), m.nome || "", m.email || "", false, LEGENDA_CURTA);
       return resp(200, w);
     }
     if (ci.acao === "cartao") {

@@ -41,13 +41,14 @@ function Pessoa({ p, onChange, titulo }: { p: P; onChange: (p: P) => void; titul
   );
 }
 
-function Moldura({ children }: { children: ReactNode }) {
+function Moldura({ children, onSair }: { children: ReactNode; onSair?: () => void }) {
   return (
     <div style={{ minHeight: "100vh", background: "var(--p-bg)", color: "var(--p-text)", textAlign: "left", padding: "28px 16px 60px", boxSizing: "border-box", width: "100%" }}>
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
           <img src="/icone-192.png" alt="" style={{ width: 40, height: 40, borderRadius: 10 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
-          <div style={{ fontWeight: 700 }}>Ecossistema Master Business</div>
+          <div style={{ fontWeight: 700, flex: 1 }}>Ecossistema Master Business</div>
+          {onSair && <button style={ui.botaoSecundario} onClick={onSair}>Sair</button>}
         </div>
         {children}
       </div>
@@ -55,7 +56,7 @@ function Moldura({ children }: { children: ReactNode }) {
   );
 }
 
-export default function FormularioContrato({ token }: { token: string }) {
+export default function FormularioContrato({ token, onSair, onEnviado }: { token: string; onSair?: () => void; onEnviado?: () => void }) {
   const [estado, setEstado] = useState<"carregando" | "invalido" | "respondido" | "form" | "enviado">("carregando");
   const [p1, setP1] = useState<P>(VAZIO);
   const [p2, setP2] = useState<P>(VAZIO);
@@ -89,12 +90,13 @@ export default function FormularioContrato({ token }: { token: string }) {
     if (r?.erro) { setErro(r.erro); return; }
     setEstado("enviado");
     window.scrollTo(0, 0);
+    if (onEnviado) window.setTimeout(onEnviado, 2500); // dentro do portal: volta para a tela do contrato em andamento
   }
 
-  if (estado === "carregando") return <Moldura><div style={ui.aviso}>Carregando...</div></Moldura>;
-  if (estado === "invalido") return <Moldura><div style={ui.aviso}>Este link não é válido ou foi cancelado. Fale com a equipe do Ecossistema.</div></Moldura>;
+  if (estado === "carregando") return <Moldura onSair={onSair}><div style={ui.aviso}>Carregando...</div></Moldura>;
+  if (estado === "invalido") return <Moldura onSair={onSair}><div style={ui.aviso}>Este link não é válido ou foi cancelado. Fale com a equipe do Ecossistema.</div></Moldura>;
   if (estado === "respondido" || estado === "enviado") return (
-    <Moldura>
+    <Moldura onSair={onSair}>
       <div style={{ ...ui.cartao, textAlign: "center", padding: "34px 22px" }}>
         <div style={{ fontSize: 40 }}>✅</div>
         <h1 style={{ fontSize: 24, margin: "8px 0 10px", fontWeight: 700, color: "var(--p-text)", letterSpacing: "-0.01em" }}>{estado === "enviado" ? "Dados recebidos!" : "Você já enviou seus dados."}</h1>
@@ -106,7 +108,7 @@ export default function FormularioContrato({ token }: { token: string }) {
   );
 
   return (
-    <Moldura>
+    <Moldura onSair={onSair}>
       <h1 style={{ fontSize: 28, lineHeight: 1.15, margin: "0 0 8px", letterSpacing: "-0.02em", fontWeight: 700, color: "var(--p-text)" }}>Dados do contrato</h1>
       <p style={{ color: "var(--p-muted)", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" }}>
         Os dados abaixo serão usados para fazer o seu contrato. Confira tudo antes de enviar.

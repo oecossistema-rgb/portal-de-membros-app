@@ -10,6 +10,7 @@ import MeuPerfil from "./MeuPerfil";
 import Admin from "./Admin";
 import { contarSolicitacoes } from "./Solicitacoes";
 import Onboarding from "./Onboarding";
+import ContratoPendente from "./ContratoPendente";
 // ============================================================
 // ARQUITETURA ATUAL
 // Supabase Auth: cadastro, login e sessão dos membros.
@@ -103,12 +104,13 @@ type MembroLogado = {
   equipe: boolean;
   foto: string | null;
   onboardingPendente: boolean;
+  contratoPendente: boolean;
 };
 
 async function montarMembro(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<MembroLogado> {
   const { data } = await supabase
     .from("membros")
-    .select("nome, ativo, is_admin, equipe, foto_url")
+    .select("nome, ativo, is_admin, equipe, foto_url, contrato_pendente")
     .eq("auth_user_id", user.id)
     .maybeSingle();
   // Onboarding obrigatório: só bloqueia quando o banco responde "pendente".
@@ -127,6 +129,8 @@ async function montarMembro(user: { id: string; email?: string; user_metadata?: 
     equipe: !!data?.ativo && !!data?.equipe,
     foto: data?.foto_url || null,
     onboardingPendente,
+    // Membro novo com contrato ainda não assinado por todos: ainda não é membro, vê só a tela do contrato.
+    contratoPendente: !!data?.ativo && !data?.is_admin && !!data?.contrato_pendente,
   };
 }
 
@@ -185,6 +189,18 @@ export default function PortalAgenda() {
         <TelaSemAcesso
           email={membroLogado.login}
           nomeInicial={membroLogado.nome}
+          onSair={sairMembro}
+          onLiberado={async () => {
+            const { data } = await supabase.auth.getUser();
+            if (data.user) setMembroLogado(await montarMembro(data.user));
+          }}
+        />
+      );
+    }
+    if (membroLogado.contratoPendente) {
+      return (
+        <ContratoPendente
+          nome={membroLogado.nome}
           onSair={sairMembro}
           onLiberado={async () => {
             const { data } = await supabase.auth.getUser();

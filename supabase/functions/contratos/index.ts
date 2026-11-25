@@ -14,7 +14,8 @@
 // Banco (cabeçalho x-portal-interno):
 //   { varredura: true }                    -> a cada 10 min: confere assinaturas e reenvia ao Google Forms o que faltou
 //   { acao: "importar_modelo", id }        -> monta o texto-modelo a partir de um contrato padrão já assinado na Autentique
-//   (e qualquer ação de administrador acima, para testes da equipe)
+//   (e qualquer ação de administrador acima, para testes da equipe; o banco chama "convidar" quando o membro novo cria a senha)
+// Membro novo logado: { acao: "meu_contrato" } -> em que passo está o contrato (tela de contrato em andamento)
 // Quando TODOS assinam: guarda o PDF assinado e dispara a mensagem de boas-vindas que já existe (cartão de membro).
 // Segredos: AUTENTIQUE_TOKEN, ZAPI_INSTANCE_ID, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN. Nenhum dado de membro fica no código.
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -274,8 +275,8 @@ async function enviarConvite(c: Reg): Promise<{ ok: boolean; erro?: string }> {
   if (!m?.telefone_whatsapp) return { ok: false, erro: "membro sem WhatsApp no cadastro" };
   const p = primeiro(m.nome);
   const msg = `*Bem-vindo(a) ao Ecossistema Master Business${p ? `, ${p}` : ""}!* 🎉\n\n` +
-    `O primeiro passo é o seu contrato. Preencha seus dados neste link (leva poucos minutos):\n${linkFormulario(c.token)}\n\n` +
-    `Com os dados em mãos, nossa equipe prepara o contrato e você recebe o link para assinar.`;
+    `O próximo passo é o seu contrato. Preencha seus dados neste link (leva poucos minutos):\n${linkFormulario(c.token)}\n\n` +
+    `Com os dados em mãos, nossa equipe prepara o contrato e você recebe o link para assinar. Depois das assinaturas, seu acesso ao portal é liberado.`;
   const r = await zapiTexto(m.telefone_whatsapp, msg);
   await db.from("contratos").update(r.ok ? { formulario_enviado_em: new Date().toISOString(), whatsapp_erro: null } : { whatsapp_erro: r.erro }).eq("id", c.id);
   return r;
@@ -360,7 +361,9 @@ async function verificar(c: Reg): Promise<Reg> {
     }
   }
   const { data } = await db.from("contratos").update(mud).eq("id", c.id).select("*").single();
-  // Todas as assinaturas: a mensagem de boas-vindas que já existe (cartão de membro + link do portal). Teste não dispara.
+  // Todas as assinaturas: libera o portal (agora é membro) e dispara o que já existe: cartão de membro; o onboarding vem no
+  // próximo acesso. Teste não dispara.
+  if (tudo && !c.autentique_teste) await db.from("membros").update({ contrato_pendente: false }).eq("id", c.membro_id);
   if (tudo && !c.boas_vindas_em && !c.autentique_teste) {
     const { error } = await db.rpc("contrato_boas_vindas", { p_membro_id: c.membro_id });
     if (!error) await db.from("contratos").update({ boas_vindas_em: new Date().toISOString() }).eq("id", c.id);
@@ -440,6 +443,24 @@ Deno.serve(async (req) => {
       return resp(200, { ok: true });
     }
 
+    // ---- o próprio membro novo (logado), na tela "Seu contrato está em andamento" ----
+    if (c.acao === "meu_contrato" && !porBanco) {
+      const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      const { data: u } = jwt ? await db.auth.getUser(jwt) : { data: null };
+      if (!u?.user) return resp(401, { erro: "não autenticado" });
+      const { data: m } = await db.from("membros").select("id, contrato_pendente").eq("auth_user_id", u.user.id).maybeSingle();
+      if (!m) return resp(404, { erro: "cadastro não encontrado" });
+      if (!m.contrato_pendente) return resp(200, { pendente: false });
+      const { data: k } = await db.from("contratos").select("token, status, assinaturas").eq("membro_id", m.id)
+        .in("status", ["aguardando_formulario", "revisao", "enviado", "assinado"]).order("criado_em", { ascending: false }).limit(1).maybeSingle();
+      const meu = (k?.assinaturas || []).find((a: Assinatura) => a.papel === "Participante" && !a.assinado_em);
+      return resp(200, {
+        pendente: true, status: k?.status || null, formulario: k?.status === "aguardando_formulario" ? linkFormulario(k.token) : null,
+        assinar: k?.status === "enviado" ? meu?.link || null : null,
+        assinaturas: k?.assinaturas ? { feitas: k.assinaturas.filter((a: Assinatura) => a.assinado_em).length, total: k.assinaturas.length } : null,
+      });
+    }
+
     // ---- administradores ----
     const admin = porBanco ? null : await souAdmin(req);
     if (!admin && !porBanco) return resp(401, { erro: "somente administradores" });
@@ -451,6 +472,8 @@ Deno.serve(async (req) => {
       const k = aberto || (await db.from("contratos").insert({ membro_id: m.id, status: "aguardando_formulario", origem: "formulario", criado_por: admin }).select("*").single()).data;
       if (!k) return resp(500, { erro: "não foi possível criar o contrato" });
       if (k.status !== "aguardando_formulario") return resp(409, { erro: "esse membro já tem contrato em andamento" });
+      // Enquanto não assinar, ainda não é membro: o portal mostra só a tela do contrato.
+      await db.from("membros").update({ contrato_pendente: true }).eq("id", m.id);
       const w = await enviarConvite(k);
       return resp(200, { ok: true, id: k.id, whatsapp: w.ok ? "enviado" : "falhou", erro: w.erro, link: linkFormulario(k.token) });
     }

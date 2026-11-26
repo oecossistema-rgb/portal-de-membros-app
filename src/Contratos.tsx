@@ -102,8 +102,12 @@ export function AdminContratos() {
   const [novo, setNovo] = useState<string | null>(null); // membro escolhido para receber o formulário
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState("");
+  // O que precisa de ação nos contratos (revisar, assinatura parada, recusa...). Vencimento não entra: aparece no próprio contrato.
+  const [pendencias, setPendencias] = useState<{ nivel: string; titulo: string; quem?: string; como?: string }[]>([]);
 
   async function carregar() {
+    supabase.rpc("painel_resumo").then(({ data }) =>
+      setPendencias((((data as { pendencias?: { aba?: string; nivel: string; titulo: string; quem?: string; como?: string }[] })?.pendencias) || []).filter((p) => p.aba === "contratos")));
     const [{ data: m }, { data: c }] = await Promise.all([
       supabase.from("membros").select("id,nome,empresa,foto_url,telefone_whatsapp").eq("equipe", false).order("nome"),
       supabase.from("contratos").select("*").neq("autentique_teste", true).order("criado_em", { ascending: false }),
@@ -151,6 +155,17 @@ export function AdminContratos() {
         <button className="cta-btn" style={ui.botao} onClick={() => { setMsg(null); setNovo(""); }}>+ Enviar formulário do contrato</button>
       </div>
       {msg && !contratoAberto && <div style={msg.tipo === "ok" ? ui.ok : ui.erro}>{msg.texto}</div>}
+      {pendencias.length > 0 && (
+        <div style={{ ...ui.cartao, padding: "14px 16px", borderColor: "color-mix(in srgb, var(--p-accent) 35%, transparent)" }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Precisa de você ({pendencias.length})</div>
+          {pendencias.map((p, i) => (
+            <div key={i} style={{ fontSize: 13.5, padding: "6px 0", borderTop: i ? "1px solid var(--p-line)" : "none" }}>
+              <strong style={{ color: p.nivel === "erro" ? "var(--p-danger)" : "var(--p-text)" }}>{p.titulo}</strong>{p.quem ? ` · ${p.quem}` : ""}
+              {p.como && <div style={{ color: "var(--p-muted)", fontSize: 12.5 }}>{p.como}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {visiveis.map((c) => {
         const m = membro(c.membro_id);

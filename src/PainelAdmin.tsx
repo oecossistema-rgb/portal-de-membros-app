@@ -50,7 +50,8 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
     ]);
     if (r.error || s.error) { setErro((r.error || s.error)!.message); return; }
     setErro("");
-    setPend(((r.data as { pendencias: Pendencia[] })?.pendencias) || []);
+    // O que é de contrato fica na aba Contratos (não é problema do sistema).
+    setPend((((r.data as { pendencias: Pendencia[] })?.pendencias) || []).filter((p) => p.aba !== "contratos"));
     setAlertas((a.data as Alerta[]) || []);
     setVigia((v.data as Vigia) || null);
     setSis(s.data as Sistema);

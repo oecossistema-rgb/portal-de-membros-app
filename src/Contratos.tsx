@@ -15,6 +15,10 @@ type Contrato = {
   vigencia_inicio: string | null; vigencia_fim: string | null; renovacao_de: string | null;
   assinaturas: Assinatura[] | null; autentique_id: string | null; autentique_teste: boolean; verificado_em: string | null; criado_em: string; atualizado_em: string;
 };
+async function abrirPdfAssinado(caminho: string) {
+  const { data } = await supabase.storage.from("contratos").createSignedUrl(caminho, 300);
+  if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+}
 type Membro = { id: string; nome: string | null; empresa: string | null; foto_url: string | null; telefone_whatsapp: string | null };
 
 const ROTULO: Record<Status, { t: string; cor: string }> = {
@@ -179,16 +183,22 @@ export function AdminContratos() {
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
               {c.status === "aguardando_formulario" && <>
-                <button style={ui.botaoSecundario} disabled={ocupado === c.id} onClick={() => acao(c, { acao: "reenviar_link", id: c.id }, `Link reenviado para ${m?.nome}.`)}>{ocupado === c.id ? "Enviando..." : "Reenviar link"}</button>
+                <button style={ui.botaoSecundario} disabled={ocupado === c.id} onClick={() => acao(c, { acao: "reenviar_link", id: c.id }, `Link enviado para ${m?.nome}.`)}>{ocupado === c.id ? "Enviando..." : c.formulario_enviado_em ? "Reenviar link" : "Enviar link"}</button>
                 <button style={ui.botaoSecundario} onClick={() => copiar(`${PORTAL}/#contrato/${c.token}`)}>Copiar link</button>
               </>}
               {podeRenovar && (
                 <button className="cta-btn" style={{ ...ui.botao, padding: "8px 16px", fontSize: 13 }} disabled={ocupado === c.id} onClick={async () => {
-                  if (!confirm(`Gerar a renovação do contrato de ${m?.nome}?\n\nNovo contrato com os mesmos dados, sem taxa de adesão. Você digita os valores e as alterações antes de enviar para assinatura.`)) return;
-                  const r = await acao(c, { acao: "renovar", id: c.id }, "Renovação gerada. Digite os valores (campos ____) em Editar e envie para assinatura.");
-                  if (r.id) setAberto(String(r.id));
+                  const antigo = !c.texto;
+                  if (!confirm(antigo
+                    ? `Gerar a renovação do contrato de ${m?.nome}?\n\nEste contrato veio da Autentique, sem os dados do formulário. A renovação começa pelo formulário: depois você clica em "Enviar link" para o membro confirmar os dados. Nada é enviado agora.`
+                    : `Gerar a renovação do contrato de ${m?.nome}?\n\nNovo contrato com os mesmos dados, sem taxa de adesão. Você digita os valores e as alterações antes de enviar para assinatura.`)) return;
+                  const r = await acao(c, { acao: "renovar", id: c.id }, antigo
+                    ? "Renovação criada. Clique em \"Enviar link\" quando quiser que o membro confirme os dados."
+                    : "Renovação gerada. Digite os valores (campos ____) em Editar e envie para assinatura.");
+                  if (r.id && !r.formulario) setAberto(String(r.id));
                 }}>{ocupado === c.id ? "Gerando..." : "Renovar contrato"}</button>
               )}
+              {!c.texto && c.assinado_path && <button style={ui.botaoSecundario} onClick={() => abrirPdfAssinado(c.assinado_path!)}>PDF assinado</button>}
               {c.texto && <button className={c.status === "revisao" ? "cta-btn" : undefined} style={c.status === "revisao" ? { ...ui.botao, padding: "8px 16px", fontSize: 13 } : ui.botaoSecundario} onClick={() => setAberto(c.id)}>{c.status === "revisao" ? "Revisar" : "Abrir"}</button>}
               {c.status !== "cancelado" && c.status !== "assinado" && (
                 <button style={ui.botaoPerigo} onClick={() => confirm(`Cancelar o contrato de ${m?.nome}?`) && acao(c, { acao: "cancelar", id: c.id }, "Contrato cancelado.")}>Cancelar</button>

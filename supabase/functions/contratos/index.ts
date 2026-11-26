@@ -10,11 +10,13 @@
 //   { acao: "enviar", id, teste? }         -> PDF + Autentique; cada assinante recebe o link pelo WhatsApp
 //   { acao: "reenviar_assinatura", id }    -> manda de novo os links de assinatura de quem ainda não assinou
 //   { acao: "verificar", id }              -> consulta as assinaturas agora
-//   { acao: "renovar", id }                -> novo contrato (mesmos dados, sem taxa de adesão) em revisão, para digitar os valores
+//   { acao: "renovar", id }                -> novo contrato sem taxa de adesão (mesmos dados, em revisão; contrato antigo sem dados: começa pelo formulário)
 //   { acao: "cancelar", id }               -> cancela (e tira o documento da Autentique, se já tiver ido)
 // Banco (cabeçalho x-portal-interno):
 //   { varredura: true }                    -> a cada 10 min: confere assinaturas e reenvia ao Google Forms o que faltou
 //   { acao: "importar_modelo", id }        -> monta o texto-modelo a partir de um contrato padrão já assinado na Autentique
+//   { acao: "autentique_listar", pagina }  -> lista os documentos da Autentique (só leitura)
+//   { acao: "importar_assinado", membro_id, autentique_id } -> traz um contrato antigo já assinado (PDF + vigência), sem mensagens
 //   (e qualquer ação de administrador acima, para testes da equipe; o banco chama "convidar" quando o membro novo cria a senha)
 // Membro novo logado: { acao: "meu_contrato" } -> em que passo está o contrato (tela de contrato em andamento)
 // Avisos no grupo "GESTÃO DE CONTRATO": contrato gerado (para revisar/enviar) e contrato assinado por todos.
@@ -315,7 +317,11 @@ async function enviarConvite(c: Reg): Promise<{ ok: boolean; erro?: string }> {
   const m = await membro(c.membro_id);
   if (!m?.telefone_whatsapp) return { ok: false, erro: "membro sem WhatsApp no cadastro" };
   const p = primeiro(m.nome);
-  const msg = `*Bem-vindo(a) ao Ecossistema Master Business${p ? `, ${p}` : ""}!* 🎉\n\n` +
+  const msg = c.renovacao_de
+    ? `*Renovação do seu contrato · Ecossistema Master Business*${p ? `\n\nOlá, ${p}!` : ""}\n\n` +
+      `Para preparar a renovação, confirme seus dados neste link (leva poucos minutos):\n${linkFormulario(c.token)}\n\n` +
+      `Com os dados em mãos, nossa equipe prepara o contrato e você recebe o link para assinar. Seu acesso ao portal continua normal.`
+    : `*Bem-vindo(a) ao Ecossistema Master Business${p ? `, ${p}` : ""}!* 🎉\n\n` +
     `O próximo passo é o seu contrato. Preencha seus dados neste link (leva poucos minutos):\n${linkFormulario(c.token)}\n\n` +
     `Com os dados em mãos, nossa equipe prepara o contrato e você recebe o link para assinar. Depois das assinaturas, seu acesso ao portal é liberado.`;
   const r = await zapiTexto(m.telefone_whatsapp, msg);
@@ -481,6 +487,51 @@ Deno.serve(async (req) => {
         await db.from("portal_config").update({ valor: m, atualizado_em: new Date().toISOString() }).eq("chave", "contrato_modelo");
         return resp(200, { ok: true, paragrafos: m.split("\n\n").length, marcadores: (m.match(/\{\{\w+\}\}/g) || []) });
       }
+      if (c.acao === "autentique_listar") {
+        // Lista os documentos da conta da Autentique (para trazer os contratos dos membros atuais). Só leitura.
+        const d = await gql(`query($l: Int!, $p: Int!) { documents(limit: $l, page: $p) { total data {
+          id name created_at files { signed } signatures { name email action { name } signed { created_at } rejected { created_at } } } } }`,
+          { l: Number(c.limite) || 60, p: Number(c.pagina) || 1 });
+        return resp(200, d.documents || {});
+      }
+      if (c.acao === "importar_assinado" && c.membro_id && c.autentique_id) {
+        // Traz um contrato JÁ ASSINADO da Autentique para a aba Contratos: guarda o PDF assinado e a vigência.
+        // Não manda mensagem, não mexe no acesso do membro e não reenvia nada ao Google Forms.
+        const { data: ja } = await db.from("contratos").select("id").eq("autentique_id", c.autentique_id).maybeSingle();
+        if (ja) return resp(200, { ok: true, ja_existia: ja.id });
+        const { document: doc } = await gql(`query($id: UUID!) { document(id: $id) { id name created_at files { signed }
+          signatures { public_id name email action { name } signed { created_at } rejected { created_at } } } }`, { id: c.autentique_id });
+        if (!doc) return resp(404, { erro: "documento não encontrado" });
+        // Equipe do Ecossistema (assina pela contratada ou como testemunha); o resto é o membro (e o sócio, se houver).
+        const equipe = (n: string) => /mennandro|hugo|rodrigo|c[ií]ntia|sandro|oecossistema/i.test(n || "");
+        const assinaturas: Assinatura[] = (doc.signatures || []).filter((s: Reg) => s.action).map((s: Reg) => {
+          const testemunha = /WITNESS/i.test(s.action?.name || "");
+          const papel = testemunha ? "Testemunha" : equipe(`${s.name || ""} ${s.email || ""}`) ? "Contratada" : "Participante";
+          return { nome: s.name || s.email, email: s.email || null, papel, link: null, public_id: s.public_id,
+            assinado_em: s.signed?.created_at || null, recusado_em: s.rejected?.created_at || null, avisado: true };
+        });
+        // Vale como assinado quando o membro (e o sócio) assinou; assinatura faltando da equipe não muda a vigência.
+        const partes = assinaturas.filter((a) => a.papel === "Participante");
+        const tudo = partes.length > 0 && partes.every((a) => a.assinado_em);
+        const datas = partes.map((a) => a.assinado_em).filter(Boolean) as string[];
+        const id = crypto.randomUUID();
+        let assinado_path: string | null = null;
+        if (doc.files?.signed) {
+          const b = new Uint8Array(await (await fetch(doc.files.signed)).arrayBuffer());
+          assinado_path = `${c.membro_id}/${id}-assinado.pdf`;
+          const { error } = await db.storage.from("contratos").upload(assinado_path, b, { contentType: "application/pdf", upsert: true });
+          if (error) assinado_path = null;
+        }
+        const { data: novo, error } = await db.from("contratos").insert({
+          id, membro_id: c.membro_id, titulo: doc.name || "Contrato Ecossistema Master Business", origem: "manual", socio: partes.length > 1,
+          status: tudo ? "assinado" : "enviado", autentique_id: doc.id, assinaturas, assinado_path,
+          enviado_em: doc.created_at, assinado_em: tudo ? datas.sort().at(-1) : null, verificado_em: new Date().toISOString(),
+          boas_vindas_em: new Date().toISOString(), google_enviado_em: new Date().toISOString(),
+          observacoes: "Importado da Autentique (contrato anterior ao portal)",
+        }).select("id, status, vigencia_inicio, vigencia_fim, assinado_path").single();
+        if (error) return resp(500, { erro: error.message });
+        return resp(200, { ok: true, contrato: novo });
+      }
       if (c.acao === "grupos") {
         // Lista os grupos do WhatsApp conectado (só nome e id), para configurar o grupo da equipe.
         const inst = Deno.env.get("ZAPI_INSTANCE_ID"), tok = Deno.env.get("ZAPI_TOKEN"), cli = Deno.env.get("ZAPI_CLIENT_TOKEN");
@@ -517,7 +568,7 @@ Deno.serve(async (req) => {
       if (k.formulario_respondido_em) return resp(409, { erro: "Este formulário já foi enviado. Se precisar corrigir algo, fale com a equipe." });
       const v = validar(c.dados);
       if (!v.dados) return resp(400, { erro: v.erro });
-      const texto = gerarTexto(await modelo(), v.dados);
+      const texto = k.renovacao_de ? gerarTextoRenovacao(await modelo(), v.dados) : gerarTexto(await modelo(), v.dados);
       await db.from("contratos").update({
         dados: v.dados, socio: v.dados.participantes.length > 1, texto, status: "revisao", formulario_respondido_em: new Date().toISOString(),
       }).eq("id", k.id);
@@ -525,7 +576,7 @@ Deno.serve(async (req) => {
       if (k.observacoes !== "TESTE") {
         const nomes = v.dados.participantes.map((p) => p.nome).join(" e ");
         // Aviso curto para a equipe: quem é e o que fazer; o pagamento fica numa linha no fim (interessa ao financeiro).
-        await avisarGrupo(`📄 *NOVO CONTRATO PARA REVISAR*\n\n👤 *${nomes}*${v.dados.participantes.length > 1 ? " (com sócio)" : ""}${linhaEmpresa(m?.empresa)}\n\n` +
+        await avisarGrupo(`📄 *${k.renovacao_de ? "RENOVAÇÃO PARA REVISAR" : "NOVO CONTRATO PARA REVISAR"}*\n\n👤 *${nomes}*${v.dados.participantes.length > 1 ? " (com sócio)" : ""}${linhaEmpresa(m?.empresa)}\n\n` +
           `👉 Revisar e enviar para assinatura:\n${PORTAL}/#admin\n\n` +
           `💳 ${PAGAMENTO_CURTO[v.dados.pagamento]}${v.dados.dia_boleto ? `, dia ${v.dados.dia_boleto}` : ""}`);
       }
@@ -580,7 +631,7 @@ Deno.serve(async (req) => {
     }
     if (c.acao === "regerar") {
       if (!k.dados || k.status !== "revisao") return resp(409, { erro: "só dá para refazer um contrato em revisão" });
-      const texto = gerarTexto(await modelo(), k.dados);
+      const texto = k.renovacao_de ? gerarTextoRenovacao(await modelo(), k.dados) : gerarTexto(await modelo(), k.dados);
       await db.from("contratos").update({ texto }).eq("id", k.id);
       return resp(200, { ok: true, texto });
     }
@@ -597,9 +648,18 @@ Deno.serve(async (req) => {
       return resp(200, { ok: true, avisados: a.filter((x) => x.avisado).length });
     }
     if (c.acao === "renovar") {
-      if (k.status !== "assinado" || !k.dados) return resp(409, { erro: "só dá para renovar um contrato assinado" });
+      if (k.status !== "assinado") return resp(409, { erro: "só dá para renovar um contrato assinado" });
       const { data: ja } = await db.from("contratos").select("id").eq("renovacao_de", k.id).neq("status", "cancelado").limit(1).maybeSingle();
       if (ja) return resp(409, { erro: "esse contrato já tem uma renovação" });
+      if (!k.dados) {
+        // Contrato antigo (trazido da Autentique, sem os dados do formulário): a renovação começa pelo formulário.
+        // Nada é enviado agora: a equipe clica em "Enviar link" quando quiser. O acesso do membro não muda.
+        const { data: n, error } = await db.from("contratos").insert({
+          membro_id: k.membro_id, status: "aguardando_formulario", origem: "renovacao", renovacao_de: k.id, socio: k.socio, criado_por: admin,
+        }).select("id").single();
+        if (error || !n) return resp(500, { erro: error?.message || "não foi possível criar a renovação" });
+        return resp(200, { ok: true, id: n.id, formulario: true });
+      }
       const { data: n, error } = await db.from("contratos").insert({
         membro_id: k.membro_id, status: "revisao", origem: "renovacao", renovacao_de: k.id, dados: k.dados, socio: k.socio,
         texto: gerarTextoRenovacao(await modelo(), k.dados), formulario_respondido_em: new Date().toISOString(),

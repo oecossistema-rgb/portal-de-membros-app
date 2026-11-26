@@ -1,3 +1,4 @@
+import { AdminWhatsApp } from "./WhatsApp";
 import { useEffect, useMemo, useState } from "react";
 import { AdminConteudo } from "./Conteudo";
 import { AdminContratos } from "./Contratos";
@@ -12,7 +13,7 @@ import Solicitacoes from "./Solicitacoes";
 import { PainelAdmin } from "./PainelAdmin";
 import { VisaoGeralAdmin } from "./VisaoGeralAdmin";
 
-type Aba = "visao" | "membros" | "eventos" | "presencas" | "conteudo" | "contratos" | "sistema";
+type Aba = "visao" | "membros" | "eventos" | "presencas" | "conteudo" | "contratos" | "whatsapp" | "sistema";
 
 type Membro = {
   id: string;
@@ -82,7 +83,9 @@ export default function Admin({ onSolicitacoes, onVerComo }: { onSolicitacoes?: 
   const [problemas, setProblemas] = useState(0);
   useEffect(() => {
     supabase.from("portal_alertas").select("chave", { count: "exact", head: true }).is("resolvido_em", null).then(({ count }) => setProblemas(count || 0));
+    supabase.from("wa_mensagens").select("id", { count: "exact", head: true }).eq("direcao", "entrada").eq("lida", false).then(({ count }) => setNaoLidas(count || 0));
   }, [aba]);
+  const [naoLidas, setNaoLidas] = useState(0); // mensagens de membros ainda não vistas (aba WhatsApp)
   return (
     <>
       <section style={ui.hero}>
@@ -95,8 +98,8 @@ export default function Admin({ onSolicitacoes, onVerComo }: { onSolicitacoes?: 
       </section>
       <Solicitacoes onMudou={onSolicitacoes} />
       <div style={{ margin: "14px 0 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {([["visao", "Visão geral"], ["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"], ["sistema", "Saúde do sistema"]] as [Aba, string][]).map(([id, r]) => (
-          <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}{id === "sistema" && problemas > 0 && <span style={{ marginLeft: 6, background: "var(--p-danger)", color: "#fff", borderRadius: 99, padding: "0 7px", fontSize: 12, fontWeight: 700 }}>{problemas}</span>}</button>
+        {([["visao", "Visão geral"], ["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"], ["whatsapp", "WhatsApp"], ["sistema", "Saúde do sistema"]] as [Aba, string][]).map(([id, r]) => (
+          <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}{id === "whatsapp" && naoLidas > 0 && <span style={{ marginLeft: 6, background: "#25D366", color: "#fff", borderRadius: 99, padding: "0 7px", fontSize: 12, fontWeight: 700 }}>{naoLidas}</span>}{id === "sistema" && problemas > 0 && <span style={{ marginLeft: 6, background: "var(--p-danger)", color: "#fff", borderRadius: 99, padding: "0 7px", fontSize: 12, fontWeight: 700 }}>{problemas}</span>}</button>
         ))}
       </div>
       {aba === "visao" && <VisaoGeralAdmin onIr={setAba} />}
@@ -106,6 +109,7 @@ export default function Admin({ onSolicitacoes, onVerComo }: { onSolicitacoes?: 
       {aba === "presencas" && <AdminPresencas />}
       {aba === "conteudo" && <AdminConteudo />}
       {aba === "contratos" && <AdminContratos />}
+      {aba === "whatsapp" && <AdminWhatsApp />}
     </>
   );
 }

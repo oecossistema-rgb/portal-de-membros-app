@@ -262,18 +262,50 @@ export async function gerarPdf(texto: string, titulo: string): Promise<Uint8Arra
 }
 
 // ---------- Google Forms (mesma planilha de sempre) ----------
+// Pergunta da data do boleto: é obrigatória no Google. Boleto e renovação mandam o dia; à vista e cartão mandam "Não se aplica".
+const NAO_SE_APLICA = "Não se aplica (à vista ou cartão)";
+type PerguntaGoogle = { titulo: string; entrada: string; obrigatoria: boolean; opcoes: string[] | null };
+// Lê o formulário do Google ao vivo (perguntas, obrigatórias e textos das opções) para conferir antes de enviar.
+async function perguntasGoogle(): Promise<PerguntaGoogle[] | null> {
+  try {
+    const html = await (await fetch(GOOGLE_FORM.replace("/formResponse", "/viewform"))).text();
+    const ini = html.indexOf("FB_PUBLIC_LOAD_DATA_ = ");
+    if (ini < 0) return null;
+    const fim = html.indexOf(";</script>", ini);
+    const dados = JSON.parse(html.slice(ini + "FB_PUBLIC_LOAD_DATA_ = ".length, fim));
+    const out: PerguntaGoogle[] = [];
+    for (const q of dados?.[1]?.[1] || []) {
+      const campo = q?.[4]?.[0];
+      if (!campo) continue;
+      out.push({ titulo: String(q[1] || "").trim(), entrada: `entry.${campo[0]}`, obrigatoria: campo[2] === 1,
+        opcoes: Array.isArray(campo[1]) ? campo[1].map((o: Reg) => String(o[0])) : null });
+    }
+    return out;
+  } catch { return null; }
+}
+// Explica exatamente o que está errado entre o que o portal manda e o formulário do Google (null = tudo certo).
+function conferirGoogle(perguntas: PerguntaGoogle[], envio: URLSearchParams): string | null {
+  for (const q of perguntas) {
+    const v = envio.get(q.entrada);
+    if (q.obrigatoria && !v) return `No formulário do Google "Dados do Contrato", a pergunta "${q.titulo}" é obrigatória e o portal não tem essa resposta. Peça ao suporte para o portal passar a responder essa pergunta (ou deixe-a como estava).`;
+    if (v && q.opcoes && !q.opcoes.includes(v)) return `No formulário do Google "Dados do Contrato", a pergunta "${q.titulo}" não tem a opção "${v}" (o texto da opção foi mudado ou apagado). Volte o texto da opção exatamente assim no Google.`;
+  }
+  return null;
+}
 async function espelharGoogle(d: Dados): Promise<{ ok: boolean; erro?: string }> {
   try {
+    const perguntas = await perguntasGoogle();
     for (const p of d.participantes) {
       const f = new URLSearchParams({
         emailAddress: p.email, "entry.692920242": p.nome, "entry.1154968108": p.whatsapp, "entry.1278937806": p.email,
         "entry.1838407065": p.estado_civil, "entry.1162731604": p.profissao, "entry.1689548781": [p.rg, p.orgao_emissor].filter(Boolean).join(" - "),
         "entry.851467681": p.documento, "entry.84396485": [p.endereco, `${p.cidade} - ${p.estado}`, p.nacionalidade ? `Nacionalidade: ${p.nacionalidade}` : ""].filter(Boolean).join("\n"),
         "entry.191929612": p.cep, "entry.1607657276": PAGAMENTOS[d.pagamento],
+        "entry.50116861": (d.pagamento === "boleto" || d.pagamento === "renovacao") && d.dia_boleto ? `Dia ${d.dia_boleto} de cada mês` : NAO_SE_APLICA,
       });
-      if (d.pagamento === "boleto" && d.dia_boleto) f.set("entry.50116861", `Dia ${d.dia_boleto} de cada mês`);
+      if (perguntas) { const problema = conferirGoogle(perguntas, f); if (problema) return { ok: false, erro: problema }; }
       const r = await fetch(GOOGLE_FORM, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: f });
-      if (!r.ok) return { ok: false, erro: `Google Forms ${r.status}` };
+      if (!r.ok) return { ok: false, erro: `O Google recusou os dados (código ${r.status}). Provavelmente o formulário "Dados do Contrato" foi alterado. O contrato não é afetado; o portal tenta de novo a cada 10 minutos.` };
     }
     return { ok: true };
   } catch (e) { return { ok: false, erro: e instanceof Error ? e.message : String(e) }; }

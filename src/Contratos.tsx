@@ -103,11 +103,11 @@ export function AdminContratos() {
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState("");
   // O que precisa de ação nos contratos (revisar, assinatura parada, recusa...). Vencimento não entra: aparece no próprio contrato.
-  const [pendencias, setPendencias] = useState<{ nivel: string; titulo: string; quem?: string; como?: string }[]>([]);
+  const [pendencias, setPendencias] = useState<{ nivel: string; titulo: string; quem?: string; como?: string; detalhe?: string }[]>([]);
 
   async function carregar() {
     supabase.rpc("painel_resumo").then(({ data }) =>
-      setPendencias((((data as { pendencias?: { aba?: string; nivel: string; titulo: string; quem?: string; como?: string }[] })?.pendencias) || []).filter((p) => p.aba === "contratos")));
+      setPendencias((((data as { pendencias?: { aba?: string; nivel: string; titulo: string; quem?: string; como?: string; detalhe?: string }[] })?.pendencias) || []).filter((p) => p.aba === "contratos")));
     const [{ data: m }, { data: c }] = await Promise.all([
       supabase.from("membros").select("id,nome,empresa,foto_url,telefone_whatsapp").eq("equipe", false).order("nome"),
       supabase.from("contratos").select("*").neq("autentique_teste", true).order("criado_em", { ascending: false }),
@@ -161,6 +161,7 @@ export function AdminContratos() {
           {pendencias.map((p, i) => (
             <div key={i} style={{ fontSize: 13.5, padding: "6px 0", borderTop: i ? "1px solid var(--p-line)" : "none" }}>
               <strong style={{ color: p.nivel === "erro" ? "var(--p-danger)" : "var(--p-text)" }}>{p.titulo}</strong>{p.quem ? ` · ${p.quem}` : ""}
+              {p.detalhe && <div style={{ fontSize: 13, marginTop: 2 }}>{p.detalhe}</div>}
               {p.como && <div style={{ color: "var(--p-muted)", fontSize: 12.5 }}>{p.como}</div>}
             </div>
           ))}

@@ -10,7 +10,7 @@
 //   { acao: "enviar", id, teste? }         -> PDF + Autentique; cada assinante recebe o link pelo WhatsApp
 //   { acao: "reenviar_assinatura", id }    -> manda de novo os links de assinatura de quem ainda não assinou
 //   { acao: "verificar", id }              -> consulta as assinaturas agora
-//   { acao: "renovar", id }                -> novo contrato sem taxa de adesão (mesmos dados, em revisão; contrato antigo sem dados: começa pelo formulário)
+//   { acao: "renovar", id }                -> renovação: mesma estrutura, sem a entrada, só a mensalidade (contrato antigo sem dados: começa pelo formulário)
 //   { acao: "cancelar", id }               -> cancela (e tira o documento da Autentique, se já tiver ido)
 // Banco (cabeçalho x-portal-interno):
 //   { varredura: true }                    -> a cada 10 min: confere assinaturas e reenvia ao Google Forms o que faltou
@@ -36,7 +36,7 @@ type Participante = {
   nome: string; whatsapp: string; email: string; nacionalidade: string; estado_civil: string; profissao: string;
   rg: string; orgao_emissor: string; documento: string; endereco: string; cidade: string; estado: string; cep: string;
 };
-type Dados = { participantes: Participante[]; pagamento: "avista" | "cartao" | "boleto"; dia_boleto?: string };
+type Dados = { participantes: Participante[]; pagamento: "avista" | "cartao" | "boleto" | "renovacao"; dia_boleto?: string };
 type Assinatura = { nome: string; email?: string | null; papel: string; link: string | null; public_id: string; assinado_em: string | null; recusado_em: string | null; avisado: boolean; aviso?: string | null };
 // deno-lint-ignore no-explicit-any
 type Reg = Record<string, any>;
@@ -45,6 +45,7 @@ const PAGAMENTOS: Record<string, string> = {
   avista: "R$28.000 à vista",
   cartao: "12x de R$ 3.084,45 (Cartão de crédito)",
   boleto: "R$8.000 (Adesão) + 12x de R$1.835,00 (Boleto)",
+  renovacao: "Renovação: 12x de R$1.835,00 (Boleto), sem adesão",
 };
 
 // ---------- utilidades ----------
@@ -81,7 +82,7 @@ async function avisarGrupo(texto: string): Promise<{ ok: boolean; erro?: string 
     return r.ok ? { ok: true } : { ok: false, erro: `Z-API ${r.status}` };
   } catch (e) { return { ok: false, erro: e instanceof Error ? e.message : String(e) }; }
 }
-const PAGAMENTO_CURTO: Record<string, string> = { avista: "R$ 28.000 à vista", cartao: "12x de R$ 3.084,45 no cartão", boleto: "R$ 8.000 de adesão + 12x de R$ 1.835 no boleto" };
+const PAGAMENTO_CURTO: Record<string, string> = { avista: "R$ 28.000 à vista", cartao: "12x de R$ 3.084,45 no cartão", boleto: "R$ 8.000 de adesão + 12x de R$ 1.835 no boleto", renovacao: "renovação: 12x de R$ 1.835 no boleto, sem adesão" };
 
 const dataBR = (d?: string | null) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "");
 const linhaEmpresa = (e?: string | null) => (e ? `\n🏢 ${e}` : "");
@@ -193,13 +194,14 @@ function pagamento(d: Dados): { c51: string; bloco: string } {
   };
 }
 
-// Renovação (item 6.8: quem renova não paga a taxa de adesão). Valores em branco ("____") para a equipe digitar em Editar;
-// o portal não deixa enviar para assinatura enquanto houver "____" no texto.
+// Renovação (item 6.8: quem renova não paga a taxa de adesão): mesma estrutura do contrato, só sem a entrada.
+// Fica só a mensalidade: 12x de R$ 1.835,00 no boleto (R$ 22.020,00), no dia escolhido pelo membro.
 export function gerarTextoRenovacao(modelo: string, d: Dados): string {
-  const c51 = "5.1. A remuneração pelo acesso ao ECOSSISTEMA na modalidade EXCLUSIVE, em renovação, se dará através do pagamento do valor total de R$ ____ (____), sem taxa de adesão, nos termos do item 6.8.";
+  const dia = DIAS[d.dia_boleto || ""] || "";
+  const c51 = "5.1. A remuneração pelo acesso ao ECOSSISTEMA na modalidade EXCLUSIVE, em renovação, se dará através do pagamento do valor total de R$ 22.020,00 (vinte e dois mil e vinte reais), sem taxa de adesão, nos termos do item 6.8.";
   const bloco = [
     "6.1. Por se tratar de renovação de contrato, o PARTICIPANTE fica desobrigado do pagamento da taxa de adesão, nos termos do item 6.8.",
-    "6.2. O PARTICIPANTE pagará para a CONTRATADA o valor total de R$ ____ (____), em ____ parcela(s) de R$ ____ (____), via ____.",
+    `6.2. O valor total de R$ 22.020,00 (vinte e dois mil e vinte reais) poderá ser pago em até 12 parcelas iguais e sucessivas no valor de R$ 1.835,00 (um mil oitocentos e trinta e cinco reais), por boleto${dia ? `, com vencimento no dia ${dia} de cada mês` : ""}.`,
     "6.3. A renovação mantém o ingresso de até 2 (dois) PARTICIPANTES, desde que sejam sócios da mesma empresa ou casal.",
     "6.4. Embora a renovação permita duas cadeiras, o valor deste contrato deverá ser pago individualmente por cada PARTICIPANTE, nos termos desta cláusula.",
   ].join("\n\n");
@@ -279,7 +281,7 @@ async function espelharGoogle(d: Dados): Promise<{ ok: boolean; erro?: string }>
 
 // ---------- validação do formulário ----------
 const CAMPOS: (keyof Participante)[] = ["nome", "whatsapp", "email", "nacionalidade", "estado_civil", "profissao", "rg", "orgao_emissor", "documento", "endereco", "cidade", "estado", "cep"];
-function validar(bruto: Reg): { dados?: Dados; erro?: string } {
+function validar(bruto: Reg, renovacao = false): { dados?: Dados; erro?: string } {
   const ps = Array.isArray(bruto?.participantes) ? bruto.participantes : [];
   if (ps.length < 1 || ps.length > 2) return { erro: "participantes inválidos" };
   const participantes: Participante[] = [];
@@ -295,10 +297,11 @@ function validar(bruto: Reg): { dados?: Dados; erro?: string } {
     participantes.push(x);
   }
   const pg = String(bruto?.pagamento || "");
-  if (!["avista", "cartao", "boleto"].includes(pg)) return { erro: "escolha a forma de pagamento" };
+  if (!(renovacao ? ["renovacao"] : ["avista", "cartao", "boleto"]).includes(pg)) return { erro: "escolha a forma de pagamento" };
   const dia = String(bruto?.dia_boleto || "");
-  if (pg === "boleto" && !["05", "10", "15"].includes(dia)) return { erro: "escolha a melhor data do boleto" };
-  return { dados: { participantes, pagamento: pg as Dados["pagamento"], ...(pg === "boleto" ? { dia_boleto: dia } : {}) } };
+  const comDia = pg === "boleto" || pg === "renovacao";
+  if (comDia && !["05", "10", "15"].includes(dia)) return { erro: "escolha a melhor data do boleto" };
+  return { dados: { participantes, pagamento: pg as Dados["pagamento"], ...(comDia ? { dia_boleto: dia } : {}) } };
 }
 
 // ---------- ações ----------
@@ -563,10 +566,10 @@ Deno.serve(async (req) => {
       if (!k || k.status === "cancelado") return resp(404, { erro: "link inválido ou cancelado" });
       const m = await membro(k.membro_id);
       if (c.acao === "formulario") {
-        return resp(200, { nome: m?.nome || "", email: m?.email || "", whatsapp: m?.telefone_whatsapp || "", socio: k.socio, respondido: !!k.formulario_respondido_em });
+        return resp(200, { nome: m?.nome || "", email: m?.email || "", whatsapp: m?.telefone_whatsapp || "", socio: k.socio, respondido: !!k.formulario_respondido_em, renovacao: !!k.renovacao_de });
       }
       if (k.formulario_respondido_em) return resp(409, { erro: "Este formulário já foi enviado. Se precisar corrigir algo, fale com a equipe." });
-      const v = validar(c.dados);
+      const v = validar(c.dados, !!k.renovacao_de);
       if (!v.dados) return resp(400, { erro: v.erro });
       const texto = k.renovacao_de ? gerarTextoRenovacao(await modelo(), v.dados) : gerarTexto(await modelo(), v.dados);
       await db.from("contratos").update({
@@ -660,9 +663,10 @@ Deno.serve(async (req) => {
         if (error || !n) return resp(500, { erro: error?.message || "não foi possível criar a renovação" });
         return resp(200, { ok: true, id: n.id, formulario: true });
       }
+      const dadosRenov: Dados = { participantes: k.dados.participantes, pagamento: "renovacao", ...(k.dados.dia_boleto ? { dia_boleto: k.dados.dia_boleto } : {}) };
       const { data: n, error } = await db.from("contratos").insert({
-        membro_id: k.membro_id, status: "revisao", origem: "renovacao", renovacao_de: k.id, dados: k.dados, socio: k.socio,
-        texto: gerarTextoRenovacao(await modelo(), k.dados), formulario_respondido_em: new Date().toISOString(),
+        membro_id: k.membro_id, status: "revisao", origem: "renovacao", renovacao_de: k.id, dados: dadosRenov, socio: k.socio,
+        texto: gerarTextoRenovacao(await modelo(), dadosRenov), formulario_respondido_em: new Date().toISOString(),
         google_enviado_em: new Date().toISOString(), criado_por: admin,
       }).select("id").single();
       if (error || !n) return resp(500, { erro: error?.message || "não foi possível criar a renovação" });

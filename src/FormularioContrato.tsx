@@ -17,6 +17,8 @@ const PAGAMENTOS: [string, string][] = [
   ["cartao", "12x de R$ 3.084,45 (cartão de crédito)"],
   ["boleto", "R$ 8.000 (adesão) + 12x de R$ 1.835,00 (boleto)"],
 ];
+// Renovação: sem taxa de adesão, só a mensalidade.
+const PAGAMENTOS_RENOVACAO: [string, string][] = [["renovacao", "12x de R$ 1.835,00 (mensalidade no boleto, sem taxa de adesão)"]];
 
 async function chamar(corpo: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke("contratos", { body: corpo });
@@ -63,6 +65,7 @@ export default function FormularioContrato({ token, onSair, onEnviado }: { token
   const [socio, setSocio] = useState(false);
   const [pagamento, setPagamento] = useState("");
   const [dia, setDia] = useState("");
+  const [renovacao, setRenovacao] = useState(false);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
 
@@ -71,6 +74,7 @@ export default function FormularioContrato({ token, onSair, onEnviado }: { token
       if (!r || r.erro) { setEstado("invalido"); return; }
       if (r.respondido) { setEstado("respondido"); return; }
       setP1({ ...VAZIO, nome: r.nome || "", email: r.email || "", whatsapp: r.whatsapp || "" });
+      if (r.renovacao) { setRenovacao(true); setPagamento("renovacao"); setSocio(!!r.socio); }
       setEstado("form");
     });
   }, [token]);
@@ -83,7 +87,7 @@ export default function FormularioContrato({ token, onSair, onEnviado }: { token
       if (falta) { setErro(`Preencha "${falta[1]}"${socio ? ` do ${i + 1}º participante` : ""}.`); return; }
     }
     if (!pagamento) { setErro("Escolha a forma de pagamento."); return; }
-    if (pagamento === "boleto" && !dia) { setErro("Escolha a melhor data do boleto."); return; }
+    if ((pagamento === "boleto" || pagamento === "renovacao") && !dia) { setErro("Escolha a melhor data do boleto."); return; }
     setEnviando(true);
     const r = await chamar({ acao: "responder", token, dados: { participantes: pessoas, pagamento, dia_boleto: dia || undefined } });
     setEnviando(false);
@@ -101,7 +105,9 @@ export default function FormularioContrato({ token, onSair, onEnviado }: { token
         <div style={{ fontSize: 40 }}>✅</div>
         <h1 style={{ fontSize: 24, margin: "8px 0 10px", fontWeight: 700, color: "var(--p-text)", letterSpacing: "-0.01em" }}>{estado === "enviado" ? "Dados recebidos!" : "Você já enviou seus dados."}</h1>
         <p style={{ color: "var(--p-muted)", fontSize: 15.5, lineHeight: 1.55, margin: 0 }}>
-          Nossa equipe vai preparar o seu contrato. Você recebe no WhatsApp o link para assinar e, depois das assinaturas, o acesso ao portal.
+          {renovacao
+            ? "Nossa equipe vai preparar a renovação do seu contrato. Você recebe no WhatsApp o link para assinar. Seu acesso ao portal continua normal."
+            : "Nossa equipe vai preparar o seu contrato. Você recebe no WhatsApp o link para assinar e, depois das assinaturas, o acesso ao portal."}
         </p>
       </div>
     </Moldura>
@@ -109,9 +115,9 @@ export default function FormularioContrato({ token, onSair, onEnviado }: { token
 
   return (
     <Moldura onSair={onSair}>
-      <h1 style={{ fontSize: 28, lineHeight: 1.15, margin: "0 0 8px", letterSpacing: "-0.02em", fontWeight: 700, color: "var(--p-text)" }}>Dados do contrato</h1>
+      <h1 style={{ fontSize: 28, lineHeight: 1.15, margin: "0 0 8px", letterSpacing: "-0.02em", fontWeight: 700, color: "var(--p-text)" }}>{renovacao ? "Renovação do contrato" : "Dados do contrato"}</h1>
       <p style={{ color: "var(--p-muted)", fontSize: 15, lineHeight: 1.5, margin: "0 0 18px" }}>
-        Os dados abaixo serão usados para fazer o seu contrato. Confira tudo antes de enviar.
+        {renovacao ? "Confirme seus dados para a renovação. Na renovação não há taxa de adesão, só a mensalidade." : "Os dados abaixo serão usados para fazer o seu contrato. Confira tudo antes de enviar."}
       </p>
       <Pessoa p={p1} onChange={setP1} titulo={socio ? "1º participante" : undefined} />
 
@@ -126,13 +132,13 @@ export default function FormularioContrato({ token, onSair, onEnviado }: { token
 
       <div style={{ ...ui.cartao, padding: "20px 18px" }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 10 }}>Forma de pagamento *</div>
-        {PAGAMENTOS.map(([v, t]) => (
+        {(renovacao ? PAGAMENTOS_RENOVACAO : PAGAMENTOS).map(([v, t]) => (
           <label key={v} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", cursor: "pointer", fontSize: 15 }}>
             <input type="radio" name="pagamento" checked={pagamento === v} onChange={() => setPagamento(v)} style={{ width: 19, height: 19 }} /> {t}
           </label>
         ))}
         {pagamento === "cartao" && <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 4 }}>No cartão, os juros da operadora já estão no valor das parcelas.</div>}
-        {pagamento === "boleto" && (
+        {(pagamento === "boleto" || pagamento === "renovacao") && (
           <div style={{ marginTop: 10 }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Melhor data do boleto *</div>
             {["05", "10", "15"].map((d) => (

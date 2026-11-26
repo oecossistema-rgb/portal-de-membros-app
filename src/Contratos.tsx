@@ -191,10 +191,10 @@ export function AdminContratos() {
                   const antigo = !c.texto;
                   if (!confirm(antigo
                     ? `Gerar a renovação do contrato de ${m?.nome}?\n\nEste contrato veio da Autentique, sem os dados do formulário. A renovação começa pelo formulário: depois você clica em "Enviar link" para o membro confirmar os dados. Nada é enviado agora.`
-                    : `Gerar a renovação do contrato de ${m?.nome}?\n\nNovo contrato com os mesmos dados, sem taxa de adesão. Você digita os valores e as alterações antes de enviar para assinatura.`)) return;
+                    : `Gerar a renovação do contrato de ${m?.nome}?\n\nNovo contrato com os mesmos dados, sem taxa de adesão (só a mensalidade: 12x de R$ 1.835). Você revisa e envia para assinatura.`)) return;
                   const r = await acao(c, { acao: "renovar", id: c.id }, antigo
                     ? "Renovação criada. Clique em \"Enviar link\" quando quiser que o membro confirme os dados."
-                    : "Renovação gerada. Digite os valores (campos ____) em Editar e envie para assinatura.");
+                    : "Renovação gerada. Revise e envie para assinatura.");
                   if (r.id && !r.formulario) setAberto(String(r.id));
                 }}>{ocupado === c.id ? "Gerando..." : "Renovar contrato"}</button>
               )}

@@ -2,7 +2,8 @@
 //   Aguardando formulário -> Em revisão (abre em tela inteira: Editar -> Salvar -> Enviar) -> Aguardando assinaturas
 //   (Autentique: membro, Mennandro e testemunhas) -> Assinado (aí o membro recebe as boas-vindas do portal).
 // Os dados pessoais e os PDFs só aparecem para administradores (armazenamento privado, link temporário).
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Aviso } from "./Aviso";
 import { supabase } from "./supabase";
 import { ui } from "./ui";
 
@@ -137,6 +138,7 @@ export function AdminContratos() {
   }
   const copiar = (t: string) => { navigator.clipboard?.writeText(t).then(() => setMsg({ tipo: "ok", texto: "Link copiado." })).catch(() => {}); };
 
+  const fecharAviso = useCallback(() => setMsg(null), []);
   const contratoAberto = contratos.find((c) => c.id === aberto) || null;
 
   return (
@@ -154,7 +156,6 @@ export function AdminContratos() {
         <input style={{ ...ui.input, flex: "1 1 260px" }} placeholder="Buscar membro ou empresa" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <button className="cta-btn" style={ui.botao} onClick={() => { setMsg(null); setNovo(""); }}>+ Enviar formulário do contrato</button>
       </div>
-      {msg && !contratoAberto && <div style={msg.tipo === "ok" ? ui.ok : ui.erro}>{msg.texto}</div>}
       {pendencias.length > 0 && (
         <div style={{ ...ui.cartao, padding: "14px 16px", borderColor: "color-mix(in srgb, var(--p-accent) 35%, transparent)" }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Precisa de você ({pendencias.length})</div>
@@ -235,7 +236,6 @@ export function AdminContratos() {
               <option value="">Escolha...</option>
               {membros.map((m) => <option key={m.id} value={m.id}>{m.nome}{m.empresa ? ` · ${m.empresa}` : ""}{m.telefone_whatsapp ? "" : " (sem WhatsApp)"}</option>)}
             </select>
-            {msg?.tipo === "erro" && <div style={ui.erro}>{msg.texto}</div>}
             <div style={{ display: "flex", gap: 10 }}>
               <button style={{ ...ui.botaoSecundario, flex: 1 }} onClick={() => setNovo(null)}>Voltar</button>
               <button className="cta-btn" style={{ ...ui.botao, flex: 2 }} disabled={!novo || ocupado === "novo"} onClick={async () => {
@@ -251,6 +251,8 @@ export function AdminContratos() {
         <TelaContrato c={contratoAberto} nome={membro(contratoAberto.membro_id)?.nome || "Membro"} msg={msg} ocupado={ocupado === contratoAberto.id}
           onFechar={() => { setAberto(null); setMsg(null); }} onAcao={acao} onCopiar={copiar} onSalvo={carregar} setMsg={setMsg} />
       )}
+      {/* Todo aviso (erro ou sucesso) aparece fixo no rodapé, à vista mesmo com a tela rolada. */}
+      <Aviso msg={msg} onFechar={fecharAviso} />
     </main>
   );
 }
@@ -323,7 +325,6 @@ function TelaContrato({ c, nome, msg, ocupado, onFechar, onAcao, onCopiar, onSal
 
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 16px 40px" }}>
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
-          {msg && <div style={msg.tipo === "ok" ? ui.ok : ui.erro}>{msg.texto}</div>}
           {c.status !== "aguardando_formulario" && <Vigencia c={c} grande />}
           {ass.length > 0 && (
             <div style={{ ...ui.cartao, padding: "14px 16px" }}>

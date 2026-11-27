@@ -67,14 +67,21 @@ async function avisarGrupo(texto: string): Promise<{ ok: boolean; erro?: string 
   if (!grupo) return { ok: false, erro: "grupo não configurado" };
   return await zapi("send-text", { phone: grupo, message: texto });
 }
+// Resumo de até 50 caracteres, cortado no fim de uma palavra (o mesmo do sino do portal).
+export function resumo50(t: string): string {
+  const s = (t || "").trim().replace(/\s+/g, " ");
+  if (s.length <= 50) return s;
+  return s.slice(0, 51).replace(/\s+\S*$/, "").replace(/[ ,.;:-]+$/, "") + "...";
+}
 async function ofertaNova(id: string): Promise<Reg> {
-  const { data: o } = await db.from("ofertas").select("titulo, tipo, condicao_membro, preco, membro_id").eq("id", id).maybeSingle();
+  const { data: o } = await db.from("ofertas").select("titulo, tipo, descricao, condicao_membro, membro_id").eq("id", id).maybeSingle();
   if (!o) return { ignorado: true };
   const { data: m } = await db.from("membros").select("nome, empresa").eq("id", o.membro_id).maybeSingle();
-  const texto = `🛍️ *NOVA OFERTA NO PORTAL*\n\n👤 *${m?.nome || "Membro"}*${m?.empresa ? `\n🏢 ${m.empresa}` : ""}\n\n` +
-    `📌 ${o.titulo} (${o.tipo === "produto" ? "produto" : "serviço"})` +
-    `${o.condicao_membro ? `\n⭐ Para membros: ${o.condicao_membro}` : ""}${o.preco ? `\n💰 ${o.preco}` : ""}` +
-    `\n\n👉 Ver no portal:\nhttps://portal.oecossistemabusiness.com/#ofertas`;
+  // Sem ícones e sem preço: quem publicou, o que é, o resumo e o link direto para a oportunidade.
+  const texto = `*NOVA OPORTUNIDADE NO PORTAL*\n\n*${m?.nome || "Membro"}*${m?.empresa ? ` · ${m.empresa}` : ""}\n\n` +
+    `*${o.titulo}* (${o.tipo === "produto" ? "produto" : "serviço"})\n${resumo50(o.descricao)}` +
+    `${o.condicao_membro ? `\n\nCondição para membros: ${o.condicao_membro}` : ""}` +
+    `\n\nClique no link abaixo para acessar a oportunidade:\nhttps://portal.oecossistemabusiness.com/#ofertas/${id}`;
   return await avisarGrupo(texto);
 }
 

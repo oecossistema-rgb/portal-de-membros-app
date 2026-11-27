@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Sino } from "./Sino";
 import type { CSSProperties, ReactNode } from "react";
 import { supabase } from "./supabase";
 import { temaAtual, trocarTema, type Tema } from "./tema";
@@ -198,7 +199,7 @@ export function PortalShell({ itens, ativo, onIr, nome, papel, foto, onSair, bus
             <span className="pv-kbd">Ctrl + K</span>
           </label>
           <button className="pv-tema" title={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"} aria-label="Trocar tema claro/escuro" onClick={() => setTema(trocarTema())}><Ic n={tema === "escuro" ? "sol" : "lua"} t={17} /></button>
-          <button title="Notificações" style={{ background: "none", border: 0, color: V.texto, cursor: "pointer", position: "relative", padding: 6 }}><Ic n="sino" t={20} /></button>
+          <Sino onIr={onIr} cor={V.texto} />
           <div className="pv-quem" style={{ position: "relative" }}>
             <button onClick={() => setMenuUser(!menuUser)} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: 0, color: V.texto, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
               {foto ? <img src={foto} alt="" style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: `2px solid ${V.borda2}` }} />

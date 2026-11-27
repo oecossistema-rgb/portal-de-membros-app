@@ -1,6 +1,7 @@
 // Aba "Ofertas": cada membro divulga os próprios produtos e serviços para os outros membros.
 // Até ser liberada (portal_config 'ofertas'), só administradores veem a aba. Limite de 5 ofertas por membro.
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { pegarPedido } from "./Sino";
 import { supabase } from "./supabase";
 import { ui } from "./ui";
 
@@ -132,8 +133,18 @@ export function Ofertas({ admin, somenteVer }: { admin: boolean; somenteVer?: bo
       .select("id,membro_id,tipo,titulo,descricao,condicao_membro,preco,link,imagem_url,ativo,created_at,dono:membros(id,nome,empresa,foto_url,telefone_whatsapp,segmento)")
       .order("created_at", { ascending: false });
     if (error) setErro("Não foi possível carregar as ofertas agora.");
-    setLista(((data || []) as unknown as Oferta[]));
+    const l = ((data || []) as unknown as Oferta[]);
+    setLista(l);
     setCarregando(false);
+    abrirPedido(l);
+  }
+  // Link direto para uma oferta (sino do portal ou link do WhatsApp: #ofertas/<id>).
+  function abrirPedido(l: Oferta[]) {
+    const id = pegarPedido("ofertas");
+    if (!id) return;
+    const o = l.find((x) => x.id === id);
+    if (o) setAberta(o);
+    if (window.location.hash !== "#ofertas") history.replaceState(null, "", "#ofertas");
   }
 
   useEffect(() => {
@@ -153,6 +164,12 @@ export function Ofertas({ admin, somenteVer }: { admin: boolean; somenteVer?: bo
       await carregar();
     })();
   }, [admin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const ouvir = () => abrirPedido(lista);
+    window.addEventListener("portal:abrir", ouvir);
+    return () => window.removeEventListener("portal:abrir", ouvir);
+  }, [lista]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const minhas = useMemo(() => lista.filter((o) => o.membro_id === meuId), [lista, meuId]);
   const visiveis = useMemo(() => {

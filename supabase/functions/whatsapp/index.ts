@@ -7,6 +7,7 @@
 //   { acao: "parar" | "retomar" | "cancelar", id }  -> controla um disparo
 //   { acao: "responder", membro_id, texto }         -> responde o membro na tela de conversas
 // Banco (cabeçalho x-portal-interno): { fila: true } -> envia os próximos da fila (um por vez, com intervalo aleatório).
+//   { oferta_nova: id } -> avisa no grupo da equipe ("GESTÃO DE CONTRATO") que um membro publicou uma oferta.
 // Integração do Kommo (cabeçalho x-portal-encaminhado): { tipo: "inbound" | "status", payload } -> cópia do que a Z-API mandou.
 //   Só guarda mensagens de quem é membro do portal; o resto é descartado na hora.
 // Segredos: ZAPI_INSTANCE_ID, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN; a chave da cópia fica no cofre do banco (portal_encaminhar).
@@ -57,6 +58,24 @@ async function enviar(telefone: string, texto: string, midia?: { url?: string | 
     return await zapi("send-text", { phone, message: texto });
   }
   return await zapi("send-text", { phone, message: texto });
+}
+
+// Aviso no grupo da equipe (o mesmo dos contratos; o id fica em portal_config.contrato_grupo_whatsapp).
+async function avisarGrupo(texto: string): Promise<{ ok: boolean; erro?: string }> {
+  const { data } = await db.from("portal_config").select("valor").eq("chave", "contrato_grupo_whatsapp").maybeSingle();
+  const grupo = (data?.valor || "").trim();
+  if (!grupo) return { ok: false, erro: "grupo não configurado" };
+  return await zapi("send-text", { phone: grupo, message: texto });
+}
+async function ofertaNova(id: string): Promise<Reg> {
+  const { data: o } = await db.from("ofertas").select("titulo, tipo, condicao_membro, preco, membro_id").eq("id", id).maybeSingle();
+  if (!o) return { ignorado: true };
+  const { data: m } = await db.from("membros").select("nome, empresa").eq("id", o.membro_id).maybeSingle();
+  const texto = `🛍️ *NOVA OFERTA NO PORTAL*\n\n👤 *${m?.nome || "Membro"}*${m?.empresa ? `\n🏢 ${m.empresa}` : ""}\n\n` +
+    `📌 ${o.titulo} (${o.tipo === "produto" ? "produto" : "serviço"})` +
+    `${o.condicao_membro ? `\n⭐ Para membros: ${o.condicao_membro}` : ""}${o.preco ? `\n💰 ${o.preco}` : ""}` +
+    `\n\n👉 Ver no portal:\nhttps://portal.oecossistemabusiness.com/#ofertas`;
+  return await avisarGrupo(texto);
 }
 
 async function souAdmin(req: Request): Promise<Reg | null> {
@@ -208,6 +227,7 @@ Deno.serve(async (req) => {
       const { data: ok } = await db.rpc("token_interno_valido", { p_token: interno });
       if (ok !== true) return resp(401, { erro: "código interno inválido" });
       if (c.fila) return resp(200, await fila());
+      if (c.oferta_nova) return resp(200, await ofertaNova(String(c.oferta_nova)));
       return resp(400, { erro: "pedido inválido" });
     }
     // ---- administradores ----

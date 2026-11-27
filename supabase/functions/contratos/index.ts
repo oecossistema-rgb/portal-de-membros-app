@@ -672,7 +672,9 @@ Deno.serve(async (req) => {
     }
     if (c.acao === "enviar") {
       if (k.status !== "revisao" && !(k.status === "enviado" && k.autentique_teste)) return resp(409, { erro: "esse contrato não está em revisão" });
-      if ((k.texto || "").includes("____")) return resp(409, { erro: "Ainda há campos em branco (____) no contrato. Clique em Editar e preencha os valores antes de enviar." });
+      // Campo em branco = "____" no meio de uma frase (ex.: "R$ ____"). Linha só de traços é linha de assinatura e pode ficar.
+      const brancos = (k.texto || "").split("\n").filter((l: string) => l.includes("____") && l.replace(/_/g, "").trim() !== "");
+      if (brancos.length) return resp(409, { erro: `Ainda há campos em branco (____) no contrato, por exemplo: "${brancos[0].trim().slice(0, 80)}". Clique em Editar e preencha os valores antes de enviar.` });
       if (k.status === "enviado" && k.autentique_teste && k.autentique_id) { try { await gql(`mutation { deleteDocument(id: "${k.autentique_id}") }`); } catch { /* */ } }
       const n = await enviarAutentique(k, !!c.teste);
       return resp(200, { ok: true, contrato: n });

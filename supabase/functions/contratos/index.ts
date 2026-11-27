@@ -16,6 +16,7 @@
 //   { varredura: true }                    -> a cada 10 min: confere assinaturas e reenvia ao Google Forms o que faltou
 //   { acao: "importar_modelo", id }        -> monta o texto-modelo a partir de um contrato padrão já assinado na Autentique
 //   { acao: "autentique_listar", pagina }  -> lista os documentos da Autentique (só leitura)
+//   { acao: "autentique_texto", id }        -> texto do PDF original de um documento da Autentique (só leitura)
 //   { acao: "importar_assinado", membro_id, autentique_id } -> traz um contrato antigo já assinado (PDF + vigência), sem mensagens
 //   (e qualquer ação de administrador acima, para testes da equipe; o banco chama "convidar" quando o membro novo cria a senha)
 // Membro novo logado: { acao: "meu_contrato" } -> em que passo está o contrato (tela de contrato em andamento)
@@ -393,7 +394,8 @@ async function avisarAssinantes(c: Reg, assinaturas: Assinatura[]): Promise<Assi
     if (!fone) continue;
     if (repetido(fone)) { a.aviso = "Mesmo WhatsApp de outro assinante: o link não foi pelo WhatsApp (só por e-mail)."; continue; }
     const msg = part
-      ? `*Seu contrato do Ecossistema Master Business está pronto.* ✍️\n\n${primeiro(part.nome)}, é só assinar por este link (também enviamos para o seu e-mail):\n${a.link}\n\nAssim que todas as assinaturas forem concluídas, você recebe o acesso ao portal.`
+      ? `*Seu contrato do Ecossistema Master Business está pronto.* ✍️\n\n${primeiro(part.nome)}, é só abrir este link e assinar (a Autentique pede o seu CPF para confirmar que é você):\n${a.link}\n\n` +
+        (c.origem === "formulario" ? "Assim que todas as assinaturas forem concluídas, você recebe o acesso ao portal." : "Seu acesso ao portal continua normal.")
       : `*Contrato para assinar* ✍️\n\n${nomeMembro} · Ecossistema Master Business\nSua assinatura (${a.papel.toLowerCase()}):\n${a.link}\n\n(O link também foi para o seu e-mail.)`;
     const r = await zapiTexto(fone, msg);
     a.avisado = a.avisado || r.ok;
@@ -409,10 +411,17 @@ async function enviarAutentique(c: Reg, teste: boolean): Promise<Reg> {
   const caminho = `${c.membro_id}/${c.id}${teste ? "-teste" : ""}.pdf`;
   await db.storage.from("contratos").upload(caminho, pdf, { contentType: "application/pdf", upsert: true });
   const equipe = await equipeAssinantes();
-  // Assinatura pelo e-mail (a Autentique manda o e-mail) e pelo WhatsApp (o portal manda o link). Sem e-mail: só link.
+  // Equipe: assinatura pelo e-mail (a Autentique manda o e-mail) e pelo WhatsApp (o portal manda o link).
   const signer = (nome: string, email: string | null, acao: string) => (email ? { email: email.toLowerCase(), action: acao } : { name: nome, action: acao });
+  // Membro (27/11/2026): assina pelo link que o portal manda no WhatsApp, sem depender de e-mail nem de login na Autentique,
+  // com trava de CPF: só quem digitar o CPF do contrato consegue assinar (nem alguém da equipe logado na Autentique assina no
+  // lugar dele). Documento que não é CPF (CNPJ): continua pelo e-mail, como antes.
+  const membroSigner = (p: Participante) => {
+    const cpf = (p.documento || "").replace(/\D/g, "");
+    return cpf.length === 11 ? { name: p.nome, action: "SIGN", configs: { cpf } } : signer(p.nome, p.email, "SIGN");
+  };
   const signers = [
-    ...d.participantes.map((p) => signer(p.nome, p.email, "SIGN")),
+    ...d.participantes.map((p) => membroSigner(p)),
     ...equipe.map((e) => signer(e.nome, e.email, e.acao)),
   ];
   const doc = await criarDocumento(titulo, pdf, signers, teste);
@@ -521,6 +530,13 @@ Deno.serve(async (req) => {
         const m = montarModelo((text as string[]).join("\n"));
         await db.from("portal_config").update({ valor: m, atualizado_em: new Date().toISOString() }).eq("chave", "contrato_modelo");
         return resp(200, { ok: true, paragrafos: m.split("\n\n").length, marcadores: (m.match(/\{\{\w+\}\}/g) || []) });
+      }
+      if (c.acao === "autentique_texto" && c.id) {
+        // Texto do PDF original de um documento da Autentique (só leitura), para trazer um contrato feito por fora para o portal.
+        const { document: d } = await gql("query($id: UUID!) { document(id: $id) { name files { original } } }", { id: c.id });
+        const b = new Uint8Array(await (await fetch(d.files.original)).arrayBuffer());
+        const { text } = await extractText(await getDocumentProxy(b), { mergePages: false });
+        return resp(200, { nome: d.name, texto: (text as string[]).join("\n") });
       }
       if (c.acao === "autentique_listar") {
         // Lista os documentos da conta da Autentique (para trazer os contratos dos membros atuais). Só leitura.

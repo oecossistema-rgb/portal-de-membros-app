@@ -67,21 +67,30 @@ async function avisarGrupo(texto: string): Promise<{ ok: boolean; erro?: string 
   if (!grupo) return { ok: false, erro: "grupo não configurado" };
   return await zapi("send-text", { phone: grupo, message: texto });
 }
-// Resumo de até 50 caracteres, cortado no fim de uma palavra (o mesmo do sino do portal).
-export function resumo50(t: string): string {
+// Resumo da descrição (o mesmo critério do sino do portal): frases inteiras enquanto couberem (se ocuparem pelo menos
+// 60% do limite); senão corta no fim de uma palavra e põe "…". Nunca corta palavra no meio.
+export function resumo(t: string, n = 110): string {
   const s = (t || "").trim().replace(/\s+/g, " ");
-  if (s.length <= 50) return s;
-  return s.slice(0, 51).replace(/\s+\S*$/, "").replace(/[ ,.;:-]+$/, "") + "...";
+  if (s.length <= n) return s;
+  let acc = "";
+  for (const f of s.match(/[^.!?]+[.!?]+(?=\s|$)/g) || []) {
+    const novo = `${acc} ${f.trim()}`.trim();
+    if (novo.length > n) break;
+    acc = novo;
+  }
+  if (acc.length >= n * 0.6) return acc;
+  return s.slice(0, n + 1).replace(/\s+\S*$/, "").replace(/[ ,.;:-]+$/, "") + "…";
 }
 async function ofertaNova(id: string): Promise<Reg> {
-  const { data: o } = await db.from("ofertas").select("titulo, tipo, descricao, condicao_membro, membro_id").eq("id", id).maybeSingle();
+  const { data: o } = await db.from("ofertas").select("titulo, tipo, descricao, membro_id").eq("id", id).maybeSingle();
   if (!o) return { ignorado: true };
   const { data: m } = await db.from("membros").select("nome, empresa").eq("id", o.membro_id).maybeSingle();
-  // Sem ícones e sem preço: quem publicou, o que é, o resumo e o link direto para a oportunidade.
-  const texto = `*NOVA OPORTUNIDADE NO PORTAL*\n\n*${m?.nome || "Membro"}*${m?.empresa ? ` · ${m.empresa}` : ""}\n\n` +
-    `*${o.titulo}* (${o.tipo === "produto" ? "produto" : "serviço"})\n${resumo50(o.descricao)}` +
-    `${o.condicao_membro ? `\n\nCondição para membros: ${o.condicao_membro}` : ""}` +
-    `\n\nClique no link abaixo para acessar a oportunidade:\nhttps://portal.oecossistemabusiness.com/#ofertas/${id}`;
+  // Aprovado em 27/11/2026 (simulado no celular): tipo no cabeçalho, título em negrito, quem publicou, resumo em itálico,
+  // link curto (sem https:// e com 8 caracteres do código da oferta). Sem ícones, sem preço, sem condição.
+  const texto = `*NOVA OPORTUNIDADE · ${o.tipo === "produto" ? "PRODUTO" : "SERVIÇO"}*\n\n` +
+    `*${String(o.titulo).trim().replace(/\.$/, "")}*\n${m?.nome || "Membro"}${m?.empresa ? ` · ${m.empresa}` : ""}\n\n` +
+    `_${resumo(o.descricao)}_\n\n` +
+    `Clique no link abaixo para acessar a oportunidade:\nportal.oecossistemabusiness.com/#ofertas/${id.slice(0, 8)}`;
   return await avisarGrupo(texto);
 }
 

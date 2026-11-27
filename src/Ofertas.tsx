@@ -142,7 +142,7 @@ export function Ofertas({ admin, somenteVer }: { admin: boolean; somenteVer?: bo
   function abrirPedido(l: Oferta[]) {
     const id = pegarPedido("ofertas");
     if (!id) return;
-    const o = l.find((x) => x.id === id);
+    const o = l.find((x) => x.id.startsWith(id)); // o link do WhatsApp usa só o começo do código
     if (o) setAberta(o);
     if (window.location.hash !== "#ofertas") history.replaceState(null, "", "#ofertas");
   }

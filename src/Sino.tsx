@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 
-type Notificacao = { id: string; tipo: string; titulo: string; texto: string | null; link: string | null; criado_em: string; nova: boolean };
+type Notificacao = { id: string; tipo: string; etiqueta: string | null; titulo: string; quem: string | null; texto: string | null; link: string | null; criado_em: string; nova: boolean };
 
 // Pedido para abrir um item numa seção (ex.: uma oferta), mesmo que a seção ainda não tenha carregado.
 let pendente: string | null = null;
@@ -84,13 +84,15 @@ export function Sino({ onIr, cor }: { onIr: (secao: string) => void; cor: string
           {!itens.length && <div style={{ padding: "14px 10px 16px", fontSize: 13.5, color: "var(--p-muted)" }}>Nada novo por aqui ainda.</div>}
           {itens.map((n) => (
             <button key={n.id} onClick={() => ir(n)} style={{ display: "block", width: "100%", textAlign: "left", background: n.nova ? "var(--p-accent-bg)" : "none",
-              border: 0, borderRadius: 10, padding: "10px 10px", cursor: n.link ? "pointer" : "default", fontFamily: "inherit", color: "var(--p-text)", marginBottom: 2 }}>
+              border: 0, borderRadius: 12, padding: "11px 12px", cursor: n.link ? "pointer" : "default", fontFamily: "inherit", color: "var(--p-text)", marginBottom: 2 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ flex: 1, fontWeight: 650, fontSize: 13.5, lineHeight: 1.3 }}>{n.titulo}</span>
+                <span style={{ flex: 1, fontSize: 10.5, fontWeight: 700, letterSpacing: ".6px", textTransform: "uppercase", color: "var(--p-accent-text)" }}>{n.etiqueta || "Aviso"}</span>
                 <span style={{ fontSize: 11, color: "var(--p-muted)", whiteSpace: "nowrap" }}>{quando(n.criado_em)}</span>
               </div>
-              {n.texto && <div style={{ fontSize: 12.5, color: "var(--p-muted)", marginTop: 3, lineHeight: 1.35 }}>{n.texto}</div>}
-              {n.link && <div style={{ fontSize: 12, color: "var(--p-accent-text)", fontWeight: 600, marginTop: 5 }}>Ver oportunidade →</div>}
+              <div style={{ fontWeight: 650, fontSize: 14.5, lineHeight: 1.3, marginTop: 3 }}>{n.titulo}</div>
+              {n.quem && <div style={{ fontSize: 12.5, color: "var(--p-text2)", marginTop: 2 }}>{n.quem}</div>}
+              {n.texto && <div style={{ fontSize: 13, color: "var(--p-muted)", marginTop: 5, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.texto}</div>}
+              {n.link && <div style={{ fontSize: 12.5, color: "var(--p-accent-text)", fontWeight: 650, marginTop: 7 }}>{n.tipo === "oferta" ? "Ver oportunidade →" : "Abrir →"}</div>}
             </button>
           ))}
         </div>

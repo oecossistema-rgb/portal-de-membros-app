@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Sino } from "./Sino";
+import { Sino, pedirAbrir } from "./Sino";
 import type { CSSProperties, ReactNode } from "react";
 import { supabase } from "./supabase";
 import { temaAtual, trocarTema, type Tema } from "./tema";
@@ -302,13 +302,32 @@ function abrirWhatsapp(n?: string | null) {
   if (t) window.open(`https://wa.me/${t.startsWith("55") ? t : `55${t}`}`, "_blank", "noopener");
 }
 
+type OfertaV = { id: string; tipo: "produto" | "servico"; titulo: string; descricao: string; imagem_url: string | null; created_at: string;
+  dono?: { nome: string; empresa: string | null; foto_url: string | null; logo_url: string | null } | null };
+// Resumo por frases (o mesmo critério do sino e do aviso no WhatsApp).
+function resumo(t: string, n = 110) {
+  const s = (t || "").trim().replace(/\s+/g, " ");
+  if (s.length <= n) return s;
+  let acc = "";
+  for (const f of s.match(/[^.!?]+[.!?]+(?=\s|$)/g) || []) { const novo = `${acc} ${f.trim()}`.trim(); if (novo.length > n) break; acc = novo; }
+  return acc.length >= n * 0.6 ? acc : s.slice(0, n + 1).replace(/\s+\S*$/, "").replace(/[ ,.;:-]+$/, "") + "…";
+}
+
 export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr, acoes, demo }: {
   userId: string; membroId?: string; nome: string; eventos: EventoV[]; confirmacoes: Record<string, string>; onIr: (id: string) => void;
   acoes?: AcoesVaga; // sem isso (ex.: "ver como membro"), os botões ficam só para olhar
-  demo?: { ops: Op[]; membros: { nome: string; created_at: string }[] }; // só para pré-visualização
+  demo?: { ops: Op[]; membros: { nome: string; created_at: string }[]; ofertas?: OfertaV[] }; // só para pré-visualização
 }) {
   const [ops, setOps] = useState<Op[]>([]);
   const [novos, setNovos] = useState<{ nome: string; created_at: string }[]>([]);
+  // Ofertas do grupo (atalho na Visão Geral): as 3 mais recentes que a pessoa pode ver (a regra de quem vê fica no banco).
+  const [ofertas, setOfertas] = useState<OfertaV[] | null>(null);
+  useEffect(() => {
+    if (demo) { setOfertas(demo.ofertas || []); return; }
+    supabase.from("ofertas").select("id,tipo,titulo,descricao,imagem_url,created_at,dono:membros(nome,empresa,foto_url,logo_url)")
+      .eq("ativo", true).order("created_at", { ascending: false }).limit(3)
+      .then(({ data }) => setOfertas(((data || []) as unknown as OfertaV[])), () => setOfertas([]));
+  }, [demo]);
 
   useEffect(() => {
     if (demo) {
@@ -375,26 +394,69 @@ export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr
         <Kpi icone="estrela" valor={conta("parceria")} rotulo="Parcerias Estratégicas" serie={[2, 3, 3, 5, 4, 6, 8, 9]} />
       </div>
 
+      {/* Ordem aprovada (27/11/2026): agenda, próximos eventos, expanda suas conexões, ofertas, oportunidades, atividade recente. */}
       <div className="pv-meio">
         <EventoDestaque evento={prox} confirmado={!!(prox && confirmacoes[prox.id])} acoes={acoes || {}} onIr={onIr} />
 
-        <section className="pv-card" style={{ padding: 18 }}>
-          {titulo("raio", "Atividade Recente", <button className="pv-link" onClick={() => onIr("painel")}>Ver todas <Ic n="seta" t={13} /></button>)}
-          <div style={{ position: "relative", paddingLeft: 24 }}>
-            <div style={{ position: "absolute", left: 5, top: 8, bottom: 8, width: 2, background: V.verdeEsc }} />
-            {atividades.length === 0 && <div style={{ color: V.suave, fontSize: 13 }}>Sem atividades ainda.</div>}
-            {atividades.map((a, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "7px 0", position: "relative" }}>
-                <span style={{ position: "absolute", left: -24, width: 12, height: 12, borderRadius: "50%", background: V.verde, boxShadow: `0 0 10px ${V.verde}` }} />
-                <span style={{ color: "var(--p-text2)" }}><Ic n={a.icone} t={20} /></span>
-                <div><div style={{ fontSize: 13, fontWeight: 700 }}>{a.titulo}</div><div style={{ fontSize: 11.5, color: V.suave }}>{a.sub}</div></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <section className="pv-card" style={{ padding: 16 }}>
+            {titulo("cal", "Próximos Eventos", <button className="pv-link" onClick={() => onIr("agenda")}>Ver calendário <Ic n="seta" t={13} /></button>)}
+            {prox ? (() => { const d = new Date(`${prox.dataOrdenacao}T00:00:00`); return (
+              <div style={{ display: "flex", gap: 12, alignItems: "center", borderRadius: 12, border: `1px solid ${V.borda2}`, padding: 10, background: "var(--p-card2)", position: "relative" }}>
+                <div style={{ textAlign: "center", minWidth: 52, borderRight: `1px solid ${V.borda2}`, paddingRight: 10 }}>
+                  <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{String(d.getDate()).padStart(2, "0")}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: V.suave, textTransform: "uppercase", marginTop: 3 }}>{d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}</div>
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  {confirmacoes[prox.id] && <span className="pv-chip" style={{ marginBottom: 4 }}><Ic n="check" t={11} />Confirmado</span>}
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{prox.titulo}</div>
+                  <div style={{ fontSize: 11.5, color: V.suave }}>Ecossistema Master Business</div>
+                  <div style={{ fontSize: 11.5, color: "var(--p-text2)", marginTop: 2 }}>{prox.quando}</div>
+                </div>
+
+              </div>); })() : <div style={{ color: V.suave, fontSize: 13 }}>Nenhum evento agendado.</div>}
+          </section>
+          <section className="pv-card pv-glow" style={{ padding: 16, display: "flex", gap: 14, alignItems: "center", background: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--p-accent) 18%, transparent), rgba(0,0,0,0) 60%), linear-gradient(180deg,var(--p-card),var(--p-card))" }}>
+            <span style={{ color: V.verde, filter: `drop-shadow(0 0 8px ${V.verde})` }}><Ic n="foguete" t={34} /></span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Expanda suas conexões</div>
+              <div style={{ fontSize: 11.5, color: V.suave, marginTop: 2 }}>Faça parte de uma rede de negócios com grandes oportunidades.</div>
+            </div>
+            <button className="pv-btn" style={{ padding: "0 14px", height: 32, fontSize: 12.5 }} onClick={() => onIr("membros")}>Explorar <Ic n="seta" t={13} /></button>
+          </section>
+        </div>
+      </div>
+
+        {/* Ofertas do grupo: atalho para a aba Ofertas (cada card abre a oferta) */}
+        {ofertas && (
+        <section>
+          {titulo("tag", "Ofertas do Grupo", <button className="pv-btn2" onClick={() => onIr("ofertas")}>Ver todas as ofertas <Ic n="seta" t={13} /></button>, "Produtos e serviços que os membros oferecem uns aos outros.")}
+          <div className="pv-ops">
+            {ofertas.length === 0 && (
+              <div className="pv-card" style={{ padding: 20, color: V.suave, gridColumn: "1 / -1", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ flex: 1, minWidth: 200 }}>Ainda não há ofertas publicadas. Divulgue o seu produto ou serviço para os outros membros.</span>
+                <button className="pv-btn" style={{ padding: "0 14px", height: 34, fontSize: 13 }} onClick={() => onIr("ofertas")}>Publicar oferta <Ic n="seta" t={13} /></button>
               </div>
+            )}
+            {ofertas.map((o) => (
+              <article key={o.id} className="pv-card" onClick={() => { onIr("ofertas"); pedirAbrir(`ofertas/${o.id}`); }}
+                style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, cursor: "pointer" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <Avatar src={o.imagem_url || o.dono?.logo_url || o.dono?.foto_url} nome={o.dono?.empresa || o.dono?.nome || o.titulo} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 2 }}><span className="pv-chip"><Ic n="tag" t={11} />{o.tipo === "produto" ? "Produto" : "Serviço"}</span></div>
+                    <div style={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.25, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{o.titulo.replace(/\.$/, "")}</div>
+                    <div style={{ fontSize: 11.5, color: V.suave, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 2 }}>{[o.dono?.nome, o.dono?.empresa].filter(Boolean).join(" · ")}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12.5, lineHeight: 1.45, color: "var(--p-text)", minHeight: 36 }}>{resumo(o.descricao, 90)}</div>
+                <button className="pv-btn" style={{ marginTop: "auto" }} onClick={(e) => { e.stopPropagation(); onIr("ofertas"); pedirAbrir(`ofertas/${o.id}`); }}>Ver oferta <Ic n="seta" t={13} /></button>
+              </article>
             ))}
           </div>
         </section>
-      </div>
+        )}
 
-      <div className="pv-meio">
         <section>
           {titulo("estrela", "Oportunidades Recomendadas", <button className="pv-btn2" onClick={() => onIr("painel")}>Ver todas as oportunidades <Ic n="seta" t={13} /></button>, "Empresas que mais combinam com o seu perfil e objetivos.")}
           <div className="pv-ops">
@@ -428,34 +490,20 @@ export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr
           </div>
         </section>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <section className="pv-card" style={{ padding: 16 }}>
-            {titulo("cal", "Próximos Eventos", <button className="pv-link" onClick={() => onIr("agenda")}>Ver calendário <Ic n="seta" t={13} /></button>)}
-            {prox ? (() => { const d = new Date(`${prox.dataOrdenacao}T00:00:00`); return (
-              <div style={{ display: "flex", gap: 12, alignItems: "center", borderRadius: 12, border: `1px solid ${V.borda2}`, padding: 10, background: "var(--p-card2)", position: "relative" }}>
-                <div style={{ textAlign: "center", minWidth: 52, borderRight: `1px solid ${V.borda2}`, paddingRight: 10 }}>
-                  <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{String(d.getDate()).padStart(2, "0")}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: V.suave, textTransform: "uppercase", marginTop: 3 }}>{d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}</div>
-                </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  {confirmacoes[prox.id] && <span className="pv-chip" style={{ marginBottom: 4 }}><Ic n="check" t={11} />Confirmado</span>}
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{prox.titulo}</div>
-                  <div style={{ fontSize: 11.5, color: V.suave }}>Ecossistema Master Business</div>
-                  <div style={{ fontSize: 11.5, color: "var(--p-text2)", marginTop: 2 }}>{prox.quando}</div>
-                </div>
-
-              </div>); })() : <div style={{ color: V.suave, fontSize: 13 }}>Nenhum evento agendado.</div>}
-          </section>
-          <section className="pv-card pv-glow" style={{ padding: 16, display: "flex", gap: 14, alignItems: "center", background: "radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--p-accent) 18%, transparent), rgba(0,0,0,0) 60%), linear-gradient(180deg,var(--p-card),var(--p-card))" }}>
-            <span style={{ color: V.verde, filter: `drop-shadow(0 0 8px ${V.verde})` }}><Ic n="foguete" t={34} /></span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>Expanda suas conexões</div>
-              <div style={{ fontSize: 11.5, color: V.suave, marginTop: 2 }}>Faça parte de uma rede de negócios com grandes oportunidades.</div>
-            </div>
-            <button className="pv-btn" style={{ padding: "0 14px", height: 32, fontSize: 12.5 }} onClick={() => onIr("membros")}>Explorar <Ic n="seta" t={13} /></button>
-          </section>
-        </div>
-      </div>
+        <section className="pv-card" style={{ padding: 18 }}>
+          {titulo("raio", "Atividade Recente", <button className="pv-link" onClick={() => onIr("painel")}>Ver todas <Ic n="seta" t={13} /></button>)}
+          <div style={{ position: "relative", paddingLeft: 24 }}>
+            <div style={{ position: "absolute", left: 5, top: 8, bottom: 8, width: 2, background: V.verdeEsc }} />
+            {atividades.length === 0 && <div style={{ color: V.suave, fontSize: 13 }}>Sem atividades ainda.</div>}
+            {atividades.map((a, i) => (
+              <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "7px 0", position: "relative" }}>
+                <span style={{ position: "absolute", left: -24, width: 12, height: 12, borderRadius: "50%", background: V.verde, boxShadow: `0 0 10px ${V.verde}` }} />
+                <span style={{ color: "var(--p-text2)" }}><Ic n={a.icone} t={20} /></span>
+                <div><div style={{ fontSize: 13, fontWeight: 700 }}>{a.titulo}</div><div style={{ fontSize: 11.5, color: V.suave }}>{a.sub}</div></div>
+              </div>
+            ))}
+          </div>
+        </section>
     </>
   );
 }

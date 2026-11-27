@@ -7,7 +7,7 @@ import { ui } from "./ui";
 import { Barra3D, Cartao3D, Indicador, Rosca3D } from "./VisaoGeralAdmin";
 
 type Aba = "membros" | "eventos" | "presencas" | "conteudo" | "contratos" | "sistema";
-type Pendencia = { nivel: "erro" | "atencao" | "acao"; aba?: string; titulo: string; quem?: string; desde?: string; detalhe?: string; como?: string };
+type Pendencia = { nivel: "erro" | "atencao" | "acao"; tipo?: string; id?: string; aba?: string; titulo: string; quem?: string; desde?: string; detalhe?: string; como?: string };
 type Alerta = { chave: string; nivel: "erro" | "atencao"; titulo: string; detalhe: string | null; como_resolver: string | null; aba: string | null; primeira_vez: string };
 type Vigia = { verificado_em: string | null; resultado: { whatsapp?: { conectado: boolean }; autentique?: { ok: boolean } } | null };
 type Rotina = { nome: string; agenda: string; ativa: boolean; ultima: string | null; execucoes_24h: number; falhas_24h: number; funcoes: number };
@@ -42,16 +42,18 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
   const [verificando, setVerificando] = useState(false);
 
   async function carregar() {
-    const [r, a, v, s] = await Promise.all([
+    const [r, a, v, s, e] = await Promise.all([
       supabase.rpc("painel_resumo"),
       supabase.from("portal_alertas").select("chave,nivel,titulo,detalhe,como_resolver,aba,primeira_vez").is("resolvido_em", null).order("nivel"),
       supabase.from("portal_vigia").select("verificado_em,resultado").maybeSingle(),
       supabase.rpc("painel_sistema"),
+      supabase.rpc("painel_erros"),
     ]);
     if (r.error || s.error) { setErro((r.error || s.error)!.message); return; }
     setErro("");
-    // O que é de contrato fica na aba Contratos (não é problema do sistema).
-    setPend((((r.data as { pendencias: Pendencia[] })?.pendencias) || []).filter((p) => p.aba !== "contratos"));
+    // Aviso de contrato (revisar, assinatura parada) fica só em Contratos; ERRO de qualquer área aparece também aqui.
+    const resumo = (((r.data as { pendencias: Pendencia[] })?.pendencias) || []).filter((p) => p.aba !== "contratos" || p.nivel === "erro");
+    setPend([...(((e.data as Pendencia[]) || [])), ...resumo]);
     setAlertas((a.data as Alerta[]) || []);
     setVigia((v.data as Vigia) || null);
     setSis(s.data as Sistema);
@@ -112,6 +114,9 @@ export function PainelAdmin({ onIr }: { onIr: (a: Aba) => void }) {
                   {i.desde && <div style={{ fontSize: 11.5, color: "var(--p-muted)", marginTop: 3 }}>desde {dataBR(i.desde)}</div>}
                 </div>
                 {i.aba && <button style={ui.botaoSecundario} onClick={(e) => { e.stopPropagation(); onIr(i.aba as Aba); }}>Abrir</button>}
+                {i.tipo === "tela" && i.id && <button style={ui.botaoSecundario} onClick={async (e) => {
+                  e.stopPropagation(); await supabase.rpc("erro_resolvido", { p_id: i.id }); await carregar();
+                }}>Resolvido</button>}
               </div>
             </div>
           ))}

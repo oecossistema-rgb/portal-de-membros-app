@@ -12,8 +12,9 @@ import { baixarPlanilhaOnboarding } from "./planilha";
 import Solicitacoes from "./Solicitacoes";
 import { PainelAdmin } from "./PainelAdmin";
 import { VisaoGeralAdmin } from "./VisaoGeralAdmin";
+import { AdminAcessos } from "./Acessos";
 
-type Aba = "visao" | "membros" | "eventos" | "presencas" | "conteudo" | "contratos" | "whatsapp" | "sistema";
+type Aba = "visao" | "membros" | "eventos" | "presencas" | "conteudo" | "contratos" | "whatsapp" | "sistema" | "acessos";
 
 type Membro = {
   id: string;
@@ -98,7 +99,7 @@ export default function Admin({ onSolicitacoes, onVerComo }: { onSolicitacoes?: 
       </section>
       <Solicitacoes onMudou={onSolicitacoes} />
       <div style={{ margin: "14px 0 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {([["visao", "Visão geral"], ["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"], ["whatsapp", "WhatsApp"], ["sistema", "Saúde do sistema"]] as [Aba, string][]).map(([id, r]) => (
+        {([["visao", "Visão geral"], ["membros", "Membros"], ["eventos", "Eventos"], ["presencas", "Presenças"], ["conteudo", "Conteúdo"], ["contratos", "Contratos"], ["whatsapp", "WhatsApp"], ["sistema", "Saúde do sistema"], ["acessos", "Acessos da equipe"]] as [Aba, string][]).map(([id, r]) => (
           <button key={id} onClick={() => setAba(id)} style={{ ...ui.botaoSecundario, borderRadius: 100, padding: "9px 18px", ...(aba === id ? { background: "linear-gradient(180deg,var(--p-accent) 0%,var(--p-accent) 100%)", color: "var(--p-on-accent)", borderColor: "transparent" } : {}) }}>{r}{id === "whatsapp" && naoLidas > 0 && <span style={{ marginLeft: 6, background: "#25D366", color: "#fff", borderRadius: 99, padding: "0 7px", fontSize: 12, fontWeight: 700 }}>{naoLidas}</span>}{id === "sistema" && problemas > 0 && <span style={{ marginLeft: 6, background: "var(--p-danger)", color: "#fff", borderRadius: 99, padding: "0 7px", fontSize: 12, fontWeight: 700 }}>{problemas}</span>}</button>
         ))}
       </div>
@@ -110,6 +111,7 @@ export default function Admin({ onSolicitacoes, onVerComo }: { onSolicitacoes?: 
       {aba === "conteudo" && <AdminConteudo />}
       {aba === "contratos" && <AdminContratos />}
       {aba === "whatsapp" && <AdminWhatsApp />}
+      {aba === "acessos" && <AdminAcessos />}
     </>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { CartaoResumo, type Resumo } from "./ResumoPerfil";
 import { Ic, V, type IconeV, Avatar } from "./Visao";
+import { pegarPedido } from "./Sino";
 
 // Oportunidades: painel privado de cada membro (só ele e a administração veem).
 // Mesmo padrão visual da Visão geral: cartões escuros, ícones verdes com brilho, botão "Conectar".
@@ -93,7 +94,14 @@ function KpiOp({ icone, valor, rotulo, ativo, onClick }: { icone: IconeV; valor:
 }
 
 export function Painel({ nome, oportunidades, salvar, leitura }: { nome: string; oportunidades: Oportunidade[]; salvar?: (id: string, s: Status) => Promise<void>; leitura?: boolean }) {
-  const [filtro, setFiltro] = useState<TipoOp | "todas">("todas");
+  // Atalho dos números da Visão Geral: abre já filtrado no tipo clicado (ex.: painel/cliente).
+  const pedido = (): TipoOp | "todas" => { const t = pegarPedido("painel"); return t && ["cliente", "ajuda", "parceria", "afinidade"].includes(t) ? (t as TipoOp) : "todas"; };
+  const [filtro, setFiltro] = useState<TipoOp | "todas">(pedido);
+  useEffect(() => {
+    const ouvir = () => { const t = pegarPedido("painel"); if (t) setFiltro(["cliente", "ajuda", "parceria", "afinidade"].includes(t) ? (t as TipoOp) : "todas"); };
+    window.addEventListener("portal:abrir", ouvir);
+    return () => window.removeEventListener("portal:abrir", ouvir);
+  }, []);
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [perfil, setPerfil] = useState<Oportunidade | null>(null);
   const primeiro = nome.trim().split(/\s+/)[0] || "";

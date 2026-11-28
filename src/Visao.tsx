@@ -36,7 +36,7 @@ export const CSS_V = `
 .pv-conteudo{ padding:32px 36px 48px; display:flex; flex-direction:column; gap:24px; max-width:1400px; width:100%; margin:0 auto }
 .pv-card{ background:var(--p-card); border:1px solid var(--p-line); border-radius:20px; box-shadow:var(--p-shadow); transition:box-shadow .2s, transform .2s }
 .pv-glow{ border-color:var(--p-line) }
-.pv-ops > .pv-card:hover, .op-grid > .pv-card:hover{ box-shadow:var(--p-shadow-hover); transform:translateY(-2px) }
+.pv-ops > .pv-card:hover, .op-grid > .pv-card:hover, .pv-kpi[role=button]:hover{ box-shadow:var(--p-shadow-hover); transform:translateY(-2px) }
 .pv-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px }
 .pv-meio{ display:grid; grid-template-columns:1fr 330px; gap:20px }
 .pv-destaque{ position:relative; overflow:hidden; padding:28px 30px; display:flex; flex-direction:column; justify-content:center; border:1px solid color-mix(in srgb, var(--p-accent) 35%, var(--p-line)) !important;
@@ -229,11 +229,13 @@ export type EventoV = { id: string; titulo: string; quando: string; dataOrdenaca
 const ROT: Record<TipoOp, string> = { cliente: "Cliente potencial", ajuda: "Solução para você", parceria: "Parceria", afinidade: "Afinidade" };
 const pct = (f: number) => (f >= 3 ? 95 : f === 2 ? 82 : 64);
 
-function Kpi({ icone, valor, rotulo, serie }: { icone: IconeV; valor: number; rotulo: string; serie: number[] }) {
+function Kpi({ icone, valor, rotulo, serie, onClick }: { icone: IconeV; valor: number; rotulo: string; serie: number[]; onClick?: () => void }) {
   const max = Math.max(1, ...serie);
   const pts = serie.map((v, i) => `${(i / Math.max(1, serie.length - 1)) * 100},${34 - (v / max) * 30}`).join(" ");
   return (
-    <div className="pv-card pv-glow" style={{ padding: "16px 16px 14px", display: "flex", alignItems: "center", gap: 14, position: "relative", overflow: "hidden", minHeight: 76 }}>
+    <div className="pv-card pv-glow pv-kpi" role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} title={onClick ? `Ver ${rotulo.toLowerCase()}` : undefined}
+      onClick={onClick} onKeyDown={(e) => { if (onClick && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onClick(); } }}
+      style={{ padding: "16px 16px 14px", display: "flex", alignItems: "center", gap: 14, position: "relative", overflow: "hidden", minHeight: 76, cursor: onClick ? "pointer" : undefined }}>
       <span style={{ width: 46, height: 46, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%,var(--p-line),var(--p-accent-bg))", border: "1px solid var(--p-line)", color: V.verde, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 18px -6px ${V.verde}` }}><Ic n={icone} t={22} /></span>
       <div style={{ position: "relative", zIndex: 1 }}>
         <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: -0.5 }}>{valor}</div>
@@ -388,10 +390,11 @@ export function VisaoGeral({ userId, membroId, nome, eventos, confirmacoes, onIr
       </section>
 
       <div className="pv-kpis">
-        <Kpi icone="pessoas" valor={ops.length} rotulo="Conexões Potenciais" serie={[2, 4, 3, 6, 5, 8, 7, 10]} />
-        <Kpi icone="aperto" valor={conta("cliente")} rotulo="Clientes Potenciais" serie={[3, 2, 5, 4, 6, 5, 8, 9]} />
-        <Kpi icone="grafico" valor={conta("ajuda")} rotulo="Soluções Compatíveis" serie={[1, 3, 2, 4, 6, 5, 7, 9]} />
-        <Kpi icone="estrela" valor={conta("parceria")} rotulo="Parcerias Estratégicas" serie={[2, 3, 3, 5, 4, 6, 8, 9]} />
+        {/* Cada número abre as Oportunidades já filtradas naquele tipo. */}
+        <Kpi icone="pessoas" valor={ops.length} rotulo="Conexões Potenciais" serie={[2, 4, 3, 6, 5, 8, 7, 10]} onClick={() => { onIr("painel"); pedirAbrir("painel/todas"); }} />
+        <Kpi icone="aperto" valor={conta("cliente")} rotulo="Clientes Potenciais" serie={[3, 2, 5, 4, 6, 5, 8, 9]} onClick={() => { onIr("painel"); pedirAbrir("painel/cliente"); }} />
+        <Kpi icone="grafico" valor={conta("ajuda")} rotulo="Soluções Compatíveis" serie={[1, 3, 2, 4, 6, 5, 7, 9]} onClick={() => { onIr("painel"); pedirAbrir("painel/ajuda"); }} />
+        <Kpi icone="estrela" valor={conta("parceria")} rotulo="Parcerias Estratégicas" serie={[2, 3, 3, 5, 4, 6, 8, 9]} onClick={() => { onIr("painel"); pedirAbrir("painel/parceria"); }} />
       </div>
 
       {/* Ordem aprovada (27/11/2026): agenda, próximos eventos, expanda suas conexões, ofertas, oportunidades, atividade recente. */}
